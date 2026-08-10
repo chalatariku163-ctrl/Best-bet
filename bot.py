@@ -145,6 +145,82 @@ def football_menu():
 
 
 # =========================================================
+# MATCHES MENU
+# =========================================================
+
+def matches_menu():
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "⚽ Arsenal vs Chelsea",
+                callback_data="match_arsenal_chelsea"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "⚽ Barcelona vs Real Madrid",
+                callback_data="match_barca_real"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "⚽ Man City vs Liverpool",
+                callback_data="match_city_liverpool"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "⬅️ BACK",
+                callback_data="football"
+            ),
+        ],
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+# =========================================================
+# PREDICTION MENU
+# =========================================================
+
+def prediction_menu(match_id):
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "1️⃣ HOME",
+                callback_data=f"prediction_home_{match_id}"
+            ),
+
+            InlineKeyboardButton(
+                "❌ DRAW",
+                callback_data=f"prediction_draw_{match_id}"
+            ),
+
+            InlineKeyboardButton(
+                "2️⃣ AWAY",
+                callback_data=f"prediction_away_{match_id}"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "⬅️ BACK",
+                callback_data="football_matches"
+            ),
+        ],
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+# =========================================================
 # /START
 # =========================================================
 
@@ -215,8 +291,6 @@ async def button_handler(
 
     elif query.data == "football":
 
-        # Football menu keessatti
-        # barreeffama hin agarsiisu.
         await query.edit_message_text(
             " ",
             reply_markup=football_menu()
@@ -224,35 +298,128 @@ async def button_handler(
 
 
     # =====================================================
-    # FOOTBALL MATCHES
+    # MATCHES
     # =====================================================
 
     elif query.data == "football_matches":
 
         await query.edit_message_text(
             "📅 *MATCHES*\n\n"
-            "Taphoota football dhufan asitti ilaalla.",
+            "Match tokko filadhu:",
+            reply_markup=matches_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # ARSENAL VS CHELSEA
+    # =====================================================
+
+    elif query.data == "match_arsenal_chelsea":
+
+        await query.edit_message_text(
+            "⚽ *ARSENAL vs CHELSEA*\n\n"
+            "🔮 Prediction kee filadhu:",
+            reply_markup=prediction_menu(
+                "arsenal_chelsea"
+            ),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # BARCELONA VS REAL MADRID
+    # =====================================================
+
+    elif query.data == "match_barca_real":
+
+        await query.edit_message_text(
+            "⚽ *BARCELONA vs REAL MADRID*\n\n"
+            "🔮 Prediction kee filadhu:",
+            reply_markup=prediction_menu(
+                "barca_real"
+            ),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # MAN CITY VS LIVERPOOL
+    # =====================================================
+
+    elif query.data == "match_city_liverpool":
+
+        await query.edit_message_text(
+            "⚽ *MAN CITY vs LIVERPOOL*\n\n"
+            "🔮 Prediction kee filadhu:",
+            reply_markup=prediction_menu(
+                "city_liverpool"
+            ),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # PREDICTION HOME
+    # =====================================================
+
+    elif query.data.startswith("prediction_home_"):
+
+        await query.edit_message_text(
+            "🔮 *PREDICTION*\n\n"
+            "1️⃣ HOME filatameera.\n\n"
+            "🧪 Kun demo prediction qofa.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
 
     # =====================================================
-    # FOOTBALL LIVE
+    # PREDICTION DRAW
+    # =====================================================
+
+    elif query.data.startswith("prediction_draw_"):
+
+        await query.edit_message_text(
+            "🔮 *PREDICTION*\n\n"
+            "❌ DRAW filatameera.\n\n"
+            "🧪 Kun demo prediction qofa.",
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # PREDICTION AWAY
+    # =====================================================
+
+    elif query.data.startswith("prediction_away_"):
+
+        await query.edit_message_text(
+            "🔮 *PREDICTION*\n\n"
+            "2️⃣ AWAY filatameera.\n\n"
+            "🧪 Kun demo prediction qofa.",
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # LIVE
     # =====================================================
 
     elif query.data == "football_live":
 
         await query.edit_message_text(
             "🔴 *LIVE*\n\n"
-            "Taphoota yeroo ammaa jiran asitti ilaalla.",
+            "Live football data asitti mul'ata.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
 
     # =====================================================
-    # FOOTBALL LEAGUES
+    # LEAGUES
     # =====================================================
 
     elif query.data == "football_leagues":
@@ -270,7 +437,7 @@ async def button_handler(
 
 
     # =====================================================
-    # FOOTBALL STANDINGS
+    # STANDINGS
     # =====================================================
 
     elif query.data == "football_standings":
@@ -284,7 +451,7 @@ async def button_handler(
 
 
     # =====================================================
-    # FOOTBALL TEAMS
+    # TEAMS
     # =====================================================
 
     elif query.data == "football_teams":
@@ -298,7 +465,7 @@ async def button_handler(
 
 
     # =====================================================
-    # BACK TO MAIN MENU
+    # BACK TO MAIN
     # =====================================================
 
     elif query.data == "back_main":
@@ -319,7 +486,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "💰 *DEPOSIT*\n\n"
-            "Deposit system yeroo ammaa qophaa'aa jira.",
+            "Deposit system yeroo ammaa hin jiru.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -333,8 +500,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "💳 *BALANCE*\n\n"
-            "Balance kee ilaaluuf system account "
-            "barbaachisa.",
+            "Balance system yeroo ammaa hin jiru.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -348,7 +514,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "💸 *WITHDRAW*\n\n"
-            "Withdrawal system qophaa'aa jira.",
+            "Withdrawal system yeroo ammaa hin jiru.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -362,7 +528,8 @@ async def button_handler(
 
         await query.edit_message_text(
             "📜 *MY HISTORY*\n\n"
-            "History account kee as keessatti argita.",
+            "Prediction history demo as keessatti "
+            "mul'ata.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -376,7 +543,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "🏆 *WINNERS*\n\n"
-            "Winners yeroo dhiyoo as keessatti mul'atu.",
+            "Demo winners as keessatti mul'atu.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -390,10 +557,12 @@ async def button_handler(
 
         await query.edit_message_text(
             "ℹ️ *HOW TO PLAY*\n\n"
-            "1️⃣ BEST BET filadhu.\n"
-            "2️⃣ KENO FAST ykn FOOTBALL filadhu.\n"
-            "3️⃣ Menu keessaa filannoo barbaadde godhi.\n"
-            "4️⃣ Odeeffannoo taphaa ilaali.",
+            "1️⃣ FOOTBALL filadhu.\n"
+            "2️⃣ MATCHES bani.\n"
+            "3️⃣ Match filadhu.\n"
+            "4️⃣ HOME, DRAW ykn AWAY keessaa "
+            "prediction filadhu.\n\n"
+            "🧪 Kun demo qofa; qarshii dhugaa hin qabu.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -434,8 +603,6 @@ def main():
     )
 
 
-    # /start
-
     app.add_handler(
         CommandHandler(
             "start",
@@ -443,8 +610,6 @@ def main():
         )
     )
 
-
-    # Buttons
 
     app.add_handler(
         CallbackQueryHandler(
