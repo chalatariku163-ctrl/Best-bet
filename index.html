@@ -1,1 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
 
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Best Bet Demo</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 25px 10px;
+        }
+
+        .header h1 {
+            margin-bottom: 8px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+        }
+
+        .button {
+            width: 100%;
+            padding: 15px;
+            margin-top: 10px;
+            border: 0;
+            border-radius: 12px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .button:active {
+            transform: scale(0.98);
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #eee;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h1>🎯 BEST BET</h1>
+        <p>Demo Game</p>
+    </div>
+
+    <div class="card">
+
+        <h2>Welcome 👋</h2>
+
+        <p>
+            Kun demo/testing version dha.
+            Maallaqa dhugaa hin qabu.
+        </p>
+
+        <button
+            class="button"
+            onclick="showMessage('🎯 BEST BET demo')"
+        >
+            🎯 BEST BET
+        </button>
+
+        <button
+            class="button"
+            onclick="showMessage('💳 Demo balance: 0')"
+        >
+            💳 BALANCE
+        </button>
+
+        <button
+            class="button"
+            onclick="showMessage('📜 History hin jiru')"
+        >
+            📜 MY HISTORY
+        </button>
+
+        <button
+            class="button"
+            onclick="showMessage('🏆 Winners demo')"
+        >
+            🏆 WINNERS
+        </button>
+
+        <button
+            class="button"
+            onclick="showMessage('ℹ️ Demo game qofa')"
+        >
+            ℹ️ HOW TO PLAY
+        </button>
+
+    </div>
+
+    <div
+        id="status"
+        class="status"
+    >
+        Ready ✅
+    </div>
+
+</div>
+
+<script>
+function showMessage(message) {
+    document.getElementById("status").innerText = message;
+}
+</script>
+
+</body>
+</html>
