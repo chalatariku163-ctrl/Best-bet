@@ -1,11 +1,15 @@
 import os
 import random
+import threading
+
+from flask import Flask
 
 from telegram import (
     Update,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
+
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -20,6 +24,57 @@ from telegram.ext import (
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
+web_app = Flask(__name__)
+
+
+# =========================================================
+# FLASK WEB SERVER
+# =========================================================
+
+@web_app.route("/")
+def home():
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport"
+              content="width=device-width, initial-scale=1.0">
+        <title>Best Bet</title>
+    </head>
+
+    <body style="
+        background:#10182f;
+        color:white;
+        font-family:Arial;
+        text-align:center;
+        padding:40px;
+    ">
+
+        <h1>🎯 BEST BET</h1>
+
+        <p>🤖 Telegram Bot is running.</p>
+
+        <p>⚡ Keno Fast Demo is ready.</p>
+
+    </body>
+    </html>
+    """
+
+
+@web_app.route("/health")
+def health():
+    return "OK"
+
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+
+    web_app.run(
+        host="0.0.0.0",
+        port=port
+    )
+
 
 # =========================================================
 # MAIN MENU
@@ -28,11 +83,12 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 def main_menu():
 
     keyboard = [
+
         [
             InlineKeyboardButton(
                 "🎯 BEST BET",
                 callback_data="best_bet"
-            ),
+            )
         ],
 
         [
@@ -43,7 +99,7 @@ def main_menu():
             InlineKeyboardButton(
                 "⚽ FOOTBALL",
                 callback_data="football"
-            ),
+            )
         ],
 
         [
@@ -54,7 +110,7 @@ def main_menu():
             InlineKeyboardButton(
                 "💳 BALANCE",
                 callback_data="balance"
-            ),
+            )
         ],
 
         [
@@ -65,7 +121,7 @@ def main_menu():
             InlineKeyboardButton(
                 "📜 MY HISTORY",
                 callback_data="history"
-            ),
+            )
         ],
 
         [
@@ -76,14 +132,14 @@ def main_menu():
             InlineKeyboardButton(
                 "ℹ️ HOW TO PLAY",
                 callback_data="how_to_play"
-            ),
+            )
         ],
 
         [
             InlineKeyboardButton(
                 "📞 SUPPORT",
                 callback_data="support"
-            ),
+            )
         ],
     ]
 
@@ -91,60 +147,7 @@ def main_menu():
 
 
 # =========================================================
-# FOOTBALL MENU
-# =========================================================
-
-def football_menu():
-
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "📅 MATCHES",
-                callback_data="football_matches"
-            ),
-        ],
-
-        [
-            InlineKeyboardButton(
-                "🔴 LIVE",
-                callback_data="football_live"
-            ),
-        ],
-
-        [
-            InlineKeyboardButton(
-                "🏆 LEAGUES",
-                callback_data="football_leagues"
-            ),
-        ],
-
-        [
-            InlineKeyboardButton(
-                "📊 STANDINGS",
-                callback_data="football_standings"
-            ),
-        ],
-
-        [
-            InlineKeyboardButton(
-                "🔎 TEAMS",
-                callback_data="football_teams"
-            ),
-        ],
-
-        [
-            InlineKeyboardButton(
-                "⬅️ BACK",
-                callback_data="back_main"
-            ),
-        ],
-    ]
-
-    return InlineKeyboardMarkup(keyboard)
-
-
-# =========================================================
-# KENO FAST / NUMBER GAME MENU
+# KENO / NUMBER GAME MENU
 # =========================================================
 
 def keno_menu():
@@ -184,7 +187,61 @@ def keno_menu():
 
 
 # =========================================================
-# /START
+# FOOTBALL MENU
+# =========================================================
+
+def football_menu():
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "📅 MATCHES",
+                callback_data="football_matches"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🔴 LIVE",
+                callback_data="football_live"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🏆 LEAGUES",
+                callback_data="football_leagues"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "📊 STANDINGS",
+                callback_data="football_standings"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🔎 TEAMS",
+                callback_data="football_teams"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "⬅️ BACK",
+                callback_data="back_main"
+            )
+        ],
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+# =========================================================
+# START
 # =========================================================
 
 async def start(
@@ -198,7 +255,8 @@ async def start(
         f"👋 Baga nagaan dhuftan, "
         f"{user.first_name}!\n\n"
         "🎯 *BEST BET*\n\n"
-        "Menu armaan gadii keessaa filannoo kee godhi."
+        "Menu armaan gadii keessaa "
+        "filannoo kee godhi."
     )
 
     await update.message.reply_text(
@@ -221,7 +279,6 @@ async def button_handler(
 
     await query.answer()
 
-
     # =====================================================
     # BEST BET
     # =====================================================
@@ -229,7 +286,8 @@ async def button_handler(
     if query.data == "best_bet":
 
         await query.edit_message_text(
-            "🎯 *BEST BET*",
+            "🎯 *BEST BET*\n\n"
+            "Menu keessaa filannoo kee godhi.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -243,15 +301,16 @@ async def button_handler(
 
         await query.edit_message_text(
             "⚡ *KENO FAST*\n\n"
-            "Lakkoofsa 1 hanga 80 keessaa filadhu.\n\n"
-            "🧪 Kun number game demo qofa.",
+            "Lakkoofsa 1 hanga 80 keessaa "
+            "filadhu.\n\n"
+            "🧪 Demo number game qofa.",
             reply_markup=keno_menu(),
             parse_mode="Markdown"
         )
 
 
     # =====================================================
-    # KENO NUMBER SELECTED
+    # KENO NUMBER
     # =====================================================
 
     elif query.data.startswith("keno_number_"):
@@ -262,9 +321,9 @@ async def button_handler(
         )
 
         await query.edit_message_text(
-            f"🔢 Lakkoofsa kee filatte: *{number}*\n\n"
-            "Amma lakkoofsa biraa filachuu ykn "
-            "🎲 RANDOM DRAW gochuu dandeessa.\n\n"
+            f"🔢 Lakkoofsa filatame: *{number}*\n\n"
+            "Lakkoofsa biraa filachuu "
+            "ykn RANDOM DRAW gochuu dandeessa.\n\n"
             "🧪 Demo qofa.",
             reply_markup=keno_menu(),
             parse_mode="Markdown"
@@ -282,16 +341,18 @@ async def button_handler(
             10
         )
 
+        result.sort()
+
         result_text = ", ".join(
             str(number)
-            for number in sorted(result)
+            for number in result
         )
 
         await query.edit_message_text(
             "🎲 *RANDOM DRAW*\n\n"
             f"🔢 Result:\n\n"
             f"*{result_text}*\n\n"
-            "🧪 Kun demo number game qofa.",
+            "🧪 Demo number game qofa.",
             reply_markup=keno_menu(),
             parse_mode="Markdown"
         )
@@ -317,7 +378,8 @@ async def button_handler(
 
         await query.edit_message_text(
             "📅 *MATCHES*\n\n"
-            "Taphoota football asitti ilaalla.",
+            "Taphoota football asitti "
+            "ilaalla.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
@@ -331,7 +393,8 @@ async def button_handler(
 
         await query.edit_message_text(
             "🔴 *LIVE*\n\n"
-            "Live football data asitti mul'ata.",
+            "Live football data asitti "
+            "mul'ata.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
@@ -363,7 +426,8 @@ async def button_handler(
 
         await query.edit_message_text(
             "📊 *STANDINGS*\n\n"
-            "Gabatee sadarkaa league asitti ilaalla.",
+            "Gabatee sadarkaa league "
+            "asitti ilaalla.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
@@ -377,14 +441,15 @@ async def button_handler(
 
         await query.edit_message_text(
             "🔎 *TEAMS*\n\n"
-            "Gareewwan football asitti ilaalla.",
+            "Gareewwan football asitti "
+            "ilaalla.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
 
     # =====================================================
-    # BACK TO MAIN MENU
+    # BACK MAIN
     # =====================================================
 
     elif query.data == "back_main":
@@ -405,7 +470,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "💰 *DEPOSIT*\n\n"
-            "Deposit system yeroo ammaa hin jiru.",
+            "Deposit system hin jiru.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -419,7 +484,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "💳 *BALANCE*\n\n"
-            "Balance system yeroo ammaa hin jiru.",
+            "Balance system hin jiru.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -433,7 +498,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "💸 *WITHDRAW*\n\n"
-            "Withdrawal system yeroo ammaa hin jiru.",
+            "Withdrawal system hin jiru.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -447,7 +512,8 @@ async def button_handler(
 
         await query.edit_message_text(
             "📜 *MY HISTORY*\n\n"
-            "History demo as keessatti mul'ata.",
+            "Demo history as keessatti "
+            "mul'ata.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -461,7 +527,8 @@ async def button_handler(
 
         await query.edit_message_text(
             "🏆 *WINNERS*\n\n"
-            "Demo results as keessatti mul'atu.",
+            "Demo results as keessatti "
+            "mul'atu.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -479,7 +546,7 @@ async def button_handler(
             "2️⃣ Lakkoofsa 1–80 keessaa filadhu.\n"
             "3️⃣ 🎲 RANDOM DRAW cuqaasi.\n"
             "4️⃣ Result ilaali.\n\n"
-            "🧪 Kun demo number game qofa.",
+            "🧪 Demo qofa.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -512,6 +579,15 @@ def main():
             "BOT_TOKEN environment variable hin jiru."
         )
 
+
+    # Flask server jalqabi
+    threading.Thread(
+        target=run_web,
+        daemon=True
+    ).start()
+
+
+    # Telegram application
     app = (
         Application
         .builder()
@@ -521,7 +597,6 @@ def main():
 
 
     # /start
-
     app.add_handler(
         CommandHandler(
             "start",
@@ -530,8 +605,7 @@ def main():
     )
 
 
-    # Buttons
-
+    # Inline buttons
     app.add_handler(
         CallbackQueryHandler(
             button_handler
@@ -540,10 +614,15 @@ def main():
 
 
     print(
+        "🌐 Web server started..."
+    )
+
+    print(
         "🤖 BEST BET BOT started..."
     )
 
 
+    # Telegram polling
     app.run_polling()
 
 
