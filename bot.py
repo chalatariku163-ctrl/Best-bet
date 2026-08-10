@@ -21,7 +21,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 
 # =========================================================
-# START MENU
+# MAIN MENU
 # =========================================================
 
 def main_menu():
@@ -91,6 +91,60 @@ def main_menu():
 
 
 # =========================================================
+# FOOTBALL MENU
+# =========================================================
+
+def football_menu():
+
+    keyboard = [
+
+        [
+            InlineKeyboardButton(
+                "📅 MATCHES",
+                callback_data="football_matches"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🔴 LIVE",
+                callback_data="football_live"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🏆 LEAGUES",
+                callback_data="football_leagues"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "📊 STANDINGS",
+                callback_data="football_standings"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🔎 TEAMS",
+                callback_data="football_teams"
+            ),
+        ],
+
+        [
+            InlineKeyboardButton(
+                "⬅️ BACK",
+                callback_data="back_main"
+            ),
+        ],
+    ]
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+# =========================================================
 # /START
 # =========================================================
 
@@ -105,8 +159,7 @@ async def start(
         f"👋 Baga nagaan dhuftan, "
         f"{user.first_name}!\n\n"
         "🎯 *BEST BET*\n\n"
-        "Taphachuu fi odeeffannoo account kee "
-        "ilaaluuf menu armaan gadii keessaa filadhu."
+        "Menu armaan gadii keessaa filannoo kee godhi."
     )
 
     await update.message.reply_text(
@@ -160,17 +213,112 @@ async def button_handler(
 
 
     # =====================================================
-    # FOOTBALL
+    # FOOTBALL MAIN MENU
     # =====================================================
 
     elif query.data == "football":
 
         await query.edit_message_text(
             "⚽ *FOOTBALL*\n\n"
-            "Football menu baname.\n\n"
-            "📅 Matches\n"
-            "🏆 Leagues\n"
-            "📊 Standings",
+            "Filannoo barbaadde keessaa tokko filadhu:",
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # FOOTBALL MATCHES
+    # =====================================================
+
+    elif query.data == "football_matches":
+
+        await query.edit_message_text(
+            "📅 *MATCHES*\n\n"
+            "Taphoota football dhufan asitti ilaalla.\n\n"
+            "🔄 Match data yeroo itti aanu keessatti "
+            "itti dabalama.",
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # FOOTBALL LIVE
+    # =====================================================
+
+    elif query.data == "football_live":
+
+        await query.edit_message_text(
+            "🔴 *LIVE*\n\n"
+            "Taphoota yeroo ammaa jiran asitti ilaalla.\n\n"
+            "🔄 Live data yeroo itti aanu keessatti "
+            "itti dabalama.",
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # FOOTBALL LEAGUES
+    # =====================================================
+
+    elif query.data == "football_leagues":
+
+        await query.edit_message_text(
+            "🏆 *LEAGUES*\n\n"
+            "Leagues football adda addaa asitti ilaalla.\n\n"
+            "⚽ Premier League\n"
+            "⚽ Champions League\n"
+            "⚽ La Liga\n"
+            "⚽ Serie A\n"
+            "⚽ Bundesliga",
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # FOOTBALL STANDINGS
+    # =====================================================
+
+    elif query.data == "football_standings":
+
+        await query.edit_message_text(
+            "📊 *STANDINGS*\n\n"
+            "Gabatee sadarkaa league asitti ilaalla.\n\n"
+            "🔄 Standings data yeroo itti aanu keessatti "
+            "itti dabalama.",
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # FOOTBALL TEAMS
+    # =====================================================
+
+    elif query.data == "football_teams":
+
+        await query.edit_message_text(
+            "🔎 *TEAMS*\n\n"
+            "Gareewwan football asitti barbaaduu "
+            "fi ilaaluun ni danda'ama.\n\n"
+            "🔄 Team data yeroo itti aanu keessatti "
+            "itti dabalama.",
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # BACK TO MAIN MENU
+    # =====================================================
+
+    elif query.data == "back_main":
+
+        await query.edit_message_text(
+            "🎯 *BEST BET*\n\n"
+            "Menu keessaa filannoo kee godhi.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
