@@ -190,9 +190,7 @@ async def button_handler(
     if query.data == "best_bet":
 
         await query.edit_message_text(
-            "🎯 *BEST BET*\n\n"
-            "Baga nagaan dhuftan!\n"
-            "Mee menu keessaa filannoo kee godhi.",
+            "🎯 *BEST BET*",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -205,24 +203,23 @@ async def button_handler(
     elif query.data == "keno_fast":
 
         await query.edit_message_text(
-            "⚡ *KENO FAST*\n\n"
-            "KENO FAST menu baname.",
+            "⚡ *KENO FAST*",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
 
 
     # =====================================================
-    # FOOTBALL MAIN MENU
+    # FOOTBALL
     # =====================================================
 
     elif query.data == "football":
 
+        # Football menu keessatti
+        # barreeffama hin agarsiisu.
         await query.edit_message_text(
-            "⚽ *FOOTBALL*\n\n"
-            "Filannoo barbaadde keessaa tokko filadhu:",
-            reply_markup=football_menu(),
-            parse_mode="Markdown"
+            " ",
+            reply_markup=football_menu()
         )
 
 
@@ -234,9 +231,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "📅 *MATCHES*\n\n"
-            "Taphoota football dhufan asitti ilaalla.\n\n"
-            "🔄 Match data yeroo itti aanu keessatti "
-            "itti dabalama.",
+            "Taphoota football dhufan asitti ilaalla.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
@@ -250,9 +245,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "🔴 *LIVE*\n\n"
-            "Taphoota yeroo ammaa jiran asitti ilaalla.\n\n"
-            "🔄 Live data yeroo itti aanu keessatti "
-            "itti dabalama.",
+            "Taphoota yeroo ammaa jiran asitti ilaalla.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
@@ -266,7 +259,6 @@ async def button_handler(
 
         await query.edit_message_text(
             "🏆 *LEAGUES*\n\n"
-            "Leagues football adda addaa asitti ilaalla.\n\n"
             "⚽ Premier League\n"
             "⚽ Champions League\n"
             "⚽ La Liga\n"
@@ -285,9 +277,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "📊 *STANDINGS*\n\n"
-            "Gabatee sadarkaa league asitti ilaalla.\n\n"
-            "🔄 Standings data yeroo itti aanu keessatti "
-            "itti dabalama.",
+            "Gabatee sadarkaa league asitti ilaalla.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
@@ -301,10 +291,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "🔎 *TEAMS*\n\n"
-            "Gareewwan football asitti barbaaduu "
-            "fi ilaaluun ni danda'ama.\n\n"
-            "🔄 Team data yeroo itti aanu keessatti "
-            "itti dabalama.",
+            "Gareewwan football asitti ilaalla.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
