@@ -1,4 +1,5 @@
 import os
+import random
 
 from telegram import (
     Update,
@@ -27,7 +28,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 def main_menu():
 
     keyboard = [
-
         [
             InlineKeyboardButton(
                 "🎯 BEST BET",
@@ -97,7 +97,6 @@ def main_menu():
 def football_menu():
 
     keyboard = [
-
         [
             InlineKeyboardButton(
                 "📅 MATCHES",
@@ -145,77 +144,41 @@ def football_menu():
 
 
 # =========================================================
-# MATCHES MENU
+# KENO FAST / NUMBER GAME MENU
 # =========================================================
 
-def matches_menu():
+def keno_menu():
 
-    keyboard = [
+    keyboard = []
 
-        [
-            InlineKeyboardButton(
-                "⚽ Arsenal vs Chelsea",
-                callback_data="match_arsenal_chelsea"
-            ),
-        ],
+    for start in range(1, 81, 10):
 
-        [
-            InlineKeyboardButton(
-                "⚽ Barcelona vs Real Madrid",
-                callback_data="match_barca_real"
-            ),
-        ],
+        row = []
 
-        [
-            InlineKeyboardButton(
-                "⚽ Man City vs Liverpool",
-                callback_data="match_city_liverpool"
-            ),
-        ],
+        for number in range(start, start + 10):
 
-        [
-            InlineKeyboardButton(
-                "⬅️ BACK",
-                callback_data="football"
-            ),
-        ],
-    ]
+            row.append(
+                InlineKeyboardButton(
+                    str(number),
+                    callback_data=f"keno_number_{number}"
+                )
+            )
 
-    return InlineKeyboardMarkup(keyboard)
+        keyboard.append(row)
 
+    keyboard.append([
+        InlineKeyboardButton(
+            "🎲 RANDOM DRAW",
+            callback_data="keno_draw"
+        )
+    ])
 
-# =========================================================
-# PREDICTION MENU
-# =========================================================
-
-def prediction_menu(match_id):
-
-    keyboard = [
-
-        [
-            InlineKeyboardButton(
-                "1️⃣ HOME",
-                callback_data=f"prediction_home_{match_id}"
-            ),
-
-            InlineKeyboardButton(
-                "❌ DRAW",
-                callback_data=f"prediction_draw_{match_id}"
-            ),
-
-            InlineKeyboardButton(
-                "2️⃣ AWAY",
-                callback_data=f"prediction_away_{match_id}"
-            ),
-        ],
-
-        [
-            InlineKeyboardButton(
-                "⬅️ BACK",
-                callback_data="football_matches"
-            ),
-        ],
-    ]
+    keyboard.append([
+        InlineKeyboardButton(
+            "⬅️ BACK",
+            callback_data="back_main"
+        )
+    ])
 
     return InlineKeyboardMarkup(keyboard)
 
@@ -279,8 +242,57 @@ async def button_handler(
     elif query.data == "keno_fast":
 
         await query.edit_message_text(
-            "⚡ *KENO FAST*",
-            reply_markup=main_menu(),
+            "⚡ *KENO FAST*\n\n"
+            "Lakkoofsa 1 hanga 80 keessaa filadhu.\n\n"
+            "🧪 Kun number game demo qofa.",
+            reply_markup=keno_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # KENO NUMBER SELECTED
+    # =====================================================
+
+    elif query.data.startswith("keno_number_"):
+
+        number = query.data.replace(
+            "keno_number_",
+            ""
+        )
+
+        await query.edit_message_text(
+            f"🔢 Lakkoofsa kee filatte: *{number}*\n\n"
+            "Amma lakkoofsa biraa filachuu ykn "
+            "🎲 RANDOM DRAW gochuu dandeessa.\n\n"
+            "🧪 Demo qofa.",
+            reply_markup=keno_menu(),
+            parse_mode="Markdown"
+        )
+
+
+    # =====================================================
+    # KENO RANDOM DRAW
+    # =====================================================
+
+    elif query.data == "keno_draw":
+
+        result = random.sample(
+            range(1, 81),
+            10
+        )
+
+        result_text = ", ".join(
+            str(number)
+            for number in sorted(result)
+        )
+
+        await query.edit_message_text(
+            "🎲 *RANDOM DRAW*\n\n"
+            f"🔢 Result:\n\n"
+            f"*{result_text}*\n\n"
+            "🧪 Kun demo number game qofa.",
+            reply_markup=keno_menu(),
             parse_mode="Markdown"
         )
 
@@ -298,114 +310,21 @@ async def button_handler(
 
 
     # =====================================================
-    # MATCHES
+    # FOOTBALL MATCHES
     # =====================================================
 
     elif query.data == "football_matches":
 
         await query.edit_message_text(
             "📅 *MATCHES*\n\n"
-            "Match tokko filadhu:",
-            reply_markup=matches_menu(),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # ARSENAL VS CHELSEA
-    # =====================================================
-
-    elif query.data == "match_arsenal_chelsea":
-
-        await query.edit_message_text(
-            "⚽ *ARSENAL vs CHELSEA*\n\n"
-            "🔮 Prediction kee filadhu:",
-            reply_markup=prediction_menu(
-                "arsenal_chelsea"
-            ),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # BARCELONA VS REAL MADRID
-    # =====================================================
-
-    elif query.data == "match_barca_real":
-
-        await query.edit_message_text(
-            "⚽ *BARCELONA vs REAL MADRID*\n\n"
-            "🔮 Prediction kee filadhu:",
-            reply_markup=prediction_menu(
-                "barca_real"
-            ),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # MAN CITY VS LIVERPOOL
-    # =====================================================
-
-    elif query.data == "match_city_liverpool":
-
-        await query.edit_message_text(
-            "⚽ *MAN CITY vs LIVERPOOL*\n\n"
-            "🔮 Prediction kee filadhu:",
-            reply_markup=prediction_menu(
-                "city_liverpool"
-            ),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # PREDICTION HOME
-    # =====================================================
-
-    elif query.data.startswith("prediction_home_"):
-
-        await query.edit_message_text(
-            "🔮 *PREDICTION*\n\n"
-            "1️⃣ HOME filatameera.\n\n"
-            "🧪 Kun demo prediction qofa.",
+            "Taphoota football asitti ilaalla.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
 
     # =====================================================
-    # PREDICTION DRAW
-    # =====================================================
-
-    elif query.data.startswith("prediction_draw_"):
-
-        await query.edit_message_text(
-            "🔮 *PREDICTION*\n\n"
-            "❌ DRAW filatameera.\n\n"
-            "🧪 Kun demo prediction qofa.",
-            reply_markup=football_menu(),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # PREDICTION AWAY
-    # =====================================================
-
-    elif query.data.startswith("prediction_away_"):
-
-        await query.edit_message_text(
-            "🔮 *PREDICTION*\n\n"
-            "2️⃣ AWAY filatameera.\n\n"
-            "🧪 Kun demo prediction qofa.",
-            reply_markup=football_menu(),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # LIVE
+    # FOOTBALL LIVE
     # =====================================================
 
     elif query.data == "football_live":
@@ -419,7 +338,7 @@ async def button_handler(
 
 
     # =====================================================
-    # LEAGUES
+    # FOOTBALL LEAGUES
     # =====================================================
 
     elif query.data == "football_leagues":
@@ -437,7 +356,7 @@ async def button_handler(
 
 
     # =====================================================
-    # STANDINGS
+    # FOOTBALL STANDINGS
     # =====================================================
 
     elif query.data == "football_standings":
@@ -451,7 +370,7 @@ async def button_handler(
 
 
     # =====================================================
-    # TEAMS
+    # FOOTBALL TEAMS
     # =====================================================
 
     elif query.data == "football_teams":
@@ -465,7 +384,7 @@ async def button_handler(
 
 
     # =====================================================
-    # BACK TO MAIN
+    # BACK TO MAIN MENU
     # =====================================================
 
     elif query.data == "back_main":
@@ -528,8 +447,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "📜 *MY HISTORY*\n\n"
-            "Prediction history demo as keessatti "
-            "mul'ata.",
+            "History demo as keessatti mul'ata.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -543,7 +461,7 @@ async def button_handler(
 
         await query.edit_message_text(
             "🏆 *WINNERS*\n\n"
-            "Demo winners as keessatti mul'atu.",
+            "Demo results as keessatti mul'atu.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -557,12 +475,11 @@ async def button_handler(
 
         await query.edit_message_text(
             "ℹ️ *HOW TO PLAY*\n\n"
-            "1️⃣ FOOTBALL filadhu.\n"
-            "2️⃣ MATCHES bani.\n"
-            "3️⃣ Match filadhu.\n"
-            "4️⃣ HOME, DRAW ykn AWAY keessaa "
-            "prediction filadhu.\n\n"
-            "🧪 Kun demo qofa; qarshii dhugaa hin qabu.",
+            "1️⃣ ⚡ KENO FAST filadhu.\n"
+            "2️⃣ Lakkoofsa 1–80 keessaa filadhu.\n"
+            "3️⃣ 🎲 RANDOM DRAW cuqaasi.\n"
+            "4️⃣ Result ilaali.\n\n"
+            "🧪 Kun demo number game qofa.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
@@ -603,6 +520,8 @@ def main():
     )
 
 
+    # /start
+
     app.add_handler(
         CommandHandler(
             "start",
@@ -610,6 +529,8 @@ def main():
         )
     )
 
+
+    # Buttons
 
     app.add_handler(
         CallbackQueryHandler(
