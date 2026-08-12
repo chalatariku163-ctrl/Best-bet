@@ -16,16 +16,10 @@
 
 body{
     font-family:Arial,Helvetica,sans-serif;
-    background:
-        radial-gradient(
-            circle at top,
-            #263d70 0%,
-            #10182f 40%,
-            #070b16 100%
-        );
+    background:#101a28;
     color:#fff;
     min-height:100vh;
-    padding-bottom:90px;
+    padding-bottom:85px;
 }
 
 button{
@@ -34,197 +28,216 @@ button{
 
 .app{
     width:100%;
-    max-width:600px;
+    max-width:700px;
     margin:auto;
 }
 
-/* =====================================================
-   HEADER
-===================================================== */
+/* ================= HEADER ================= */
 
 .header{
-    padding:18px 16px 12px;
+    height:72px;
+    padding:10px 16px;
     display:flex;
-    justify-content:space-between;
     align-items:center;
+    justify-content:space-between;
+    background:#121f2e;
+}
+
+.menu{
+    font-size:30px;
+    color:#cbd2d9;
+    cursor:pointer;
 }
 
 .brand{
     display:flex;
     align-items:center;
-    gap:10px;
+    gap:8px;
 }
 
 .brand-icon{
-    width:46px;
-    height:46px;
-    border-radius:14px;
+    width:42px;
+    height:42px;
+    border-radius:8px;
     background:#fff;
-    color:#10182f;
+    color:#162438;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:24px;
+    font-size:23px;
 }
 
 .brand-name{
+    color:#ffd900;
     font-size:21px;
     font-weight:900;
 }
 
 .brand-subtitle{
-    font-size:10px;
-    opacity:.55;
-    margin-top:3px;
+    color:#5f80a0;
+    font-size:8px;
 }
 
 .profile{
-    width:43px;
-    height:43px;
+    width:40px;
+    height:40px;
     border-radius:50%;
-    background:rgba(255,255,255,.10);
-    border:1px solid rgba(255,255,255,.12);
+    background:#253545;
     display:flex;
-    align-items:center;
     justify-content:center;
+    align-items:center;
     font-size:20px;
+    cursor:pointer;
 }
 
-/* =====================================================
-   TABS
-===================================================== */
+/* ================= SPORTS ================= */
 
-.tabs{
+.sports{
     display:flex;
-    gap:8px;
-    padding:8px 16px 15px;
+    overflow-x:auto;
+    background:#152334;
+    scrollbar-width:none;
+}
+
+.sports::-webkit-scrollbar{
+    display:none;
+}
+
+.sport{
+    min-width:105px;
+    padding:13px 8px 12px;
+    text-align:center;
+    color:#8d99a7;
+    border:none;
+    background:none;
+    cursor:pointer;
+    font-size:13px;
+}
+
+.sport-icon{
+    display:block;
+    font-size:28px;
+    margin-bottom:5px;
+}
+
+.sport.active{
+    color:#fff;
+    background:#1b2a3b;
+    font-weight:900;
+}
+
+/* ================= FOOTBALL NAV ================= */
+
+.football-nav{
+    display:flex;
+    gap:28px;
+    padding:18px 18px 10px;
+    background:#101a28;
     overflow-x:auto;
     scrollbar-width:none;
 }
 
-.tabs::-webkit-scrollbar{
+.football-nav::-webkit-scrollbar{
     display:none;
 }
 
-.tab{
+.football-tab{
     border:none;
+    background:none;
+    color:#aeb7c2;
     white-space:nowrap;
-    padding:10px 15px;
-    border-radius:12px;
-    color:rgba(255,255,255,.65);
-    background:rgba(255,255,255,.07);
+    font-size:15px;
+    font-weight:700;
+    padding-bottom:9px;
     cursor:pointer;
-    font-weight:800;
 }
 
-.tab.active{
-    background:#fff;
-    color:#10182f;
+.football-tab.active{
+    color:#fff;
+    border-bottom:3px solid #ffd600;
 }
 
-/* =====================================================
-   HERO
-===================================================== */
+/* ================= FILTERS ================= */
 
-.hero{
-    margin:0 16px 17px;
-    padding:18px;
+.filters{
+    display:flex;
+    gap:9px;
+    padding:8px 15px 17px;
+    overflow-x:auto;
+    scrollbar-width:none;
+}
+
+.filters::-webkit-scrollbar{
+    display:none;
+}
+
+.filter{
+    border:none;
+    background:#223342;
+    color:#fff;
+    padding:11px 16px;
     border-radius:22px;
+    white-space:nowrap;
+    font-size:13px;
+    font-weight:800;
+    cursor:pointer;
+}
+
+.filter.active{
+    background:#273a4b;
+}
+
+/* ================= BANNER ================= */
+
+.banner{
+    margin:0 15px 18px;
+    min-height:105px;
+    border-radius:5px;
+    padding:16px;
     background:
         linear-gradient(
-            135deg,
-            rgba(255,255,255,.15),
-            rgba(255,255,255,.05)
+            110deg,
+            #d8ed18,
+            #8fd329,
+            #d5ef17
         );
-    border:1px solid rgba(255,255,255,.12);
-    box-shadow:0 18px 45px rgba(0,0,0,.25);
-}
-
-.hero-top{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:13px;
-}
-
-.hero-title{
-    font-size:19px;
-    font-weight:900;
-}
-
-.live-dot{
+    color:#15321d;
     display:flex;
     align-items:center;
-    gap:6px;
-    font-size:10px;
-    font-weight:900;
-}
-
-.dot{
-    width:8px;
-    height:8px;
-    border-radius:50%;
-    background:#ff4545;
-    box-shadow:0 0 12px #ff4545;
-}
-
-.hero-match{
-    font-size:17px;
-    font-weight:900;
-    margin-bottom:6px;
-}
-
-.hero-info{
-    font-size:11px;
-    opacity:.6;
-}
-
-.confidence{
-    margin-top:15px;
-    padding:12px;
-    border-radius:14px;
-    background:rgba(0,0,0,.20);
-}
-
-.confidence-row{
-    display:flex;
     justify-content:space-between;
-    margin-bottom:7px;
-    font-size:12px;
-}
-
-.confidence-value{
-    font-weight:900;
-}
-
-.progress{
-    height:7px;
-    background:rgba(255,255,255,.10);
-    border-radius:10px;
     overflow:hidden;
 }
 
-.progress-bar{
-    height:100%;
-    width:0;
-    background:#fff;
-    border-radius:10px;
-    transition:.5s;
+.banner-text{
+    max-width:65%;
 }
 
-/* =====================================================
-   SECTION
-===================================================== */
+.banner-small{
+    font-size:11px;
+    font-weight:900;
+}
+
+.banner-title{
+    font-size:24px;
+    font-weight:1000;
+    margin-top:5px;
+}
+
+.banner-right{
+    font-size:35px;
+}
+
+/* ================= SECTION ================= */
 
 .section{
-    padding:0 16px;
+    padding:0 15px;
 }
 
 .section-header{
     display:flex;
     justify-content:space-between;
     align-items:center;
-    margin:20px 0 10px;
+    padding:4px 3px 10px;
 }
 
 .section-title{
@@ -234,45 +247,156 @@ button{
 
 .refresh{
     border:none;
-    background:rgba(255,255,255,.08);
+    background:#243545;
     color:#fff;
-    border-radius:9px;
-    padding:7px 10px;
+    padding:8px 11px;
+    border-radius:10px;
     cursor:pointer;
-    font-size:11px;
 }
 
-/* =====================================================
-   STATUS
-===================================================== */
+/* ================= TABLE HEADER ================= */
 
-.status{
-    text-align:center;
-    padding:18px;
-    border-radius:16px;
-    background:rgba(255,255,255,.06);
-    border:1px solid rgba(255,255,255,.08);
+.odds-header{
+    display:grid;
+    grid-template-columns:1fr 65px 65px 65px;
+    align-items:center;
+    padding:5px 12px 8px;
+    color:#aeb8c3;
     font-size:13px;
-    opacity:.75;
+    font-weight:800;
+}
+
+.odds-header div:not(:first-child){
+    text-align:center;
+}
+
+/* ================= LEAGUE ================= */
+
+.league{
+    margin-bottom:11px;
+    background:#152332;
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.025);
+}
+
+.league-header{
+    padding:13px 13px 10px;
+    color:#aeb8c3;
+    font-size:12px;
+    border-bottom:1px solid rgba(255,255,255,.05);
+    display:flex;
+    justify-content:space-between;
+}
+
+.league-name{
+    font-weight:800;
+}
+
+.league-country{
+    opacity:.65;
+}
+
+/* ================= MATCH ================= */
+
+.match{
+    padding:15px 12px 16px;
+    border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.match:last-child{
+    border-bottom:none;
+}
+
+.match-info{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
     margin-bottom:12px;
 }
 
-/* =====================================================
-   LOADING
-===================================================== */
+.match-time{
+    color:#aab5c1;
+    font-size:12px;
+}
 
-.loading{
-    padding:25px;
+.match-label{
+    color:#8fa0b0;
+    font-size:10px;
+}
+
+.match-row{
+    display:grid;
+    grid-template-columns:1fr 65px 65px 65px;
+    align-items:center;
+    gap:4px;
+}
+
+.teams{
+    min-width:0;
+}
+
+.team{
+    font-size:15px;
+    font-weight:800;
+    line-height:1.55;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+.odd{
+    height:49px;
+    border:none;
+    border-radius:24px;
+    background:#203342;
+    color:#fff;
+    font-size:15px;
+    font-weight:900;
+    cursor:pointer;
+}
+
+.odd:hover{
+    background:#2b4355;
+}
+
+.odd.selected{
+    background:#ffd600;
+    color:#111;
+}
+
+.markets-count{
+    text-align:right;
+    color:#75b82d;
+    font-size:13px;
+    font-weight:900;
+    margin-top:10px;
+    cursor:pointer;
+}
+
+/* ================= STATUS ================= */
+
+.status{
     text-align:center;
-    opacity:.7;
+    padding:22px;
+    border-radius:12px;
+    background:#192837;
+    color:#aeb9c5;
+    margin-bottom:12px;
     font-size:13px;
 }
 
+.loading{
+    text-align:center;
+    padding:30px;
+    color:#aab5c1;
+}
+
 .spinner{
-    width:27px;
-    height:27px;
-    border:3px solid rgba(255,255,255,.15);
-    border-top:3px solid white;
+    width:28px;
+    height:28px;
+    border:3px solid #304354;
+    border-top-color:#ffd600;
     border-radius:50%;
     margin:0 auto 10px;
     animation:spin .8s linear infinite;
@@ -284,269 +408,84 @@ button{
     }
 }
 
-/* =====================================================
-   LEAGUE
-===================================================== */
+/* ================= BEST BET ================= */
 
-.league{
-    background:rgba(255,255,255,.06);
-    border:1px solid rgba(255,255,255,.09);
-    border-radius:18px;
-    margin-bottom:12px;
-    overflow:hidden;
-}
-
-.league-header{
-    padding:13px 14px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    background:rgba(255,255,255,.04);
-}
-
-.league-name{
-    font-size:13px;
-    font-weight:900;
-}
-
-.league-country{
-    font-size:10px;
-    opacity:.5;
-}
-
-/* =====================================================
-   MATCH
-===================================================== */
-
-.match{
-    padding:15px 14px;
-    border-top:1px solid rgba(255,255,255,.07);
-}
-
-.match-top{
-    display:flex;
-    justify-content:space-between;
-    margin-bottom:13px;
-}
-
-.match-time{
-    font-size:10px;
-    opacity:.55;
-}
-
-.best-label{
-    font-size:9px;
-    font-weight:900;
-    padding:5px 8px;
-    border-radius:7px;
-    background:rgba(255,255,255,.13);
-}
-
-.teams{
-    display:grid;
-    grid-template-columns:1fr 45px 1fr;
-    align-items:center;
-    text-align:center;
-    gap:8px;
-    margin-bottom:14px;
-}
-
-.team{
-    font-size:14px;
-    font-weight:900;
-}
-
-.team-home{
-    text-align:left;
-}
-
-.team-away{
-    text-align:right;
-}
-
-.vs{
-    font-size:10px;
-    opacity:.4;
-}
-
-/* =====================================================
-   PREDICTION TABLE
-===================================================== */
-
-.prediction-table{
-    margin-top:10px;
+.best-card{
+    margin:0 15px 16px;
+    padding:16px;
     border-radius:13px;
-    overflow:hidden;
-    border:1px solid rgba(255,255,255,.08);
+    background:#1a2b3b;
+    border:1px solid rgba(255,255,255,.06);
 }
 
-.prediction-row{
-    display:grid;
-    grid-template-columns:1fr 1fr 1fr;
-    background:rgba(255,255,255,.045);
-}
-
-.prediction-row + .prediction-row{
-    border-top:1px solid rgba(255,255,255,.07);
-}
-
-.prediction-cell{
-    padding:10px 6px;
-    text-align:center;
-    font-size:10px;
-}
-
-.prediction-head{
+.best-title{
+    color:#ffd600;
     font-weight:900;
-    opacity:.55;
+    margin-bottom:9px;
 }
 
-.prediction-value{
-    font-size:13px;
+.best-match{
+    font-size:17px;
     font-weight:900;
 }
 
-/* =====================================================
-   ODDS
-===================================================== */
-
-.odds{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:7px;
-    margin-top:9px;
+.best-info{
+    color:#8f9dac;
+    font-size:11px;
+    margin-top:5px;
 }
 
-.odd{
-    border:none;
-    border-radius:11px;
-    padding:10px 5px;
-    background:rgba(255,255,255,.08);
-    color:#fff;
-    cursor:pointer;
+.confidence{
+    margin-top:13px;
 }
 
-.odd:hover{
-    background:rgba(255,255,255,.15);
-}
-
-.odd-name{
-    display:block;
-    font-size:10px;
-    opacity:.55;
-    margin-bottom:4px;
-}
-
-.odd-value{
-    font-size:14px;
-    font-weight:900;
-}
-
-.odd.selected{
-    background:#fff;
-    color:#10182f;
-}
-
-/* =====================================================
-   MARKETS
-===================================================== */
-
-.markets{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:7px;
-    margin-top:8px;
-}
-
-.market{
-    padding:10px;
-    border-radius:10px;
-    background:rgba(255,255,255,.05);
+.confidence-row{
     display:flex;
     justify-content:space-between;
-    align-items:center;
-    font-size:10px;
-}
-
-.market-value{
-    font-weight:900;
-    font-size:12px;
-}
-
-/* =====================================================
-   BALANCE CARD
-===================================================== */
-
-.balance-card{
-    margin-top:12px;
-    padding:18px;
-    border-radius:18px;
-    background:
-        linear-gradient(
-            135deg,
-            rgba(255,255,255,.14),
-            rgba(255,255,255,.05)
-        );
-    border:1px solid rgba(255,255,255,.1);
-}
-
-.balance-label{
     font-size:11px;
-    opacity:.55;
+    color:#aab5c1;
+    margin-bottom:6px;
 }
 
-.balance-value{
-    margin-top:6px;
-    font-size:28px;
-    font-weight:900;
+.progress{
+    height:6px;
+    background:#26394a;
+    border-radius:10px;
+    overflow:hidden;
 }
 
-.balance-actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-    margin-top:14px;
+.progress-bar{
+    height:100%;
+    width:0;
+    background:#ffd600;
 }
 
-.balance-button{
-    border:none;
-    padding:11px;
-    border-radius:11px;
-    cursor:pointer;
-    font-weight:900;
-    background:rgba(255,255,255,.10);
-    color:#fff;
-}
-
-/* =====================================================
-   PROFILE
-===================================================== */
+/* ================= PROFILE ================= */
 
 .profile-card{
     margin-top:12px;
-    padding:18px;
-    border-radius:18px;
-    background:rgba(255,255,255,.06);
-    border:1px solid rgba(255,255,255,.08);
+    background:#172736;
+    border-radius:15px;
+    padding:20px;
 }
 
 .profile-avatar{
     width:65px;
     height:65px;
+    margin:auto;
     border-radius:50%;
-    background:#fff;
-    color:#10182f;
+    background:#263b4c;
     display:flex;
-    align-items:center;
     justify-content:center;
-    font-size:28px;
-    margin:0 auto 12px;
+    align-items:center;
+    font-size:30px;
 }
 
 .profile-name{
     text-align:center;
-    font-size:18px;
     font-weight:900;
+    font-size:18px;
+    margin:12px 0;
 }
 
 .profile-line{
@@ -554,70 +493,102 @@ button{
     justify-content:space-between;
     padding:12px 0;
     border-bottom:1px solid rgba(255,255,255,.06);
-    font-size:12px;
+    font-size:13px;
+    color:#b5c0cb;
 }
 
-.profile-line:last-child{
-    border-bottom:none;
+.balance-card{
+    margin-top:12px;
+    background:#1c2e3e;
+    padding:18px;
+    border-radius:15px;
 }
 
-/* =====================================================
-   BOTTOM NAV
-===================================================== */
+.balance-label{
+    color:#8293a3;
+    font-size:11px;
+}
+
+.balance-value{
+    font-size:27px;
+    font-weight:900;
+    margin-top:5px;
+}
+
+.balance-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:15px;
+}
+
+.balance-button{
+    border:none;
+    padding:12px;
+    border-radius:10px;
+    background:#263b4b;
+    color:#fff;
+    font-weight:900;
+}
+
+/* ================= BOTTOM NAV ================= */
 
 .bottom-nav{
     position:fixed;
+    z-index:100;
     bottom:0;
     left:50%;
     transform:translateX(-50%);
     width:100%;
-    max-width:600px;
-    padding:8px 10px;
-    background:rgba(8,12,25,.95);
-    backdrop-filter:blur(18px);
-    border-top:1px solid rgba(255,255,255,.09);
+    max-width:700px;
+    height:75px;
+    background:#142131;
+    border-top:1px solid rgba(255,255,255,.07);
     display:grid;
     grid-template-columns:repeat(4,1fr);
-    z-index:50;
 }
 
 .nav-item{
     border:none;
     background:none;
-    color:rgba(255,255,255,.45);
-    padding:7px 3px;
+    color:#8995a2;
     cursor:pointer;
-    font-size:10px;
+    font-size:11px;
     font-weight:800;
 }
 
 .nav-icon{
     display:block;
-    font-size:18px;
-    margin-bottom:4px;
+    font-size:23px;
+    margin-bottom:3px;
 }
 
 .nav-item.active{
-    color:#fff;
+    color:#ffd600;
 }
 
-/* =====================================================
-   RESPONSIVE
-===================================================== */
+/* ================= RESPONSIVE ================= */
 
-@media(max-width:380px){
+@media(max-width:390px){
 
-    .team{
-        font-size:12px;
+    .match-row,
+    .odds-header{
+        grid-template-columns:1fr 58px 58px 58px;
     }
 
     .odd{
-        padding:9px 3px;
-    }
-
-    .odd-value{
+        height:45px;
         font-size:13px;
     }
+
+    .team{
+        font-size:13px;
+    }
+
+    .banner-title{
+        font-size:20px;
+    }
+
 }
 
 </style>
@@ -627,11 +598,13 @@ button{
 
 <div class="app">
 
-<!-- =====================================================
-     HEADER
-===================================================== -->
+<!-- HEADER -->
 
 <header class="header">
+
+    <div class="menu">
+        ☰
+    </div>
 
     <div class="brand">
 
@@ -640,22 +613,20 @@ button{
         </div>
 
         <div>
-
             <div class="brand-name">
                 BEST BET
             </div>
 
             <div class="brand-subtitle">
-                Football Odds & Predictions
+                Football Odds
             </div>
-
         </div>
 
     </div>
 
     <div
         class="profile"
-        onclick="showProfile()"
+        onclick="profilePage(document.querySelectorAll('.nav-item')[3])"
     >
         👤
     </div>
@@ -663,236 +634,310 @@ button{
 </header>
 
 
-<!-- =====================================================
-     TOP TABS
-===================================================== -->
+<!-- SPORTS -->
 
-<div class="tabs">
+<div class="sports">
 
     <button
-        class="tab active"
-        onclick="selectTab(this,'best')"
+        class="sport active"
+        onclick="footballPage(document.querySelectorAll('.nav-item')[1])"
     >
-        🎯 Best Bet
+        <span class="sport-icon">⚽</span>
+        Soccer
     </button>
 
-    <button
-        class="tab"
-        onclick="selectTab(this,'football')"
-    >
-        ⚽ Football
+    <button class="sport">
+        <span class="sport-icon">🏆</span>
+        Leagues
     </button>
 
-    <button
-        class="tab"
-        onclick="selectTab(this,'live')"
-    >
-        🔴 Live
+    <button class="sport">
+        <span class="sport-icon">🔴</span>
+        Live
     </button>
 
-    <button
-        class="tab"
-        onclick="selectTab(this,'today')"
-    >
-        📅 Today
+    <button class="sport">
+        <span class="sport-icon">⭐</span>
+        Popular
     </button>
 
-    <button
-        class="tab"
-        onclick="selectTab(this,'leagues')"
-    >
-        🏆 Leagues
+    <button class="sport">
+        <span class="sport-icon">•••</span>
+        More
     </button>
 
 </div>
 
 
-<!-- =====================================================
-     HERO BEST BET
-===================================================== -->
+<!-- FOOTBALL PAGE -->
 
-<div class="hero">
+<div id="footballPage">
 
-    <div class="hero-top">
-
-        <div class="hero-title">
-            🎯 BEST BET
-        </div>
-
-        <div class="live-dot">
-            <span class="dot"></span>
-            ANALYSIS
-        </div>
-
-    </div>
-
-    <div
-        class="hero-match"
-        id="heroMatch"
-    >
-        Loading...
-    </div>
-
-    <div
-        class="hero-info"
-        id="heroInfo"
-    >
-        Loading match data...
-    </div>
-
-    <div class="confidence">
-
-        <div class="confidence-row">
-
-            <span>
-                Prediction Confidence
-            </span>
-
-            <span
-                class="confidence-value"
-                id="confidenceValue"
-            >
-                0%
-            </span>
-
-        </div>
-
-        <div class="progress">
-
-            <div
-                class="progress-bar"
-                id="progressBar"
-            ></div>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- =====================================================
-     MAIN CONTENT
-===================================================== -->
-
-<div class="section">
-
-    <div class="section-header">
-
-        <div
-            class="section-title"
-            id="sectionTitle"
-        >
-            ⚽ Today's Matches
-        </div>
+    <div class="football-nav">
 
         <button
-            class="refresh"
-            onclick="loadMatches()"
+            class="football-tab active"
+            onclick="footballSection(this,'highlights')"
         >
-            ↻ Refresh
+            Highlights
+        </button>
+
+        <button
+            class="football-tab"
+            onclick="footballSection(this,'upcoming')"
+        >
+            Upcoming
+        </button>
+
+        <button
+            class="football-tab"
+            onclick="footballSection(this,'countries')"
+        >
+            Countries
+        </button>
+
+        <button
+            class="football-tab"
+            onclick="footballSection(this,'zoom')"
+        >
+            Zoom Soccer
         </button>
 
     </div>
 
 
-    <div
-        id="loading"
-        class="loading"
-    >
+    <div class="filters">
 
-        <div class="spinner"></div>
+        <button class="filter">
+            ⚙ Filters
+        </button>
 
-        Loading matches...
+        <button class="filter active">
+            Today⌄
+        </button>
+
+        <button class="filter">
+            Highlights⌄
+        </button>
+
+        <button class="filter">
+            1X2⌄
+        </button>
 
     </div>
 
 
-    <div
-        id="error"
-        class="status"
-        style="display:none;"
-    >
-        ❌ Failed to load football data.
+    <!-- BANNER -->
+
+    <div class="banner">
+
+        <div class="banner-text">
+
+            <div class="banner-small">
+                ⚡ BEST BET FOOTBALL
+            </div>
+
+            <div class="banner-title">
+                PREDICT & WIN
+            </div>
+
+            <div class="banner-small">
+                Smart football analysis
+            </div>
+
+        </div>
+
+        <div class="banner-right">
+            ⚽🏆
+        </div>
+
     </div>
 
 
-    <div id="matchesContainer"></div>
+    <!-- BEST BET -->
+
+    <div class="best-card">
+
+        <div class="best-title">
+            🎯 BEST BET
+        </div>
+
+        <div
+            class="best-match"
+            id="heroMatch"
+        >
+            Loading...
+        </div>
+
+        <div
+            class="best-info"
+            id="heroInfo"
+        >
+            Loading match data...
+        </div>
+
+        <div class="confidence">
+
+            <div class="confidence-row">
+
+                <span>
+                    Prediction Confidence
+                </span>
+
+                <strong id="confidenceValue">
+                    0%
+                </strong>
+
+            </div>
+
+            <div class="progress">
+
+                <div
+                    class="progress-bar"
+                    id="progressBar"
+                ></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- MATCHES -->
+
+    <div class="section">
+
+        <div class="section-header">
+
+            <div
+                class="section-title"
+                id="sectionTitle"
+            >
+                Football Matches
+            </div>
+
+            <button
+                class="refresh"
+                onclick="loadMatches()"
+            >
+                ↻
+            </button>
+
+        </div>
+
+
+        <div class="odds-header">
+
+            <div>
+                Teams
+            </div>
+
+            <div>
+                1
+            </div>
+
+            <div>
+                X
+            </div>
+
+            <div>
+                2
+            </div>
+
+        </div>
+
+
+        <div
+            id="loading"
+            class="loading"
+        >
+
+            <div class="spinner"></div>
+
+            Loading matches...
+
+        </div>
+
+
+        <div
+            id="error"
+            class="status"
+            style="display:none;"
+        >
+            ❌ Failed to load football data.
+        </div>
+
+
+        <div id="matchesContainer"></div>
+
+    </div>
 
 </div>
 
 
-<!-- =====================================================
-     FOOTER
-===================================================== -->
+<!-- FOOTER -->
 
 <div style="
     text-align:center;
-    padding:22px 16px;
-    opacity:.4;
+    padding:20px 10px;
+    color:#687887;
     font-size:10px;
 ">
 
-    ⚡ BEST BET · Football Analysis Dashboard
+    BEST BET · Football Analysis
 
 </div>
 
 </div>
 
 
-<!-- =====================================================
-     BOTTOM NAV
-===================================================== -->
+<!-- BOTTOM NAV -->
 
 <nav class="bottom-nav">
 
     <button
-        class="nav-item active"
+        class="nav-item"
         onclick="homePage(this)"
     >
 
-        <span class="nav-icon">
-            🏠
-        </span>
+        <span class="nav-icon">🏠</span>
 
         Home
 
     </button>
 
+
     <button
-        class="nav-item"
+        class="nav-item active"
         onclick="footballPage(this)"
     >
 
-        <span class="nav-icon">
-            ⚽
-        </span>
+        <span class="nav-icon">⚽</span>
 
         Football
 
     </button>
+
 
     <button
         class="nav-item"
         onclick="bestPage(this)"
     >
 
-        <span class="nav-icon">
-            🎯
-        </span>
+        <span class="nav-icon">🎯</span>
 
         Best Bet
 
     </button>
+
 
     <button
         class="nav-item"
         onclick="profilePage(this)"
     >
 
-        <span class="nav-icon">
-            👤
-        </span>
+        <span class="nav-icon">👤</span>
 
         Profile
 
@@ -903,256 +948,134 @@ button{
 
 <script>
 
-/* =====================================================
-   GLOBAL
-===================================================== */
-
 let allMatches = [];
 
 
 /* =====================================================
-   TAB
+   FOOTBALL SECTION
 ===================================================== */
 
-function selectTab(button,type){
+function footballSection(button,type){
 
     document
-        .querySelectorAll(".tab")
-        .forEach(tab=>{
-            tab.classList.remove("active");
+        .querySelectorAll(".football-tab")
+        .forEach(item=>{
+            item.classList.remove("active");
         });
 
     button.classList.add("active");
 
-
-    if(type === "best"){
-        loadBestBet();
+    if(type === "highlights"){
+        document.getElementById("sectionTitle").textContent =
+            "Highlights";
         loadMatches();
     }
 
-
-    if(type === "football"){
+    if(type === "upcoming"){
+        document.getElementById("sectionTitle").textContent =
+            "Upcoming Matches";
         loadMatches();
     }
 
+    if(type === "countries"){
+        showCountries();
+    }
 
-    if(type === "today"){
+    if(type === "zoom"){
+        document.getElementById("sectionTitle").textContent =
+            "Zoom Soccer";
         loadMatches();
-    }
-
-
-    if(type === "live"){
-        loadLive();
-    }
-
-
-    if(type === "leagues"){
-        showLeagues();
     }
 }
 
 
 /* =====================================================
-   ODDS SELECT
-===================================================== */
-
-function selectOdd(button){
-
-    const parent =
-        button.parentElement;
-
-    parent
-        .querySelectorAll(".odd")
-        .forEach(item=>{
-            item.classList.remove("selected");
-        });
-
-    button.classList.add("selected");
-}
-
-
-/* =====================================================
-   MATCH HTML
+   CREATE MATCH
 ===================================================== */
 
 function createMatchHTML(match){
 
-    const odds =
-        match.odds || {};
-
-    const markets =
-        match.markets || {};
+    const odds = match.odds || {};
 
     return `
 
-    <div class="match">
+        <div class="match">
 
-        <div class="match-top">
+            <div class="match-info">
 
-            <div class="match-time">
-                🕐 ${match.time || "--:--"}
-            </div>
-
-            <div class="best-label">
-                ${match.label || "⚽ MATCH"}
-            </div>
-
-        </div>
-
-
-        <div class="teams">
-
-            <div class="team team-home">
-                ${match.home || "Home"}
-            </div>
-
-            <div class="vs">
-                VS
-            </div>
-
-            <div class="team team-away">
-                ${match.away || "Away"}
-            </div>
-
-        </div>
-
-
-        <!-- BETIKA STYLE TABLE -->
-
-        <div class="prediction-table">
-
-            <div class="prediction-row">
-
-                <div class="prediction-cell prediction-head">
-                    1
+                <div class="match-time">
+                    🕐 ${match.time || "--:--"}
                 </div>
 
-                <div class="prediction-cell prediction-head">
-                    X
-                </div>
-
-                <div class="prediction-cell prediction-head">
-                    2
+                <div class="match-label">
+                    ${match.label || "Football"}
                 </div>
 
             </div>
 
-            <div class="prediction-row">
 
-                <div class="prediction-cell prediction-value">
+            <div class="match-row">
+
+                <div class="teams">
+
+                    <div class="team">
+                        ${match.home || "Home"}
+                    </div>
+
+                    <div class="team">
+                        ${match.away || "Away"}
+                    </div>
+
+                </div>
+
+
+                <button
+                    class="odd"
+                    onclick="selectOdd(this)"
+                >
                     ${odds["1"] || "-"}
-                </div>
+                </button>
 
-                <div class="prediction-cell prediction-value">
+
+                <button
+                    class="odd"
+                    onclick="selectOdd(this)"
+                >
                     ${odds["X"] || "-"}
-                </div>
+                </button>
 
-                <div class="prediction-cell prediction-value">
+
+                <button
+                    class="odd"
+                    onclick="selectOdd(this)"
+                >
                     ${odds["2"] || "-"}
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div class="odds">
-
-            <button
-                class="odd"
-                onclick="selectOdd(this)"
-            >
-
-                <span class="odd-name">
-                    HOME
-                </span>
-
-                <span class="odd-value">
-                    ${odds["1"] || "-"}
-                </span>
-
-            </button>
-
-
-            <button
-                class="odd"
-                onclick="selectOdd(this)"
-            >
-
-                <span class="odd-name">
-                    DRAW
-                </span>
-
-                <span class="odd-value">
-                    ${odds["X"] || "-"}
-                </span>
-
-            </button>
-
-
-            <button
-                class="odd"
-                onclick="selectOdd(this)"
-            >
-
-                <span class="odd-name">
-                    AWAY
-                </span>
-
-                <span class="odd-value">
-                    ${odds["2"] || "-"}
-                </span>
-
-            </button>
-
-        </div>
-
-
-        <div class="markets">
-
-            <div class="market">
-
-                <span>
-                    Over 2.5
-                </span>
-
-                <span class="market-value">
-                    ${markets["Over 2.5"] || "-"}
-                </span>
+                </button>
 
             </div>
 
 
-            <div class="market">
-
-                <span>
-                    BTTS
-                </span>
-
-                <span class="market-value">
-                    ${markets["BTTS"] || "-"}
-                </span>
-
+            <div
+                class="markets-count"
+                onclick="openMarkets('${match.home || ""}','${match.away || ""}')"
+            >
+                +${match.market_count || 42} Markets
             </div>
 
         </div>
-
-    </div>
 
     `;
 }
 
 
 /* =====================================================
-   RENDER MATCHES
+   RENDER
 ===================================================== */
 
 function renderMatches(matches){
 
     const container =
-        document.getElementById(
-            "matchesContainer"
-        );
+        document.getElementById("matchesContainer");
 
     if(!matches || matches.length === 0){
 
@@ -1161,6 +1084,10 @@ function renderMatches(matches){
             <div class="status">
 
                 ⚽ No matches available.
+
+                <br><br>
+
+                Please check your Football API.
 
             </div>
 
@@ -1176,7 +1103,7 @@ function renderMatches(matches){
     matches.forEach(match=>{
 
         const league =
-            match.league || "Other";
+            match.league || "International Clubs";
 
         if(!leagues[league]){
             leagues[league] = [];
@@ -1190,24 +1117,23 @@ function renderMatches(matches){
     let html = "";
 
 
-    Object.keys(leagues)
-        .forEach(leagueName=>{
+    Object.keys(leagues).forEach(leagueName=>{
 
-            const list =
-                leagues[leagueName];
+        const list =
+            leagues[leagueName];
 
-            const country =
-                list[0].country || "";
+        const country =
+            list[0].country || "International";
 
 
-            html += `
+        html += `
 
             <div class="league">
 
                 <div class="league-header">
 
                     <div class="league-name">
-                        🏆 ${leagueName}
+                        ⚽ ${leagueName}
                     </div>
 
                     <div class="league-country">
@@ -1216,27 +1142,45 @@ function renderMatches(matches){
 
                 </div>
 
-            `;
+        `;
 
 
-            list.forEach(match=>{
+        list.forEach(match=>{
 
-                html +=
-                    createMatchHTML(match);
-
-            });
-
-
-            html += `
-
-            </div>
-
-            `;
+            html += createMatchHTML(match);
 
         });
 
 
+        html += `
+
+            </div>
+
+        `;
+
+    });
+
+
     container.innerHTML = html;
+}
+
+
+/* =====================================================
+   SELECT ODDS
+===================================================== */
+
+function selectOdd(button){
+
+    const row =
+        button.parentElement;
+
+    row
+        .querySelectorAll(".odd")
+        .forEach(item=>{
+            item.classList.remove("selected");
+        });
+
+    button.classList.add("selected");
 }
 
 
@@ -1247,26 +1191,18 @@ function renderMatches(matches){
 async function loadMatches(){
 
     const loading =
-        document.getElementById(
-            "loading"
-        );
+        document.getElementById("loading");
 
     const error =
-        document.getElementById(
-            "error"
-        );
+        document.getElementById("error");
 
     const container =
-        document.getElementById(
-            "matchesContainer"
-        );
+        document.getElementById("matchesContainer");
 
 
-    loading.style.display =
-        "block";
+    loading.style.display = "block";
 
-    error.style.display =
-        "none";
+    error.style.display = "none";
 
 
     try{
@@ -1283,8 +1219,7 @@ async function loadMatches(){
         if(!response.ok){
 
             throw new Error(
-                "HTTP " +
-                response.status
+                "HTTP " + response.status
             );
 
         }
@@ -1296,13 +1231,11 @@ async function loadMatches(){
 
         if(
             !data.success ||
-            !Array.isArray(
-                data.matches
-            )
+            !Array.isArray(data.matches)
         ){
 
             throw new Error(
-                "Invalid response"
+                "Invalid API response"
             );
 
         }
@@ -1317,29 +1250,24 @@ async function loadMatches(){
         );
 
 
-    }catch(errorObject){
+    }catch(err){
 
-        console.error(
-            errorObject
-        );
+        console.error(err);
 
         container.innerHTML = "";
 
-        error.style.display =
-            "block";
-
+        error.style.display = "block";
 
     }finally{
 
-        loading.style.display =
-            "none";
+        loading.style.display = "none";
 
     }
 }
 
 
 /* =====================================================
-   LOAD BEST BET
+   BEST BET
 ===================================================== */
 
 async function loadBestBet(){
@@ -1358,8 +1286,7 @@ async function loadBestBet(){
         if(!response.ok){
 
             throw new Error(
-                "HTTP " +
-                response.status
+                "Best Bet unavailable"
             );
 
         }
@@ -1375,7 +1302,7 @@ async function loadBestBet(){
         ){
 
             throw new Error(
-                "Best Bet unavailable"
+                "No Best Bet"
             );
 
         }
@@ -1385,114 +1312,124 @@ async function loadBestBet(){
             data.match;
 
 
-        document
-            .getElementById(
-                "heroMatch"
-            )
-            .textContent =
+        document.getElementById(
+            "heroMatch"
+        ).textContent =
             `${match.home} vs ${match.away}`;
 
 
-        document
-            .getElementById(
-                "heroInfo"
-            )
-            .textContent =
-            `${match.league} · ${match.time}`;
+        document.getElementById(
+            "heroInfo"
+        ).textContent =
+            `${match.league || "Football"} · ${match.time || ""}`;
 
 
         const confidence =
-            Number(
-                match.confidence || 0
-            );
+            Number(match.confidence || 0);
 
 
-        document
-            .getElementById(
-                "confidenceValue"
-            )
-            .textContent =
+        document.getElementById(
+            "confidenceValue"
+        ).textContent =
             confidence + "%";
 
 
-        document
-            .getElementById(
-                "progressBar"
-            )
-            .style.width =
+        document.getElementById(
+            "progressBar"
+        ).style.width =
             confidence + "%";
 
 
-    }catch(error){
+    }catch(err){
 
-        console.error(
-            "Best Bet error:",
-            error
-        );
+        console.log(err);
 
-
-        document
-            .getElementById(
-                "heroMatch"
-            )
-            .textContent =
+        document.getElementById(
+            "heroMatch"
+        ).textContent =
             "Best Bet unavailable";
 
-
-        document
-            .getElementById(
-                "heroInfo"
-            )
-            .textContent =
+        document.getElementById(
+            "heroInfo"
+        ).textContent =
             "Football API data unavailable";
 
-
-        document
-            .getElementById(
-                "confidenceValue"
-            )
-            .textContent =
-            "0%";
-
-
-        document
-            .getElementById(
-                "progressBar"
-            )
-            .style.width =
-            "0%";
     }
 }
 
 
 /* =====================================================
-   LIVE
+   COUNTRIES
 ===================================================== */
 
-function loadLive(){
+function showCountries(){
 
-    document
-        .getElementById(
-            "sectionTitle"
-        )
-        .textContent =
-        "🔴 Live Football";
+    document.getElementById(
+        "sectionTitle"
+    ).textContent =
+        "Countries";
 
 
-    document
-        .getElementById(
-            "matchesContainer"
-        )
-        .innerHTML = `
+    document.getElementById(
+        "matchesContainer"
+    ).innerHTML = `
 
-        <div class="status">
+        <div class="league">
 
-            🔴 Live football endpoint
-            <br><br>
+            <div class="league-header">
+                <div class="league-name">
+                    🏴 England
+                </div>
+                <div>Premier League</div>
+            </div>
 
-            Live matches API irraa
-            yeroo dhugaa keessatti
-            fidna.
+        </div>
+
+
+        <div class="league">
+
+            <div class="league-header">
+                <div class="league-name">
+                    🇪🇸 Spain
+                </div>
+                <div>La Liga</div>
+            </div>
+
+        </div>
+
+
+        <div class="league">
+
+            <div class="league-header">
+                <div class="league-name">
+                    🇮🇹 Italy
+                </div>
+                <div>Serie A</div>
+            </div>
+
+        </div>
+
+
+        <div class="league">
+
+            <div class="league-header">
+                <div class="league-name">
+                    🇩🇪 Germany
+                </div>
+                <div>Bundesliga</div>
+            </div>
+
+        </div>
+
+
+        <div class="league">
+
+            <div class="league-header">
+                <div class="league-name">
+                    🇫🇷 France
+                </div>
+                <div>Ligue 1</div>
+            </div>
 
         </div>
 
@@ -1501,80 +1438,86 @@ function loadLive(){
 
 
 /* =====================================================
-   LEAGUES
+   MARKETS
 ===================================================== */
 
-function showLeagues(){
+function openMarkets(home,away){
+
+    alert(
+        "More markets for " +
+        home +
+        " vs " +
+        away +
+        " will be connected to your API."
+    );
+
+}
+
+
+/* =====================================================
+   HOME
+===================================================== */
+
+function homePage(button){
+
+    setNav(button);
+
+    document.getElementById(
+        "sectionTitle"
+    ).textContent =
+        "Today's Matches";
+
+    loadMatches();
+    loadBestBet();
+
+}
+
+
+/* =====================================================
+   FOOTBALL
+===================================================== */
+
+function footballPage(button){
+
+    setNav(button);
+
+    document.getElementById(
+        "sectionTitle"
+    ).textContent =
+        "Football Matches";
 
     document
-        .getElementById(
-            "sectionTitle"
-        )
-        .textContent =
-        "🏆 Football Leagues";
-
+        .querySelectorAll(".sport")
+        .forEach(item=>{
+            item.classList.remove("active");
+        });
 
     document
-        .getElementById(
-            "matchesContainer"
-        )
-        .innerHTML = `
+        .querySelector(".sport")
+        .classList.add("active");
 
-        <div class="league">
+    loadMatches();
+    loadBestBet();
 
-            <div class="league-header">
-                <div class="league-name">
-                    🏴 Premier League
-                </div>
-            </div>
-
-        </div>
+}
 
 
-        <div class="league">
+/* =====================================================
+   BEST BET
+===================================================== */
 
-            <div class="league-header">
-                <div class="league-name">
-                    🇪🇸 La Liga
-                </div>
-            </div>
+function bestPage(button){
 
-        </div>
+    setNav(button);
 
+    document.getElementById(
+        "sectionTitle"
+    ).textContent =
+        "Best Bet";
 
-        <div class="league">
+    loadBestBet();
+    loadMatches();
 
-            <div class="league-header">
-                <div class="league-name">
-                    🇮🇹 Serie A
-                </div>
-            </div>
-
-        </div>
-
-
-        <div class="league">
-
-            <div class="league-header">
-                <div class="league-name">
-                    🇩🇪 Bundesliga
-                </div>
-            </div>
-
-        </div>
-
-
-        <div class="league">
-
-            <div class="league-header">
-                <div class="league-name">
-                    🏆 Champions League
-                </div>
-            </div>
-
-        </div>
-
-    `;
 }
 
 
@@ -1582,21 +1525,19 @@ function showLeagues(){
    PROFILE
 ===================================================== */
 
-function showProfile(){
+function profilePage(button){
 
-    document
-        .getElementById(
-            "sectionTitle"
-        )
-        .textContent =
-        "👤 My Profile";
+    setNav(button);
+
+    document.getElementById(
+        "sectionTitle"
+    ).textContent =
+        "My Profile";
 
 
-    document
-        .getElementById(
-            "matchesContainer"
-        )
-        .innerHTML = `
+    document.getElementById(
+        "matchesContainer"
+    ).innerHTML = `
 
         <div class="profile-card">
 
@@ -1609,39 +1550,18 @@ function showProfile(){
             </div>
 
             <div class="profile-line">
-
-                <span>
-                    Account
-                </span>
-
-                <strong>
-                    Active
-                </strong>
-
+                <span>Account</span>
+                <strong>Active</strong>
             </div>
 
             <div class="profile-line">
-
-                <span>
-                    Balance
-                </span>
-
-                <strong>
-                    0.00 ETB
-                </strong>
-
+                <span>Balance</span>
+                <strong>0.00 ETB</strong>
             </div>
 
             <div class="profile-line">
-
-                <span>
-                    Bets
-                </span>
-
-                <strong>
-                    0
-                </strong>
-
+                <span>Bets</span>
+                <strong>0</strong>
             </div>
 
         </div>
@@ -1678,77 +1598,7 @@ function showProfile(){
         </div>
 
     `;
-}
 
-
-/* =====================================================
-   HOME
-===================================================== */
-
-function homePage(button){
-
-    setNav(button);
-
-    document
-        .getElementById(
-            "sectionTitle"
-        )
-        .textContent =
-        "⚽ Today's Matches";
-
-    loadMatches();
-    loadBestBet();
-}
-
-
-/* =====================================================
-   FOOTBALL
-===================================================== */
-
-function footballPage(button){
-
-    setNav(button);
-
-    document
-        .getElementById(
-            "sectionTitle"
-        )
-        .textContent =
-        "⚽ Football";
-
-    loadMatches();
-}
-
-
-/* =====================================================
-   BEST
-===================================================== */
-
-function bestPage(button){
-
-    setNav(button);
-
-    document
-        .getElementById(
-            "sectionTitle"
-        )
-        .textContent =
-        "🎯 Best Bet";
-
-    loadBestBet();
-    loadMatches();
-}
-
-
-/* =====================================================
-   PROFILE PAGE
-===================================================== */
-
-function profilePage(button){
-
-    setNav(button);
-
-    showProfile();
 }
 
 
@@ -1759,18 +1609,15 @@ function profilePage(button){
 function setNav(button){
 
     document
-        .querySelectorAll(
-            ".nav-item"
-        )
+        .querySelectorAll(".nav-item")
         .forEach(item=>{
-            item.classList.remove(
-                "active"
-            );
+            item.classList.remove("active");
         });
 
-    button.classList.add(
-        "active"
-    );
+    if(button){
+        button.classList.add("active");
+    }
+
 }
 
 
@@ -1782,9 +1629,9 @@ document.addEventListener(
     "DOMContentLoaded",
     function(){
 
-        loadMatches();
-
-        loadBestBet();
+        footballPage(
+            document.querySelectorAll(".nav-item")[1]
+        );
 
     }
 );
@@ -1798,7 +1645,6 @@ setInterval(
     function(){
 
         loadMatches();
-
         loadBestBet();
 
     },
