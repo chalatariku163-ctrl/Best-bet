@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1.0"
@@ -581,14 +582,14 @@
             class="hero-match"
             id="heroMatch"
         >
-            Loading...
+            Waiting for API...
         </div>
 
         <div
             class="hero-info"
             id="heroInfo"
         >
-            Loading match data...
+            Football data connection
         </div>
 
         <div class="confidence">
@@ -642,8 +643,6 @@
         </div>
 
 
-        <!-- Loading -->
-
         <div
             id="loading"
             class="loading"
@@ -651,12 +650,10 @@
 
             <div class="spinner"></div>
 
-            Loading matches...
+            Connecting to football API...
 
         </div>
 
-
-        <!-- Error -->
 
         <div
             id="error"
@@ -666,8 +663,6 @@
             ❌ Failed to load matches.
         </div>
 
-
-        <!-- MATCHES WILL APPEAR HERE -->
 
         <div id="matchesContainer"></div>
 
@@ -732,6 +727,21 @@
 <script>
 
     // =====================================================
+    // API CONFIGURATION
+    // =====================================================
+    //
+    // IMPORTANT:
+    // Do NOT put your API-Football key here.
+    //
+    // This URL will point to our free backend/proxy.
+    // Once the backend is ready, change ONLY this URL.
+    //
+
+    const API_BASE_URL =
+        "https://YOUR-BACKEND-URL";
+
+
+    // =====================================================
     // SELECT TAB
     // =====================================================
 
@@ -747,44 +757,41 @@
 
         button.classList.add("active");
 
+
         if (type === "best") {
+
             loadBestBet();
+
         }
+
 
         if (type === "football") {
+
             loadMatches();
+
         }
 
+
         if (type === "today") {
+
             loadMatches();
+
         }
+
 
         if (type === "live") {
 
-            document
-                .getElementById("matchesContainer")
-                .innerHTML = `
-                    <div class="status">
-                        🔴 Live football API
-                        booda itti daballa.
-                    </div>
-                `;
+            loadLive();
+
         }
+
 
         if (type === "leagues") {
 
-            document
-                .getElementById("matchesContainer")
-                .innerHTML = `
-                    <div class="status">
-                        🏆 Premier League<br><br>
-                        🏆 La Liga<br><br>
-                        🏆 Serie A<br><br>
-                        🏆 Bundesliga<br><br>
-                        🏆 Champions League
-                    </div>
-                `;
+            showLeagues();
+
         }
+
     }
 
 
@@ -807,7 +814,10 @@
 
             });
 
-        button.classList.add("selected");
+        button.classList.add(
+            "selected"
+        );
+
     }
 
 
@@ -827,7 +837,10 @@
 
             });
 
-        button.classList.add("active");
+        button.classList.add(
+            "active"
+        );
+
     }
 
 
@@ -837,10 +850,12 @@
 
     function createMatchHTML(match) {
 
-        const odds = match.odds || {};
+        const odds =
+            match.odds || {};
 
         const markets =
             match.markets || {};
+
 
         return `
 
@@ -849,11 +864,16 @@
                 <div class="match-top">
 
                     <div class="match-time">
-                        🕐 ${match.time || "--:--"}
+                        🕐 ${escapeHTML(
+                            match.time || "--:--"
+                        )}
                     </div>
 
                     <div class="best-label">
-                        ${match.label || "⚽ MATCH"}
+                        ${escapeHTML(
+                            match.label ||
+                            "⚽ MATCH"
+                        )}
                     </div>
 
                 </div>
@@ -862,7 +882,10 @@
                 <div class="teams">
 
                     <div class="team team-home">
-                        ${match.home || "Home"}
+                        ${escapeHTML(
+                            match.home ||
+                            "Home"
+                        )}
                     </div>
 
                     <div class="vs">
@@ -870,7 +893,10 @@
                     </div>
 
                     <div class="team team-away">
-                        ${match.away || "Away"}
+                        ${escapeHTML(
+                            match.away ||
+                            "Away"
+                        )}
                     </div>
 
                 </div>
@@ -888,7 +914,10 @@
                         </span>
 
                         <span class="odd-value">
-                            ${odds["1"] || "-"}
+                            ${escapeHTML(
+                                odds["1"] ||
+                                "-"
+                            )}
                         </span>
 
                     </button>
@@ -904,7 +933,10 @@
                         </span>
 
                         <span class="odd-value">
-                            ${odds["X"] || "-"}
+                            ${escapeHTML(
+                                odds["X"] ||
+                                "-"
+                            )}
                         </span>
 
                     </button>
@@ -920,7 +952,10 @@
                         </span>
 
                         <span class="odd-value">
-                            ${odds["2"] || "-"}
+                            ${escapeHTML(
+                                odds["2"] ||
+                                "-"
+                            )}
                         </span>
 
                     </button>
@@ -937,7 +972,12 @@
                         </span>
 
                         <span class="market-value">
-                            ${markets["Over 2.5"] || "-"}
+                            ${escapeHTML(
+                                markets[
+                                    "Over 2.5"
+                                ] ||
+                                "-"
+                            )}
                         </span>
 
                     </div>
@@ -950,7 +990,12 @@
                         </span>
 
                         <span class="market-value">
-                            ${markets["BTTS"] || "-"}
+                            ${escapeHTML(
+                                markets[
+                                    "BTTS"
+                                ] ||
+                                "-"
+                            )}
                         </span>
 
                     </div>
@@ -958,7 +1003,25 @@
                 </div>
 
             </div>
+
         `;
+
+    }
+
+
+    // =====================================================
+    // ESCAPE HTML
+    // =====================================================
+
+    function escapeHTML(value) {
+
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
     }
 
 
@@ -973,15 +1036,24 @@
                 "matchesContainer"
             );
 
-        if (!matches || matches.length === 0) {
+
+        if (
+            !matches ||
+            matches.length === 0
+        ) {
 
             container.innerHTML = `
+
                 <div class="status">
+
                     ⚽ No matches available.
+
                 </div>
+
             `;
 
             return;
+
         }
 
 
@@ -991,13 +1063,20 @@
         matches.forEach(match => {
 
             const league =
-                match.league || "Other";
+                match.league ||
+                "Other";
+
 
             if (!leagues[league]) {
+
                 leagues[league] = [];
+
             }
 
-            leagues[league].push(match);
+
+            leagues[league].push(
+                match
+            );
 
         });
 
@@ -1009,10 +1088,14 @@
             leagueName => {
 
                 const leagueMatches =
-                    leagues[leagueName];
+                    leagues[
+                        leagueName
+                    ];
+
 
                 const country =
-                    leagueMatches[0].country ||
+                    leagueMatches[0]
+                        .country ||
                     "";
 
 
@@ -1023,11 +1106,20 @@
                         <div class="league-header">
 
                             <div class="league-name">
-                                🏆 ${leagueName}
+
+                                🏆
+                                ${escapeHTML(
+                                    leagueName
+                                )}
+
                             </div>
 
                             <div class="league-time">
-                                ${country}
+
+                                ${escapeHTML(
+                                    country
+                                )}
+
                             </div>
 
                         </div>
@@ -1035,28 +1127,36 @@
                 `;
 
 
-                leagueMatches.forEach(match => {
+                leagueMatches.forEach(
+                    match => {
 
-                    html +=
-                        createMatchHTML(match);
+                        html +=
+                            createMatchHTML(
+                                match
+                            );
 
-                });
+                    }
+                );
 
 
                 html += `
+
                     </div>
+
                 `;
 
             }
         );
 
 
-        container.innerHTML = html;
+        container.innerHTML =
+            html;
+
     }
 
 
     // =====================================================
-    // LOAD MATCHES FROM PYTHON API
+    // LOAD MATCHES
     // =====================================================
 
     async function loadMatches() {
@@ -1086,11 +1186,25 @@
 
         try {
 
+            if (
+                API_BASE_URL.includes(
+                    "YOUR-BACKEND-URL"
+                )
+            ) {
+
+                throw new Error(
+                    "Backend URL is not configured yet."
+                );
+
+            }
+
+
             const response =
                 await fetch(
-                    "/api/matches",
+                    `${API_BASE_URL}/api/matches`,
                     {
-                        cache: "no-store"
+                        cache:
+                            "no-store"
                     }
                 );
 
@@ -1111,7 +1225,9 @@
 
             if (
                 !data.success ||
-                !Array.isArray(data.matches)
+                !Array.isArray(
+                    data.matches
+                )
             ) {
 
                 throw new Error(
@@ -1133,10 +1249,23 @@
                 err
             );
 
-            container.innerHTML = "";
 
-            error.style.display =
-                "block";
+            container.innerHTML = `
+
+                <div class="status error">
+
+                    ⚠️ Football API is not
+                    connected yet.
+
+                    <br><br>
+
+                    Backend setup is required
+                    before live matches can
+                    appear.
+
+                </div>
+
+            `;
 
         } finally {
 
@@ -1144,6 +1273,7 @@
                 "none";
 
         }
+
     }
 
 
@@ -1155,11 +1285,25 @@
 
         try {
 
+            if (
+                API_BASE_URL.includes(
+                    "YOUR-BACKEND-URL"
+                )
+            ) {
+
+                throw new Error(
+                    "Backend URL is not configured."
+                );
+
+            }
+
+
             const response =
                 await fetch(
-                    "/api/best-bet",
+                    `${API_BASE_URL}/api/best-bet`,
                     {
-                        cache: "no-store"
+                        cache:
+                            "no-store"
                     }
                 );
 
@@ -1194,41 +1338,42 @@
                 data.match;
 
 
-            document
-                .getElementById(
-                    "heroMatch"
-                )
-                .textContent =
+            document.getElementById(
+                "heroMatch"
+            ).textContent =
                 `${match.home} vs ${match.away}`;
 
 
-            document
-                .getElementById(
-                    "heroInfo"
-                )
-                .textContent =
-                `${match.league} · Today · ${match.time}`;
+            document.getElementById(
+                "heroInfo"
+            ).textContent =
+                `${match.league || ""} · ${
+                    match.time || ""
+                }`;
 
 
             const confidence =
-                Number(
-                    match.confidence || 0
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(
+                            match.confidence ||
+                            0
+                        )
+                    )
                 );
 
 
-            document
-                .getElementById(
-                    "confidenceValue"
-                )
-                .textContent =
+            document.getElementById(
+                "confidenceValue"
+            ).textContent =
                 `${confidence}%`;
 
 
-            document
-                .getElementById(
-                    "progressBar"
-                )
-                .style.width =
+            document.getElementById(
+                "progressBar"
+            ).style.width =
                 `${confidence}%`;
 
 
@@ -1240,37 +1385,226 @@
             );
 
 
-            document
-                .getElementById(
-                    "heroMatch"
-                )
-                .textContent =
+            document.getElementById(
+                "heroMatch"
+            ).textContent =
                 "Best Bet unavailable";
 
 
-            document
-                .getElementById(
-                    "heroInfo"
-                )
-                .textContent =
-                "Could not load match data";
+            document.getElementById(
+                "heroInfo"
+            ).textContent =
+                "Backend API is not connected";
 
 
-            document
-                .getElementById(
-                    "confidenceValue"
-                )
-                .textContent =
+            document.getElementById(
+                "confidenceValue"
+            ).textContent =
                 "0%";
 
 
-            document
-                .getElementById(
-                    "progressBar"
-                )
-                .style.width =
+            document.getElementById(
+                "progressBar"
+            ).style.width =
                 "0%";
+
         }
+
+    }
+
+
+    // =====================================================
+    // LIVE MATCHES
+    // =====================================================
+
+    async function loadLive() {
+
+        const container =
+            document.getElementById(
+                "matchesContainer"
+            );
+
+
+        container.innerHTML = `
+
+            <div class="loading">
+
+                <div class="spinner"></div>
+
+                Loading live matches...
+
+            </div>
+
+        `;
+
+
+        try {
+
+            if (
+                API_BASE_URL.includes(
+                    "YOUR-BACKEND-URL"
+                )
+            ) {
+
+                throw new Error(
+                    "Backend URL not configured."
+                );
+
+            }
+
+
+            const response =
+                await fetch(
+                    `${API_BASE_URL}/api/live`,
+                    {
+                        cache:
+                            "no-store"
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "HTTP " +
+                    response.status
+                );
+
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !data.success ||
+                !data.data ||
+                !Array.isArray(
+                    data.data.response
+                )
+            ) {
+
+                throw new Error(
+                    "Invalid live response"
+                );
+
+            }
+
+
+            const live =
+                data.data.response.map(
+                    item => ({
+
+                        home:
+                            item.teams?.home
+                                ?.name ||
+                            "Home",
+
+                        away:
+                            item.teams?.away
+                                ?.name ||
+                            "Away",
+
+                        league:
+                            item.league
+                                ?.name ||
+                            "Live",
+
+                        country:
+                            item.league
+                                ?.country ||
+                            "",
+
+                        time:
+                            item.fixture
+                                ?.status
+                                ?.elapsed
+                                ? `${
+                                    item.fixture
+                                        .status
+                                        .elapsed
+                                }'`
+                                : "LIVE",
+
+                        label:
+                            "🔴 LIVE"
+
+                    })
+                );
+
+
+            renderMatches(
+                live
+            );
+
+
+        } catch (err) {
+
+            console.error(
+                "Live API error:",
+                err
+            );
+
+
+            container.innerHTML = `
+
+                <div class="status">
+
+                    🔴 Live API is not
+                    connected yet.
+
+                </div>
+
+            `;
+
+        }
+
+    }
+
+
+    // =====================================================
+    // LEAGUES
+    // =====================================================
+
+    function showLeagues() {
+
+        document.getElementById(
+            "matchesContainer"
+        ).innerHTML = `
+
+            <div class="status">
+
+                🏆 Football Leagues
+
+                <br><br>
+
+                🏆 Premier League
+
+                <br><br>
+
+                🏆 La Liga
+
+                <br><br>
+
+                🏆 Serie A
+
+                <br><br>
+
+                🏆 Bundesliga
+
+                <br><br>
+
+                🏆 Champions League
+
+                <br><br>
+
+                🏆 Europa League
+
+            </div>
+
+        `;
+
     }
 
 
