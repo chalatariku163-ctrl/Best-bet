@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>BEST BET - Football</title>
 
@@ -24,7 +27,7 @@
                 );
             color: white;
             min-height: 100vh;
-            padding-bottom: 80px;
+            padding-bottom: 90px;
         }
 
         button {
@@ -95,6 +98,11 @@
             gap: 8px;
             padding: 8px 16px 14px;
             overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .tabs::-webkit-scrollbar {
+            display: none;
         }
 
         .tab {
@@ -113,7 +121,7 @@
             color: #10182f;
         }
 
-        /* ================= BEST BET ================= */
+        /* ================= HERO ================= */
 
         .hero {
             margin: 0 16px 16px;
@@ -195,9 +203,10 @@
 
         .progress-bar {
             height: 100%;
-            width: 82%;
+            width: 0%;
             background: white;
             border-radius: 10px;
+            transition: width .4s ease;
         }
 
         /* ================= SECTION ================= */
@@ -224,6 +233,23 @@
             color: rgba(255,255,255,.55);
             font-size: 12px;
             cursor: pointer;
+        }
+
+        /* ================= STATUS ================= */
+
+        .status {
+            text-align: center;
+            padding: 18px;
+            border-radius: 16px;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.08);
+            font-size: 13px;
+            opacity: .7;
+            margin-bottom: 12px;
+        }
+
+        .status.error {
+            opacity: 1;
         }
 
         /* ================= LEAGUE ================= */
@@ -371,6 +397,31 @@
             font-size: 12px;
         }
 
+        /* ================= LOADING ================= */
+
+        .loading {
+            padding: 25px;
+            text-align: center;
+            opacity: .65;
+            font-size: 13px;
+        }
+
+        .spinner {
+            width: 25px;
+            height: 25px;
+            border: 3px solid rgba(255,255,255,.15);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            animation: spin .8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         /* ================= BOTTOM NAV ================= */
 
         .bottom-nav {
@@ -414,7 +465,7 @@
         @media (max-width: 380px) {
 
             body {
-                padding-bottom: 75px;
+                padding-bottom: 80px;
             }
 
             .team {
@@ -436,7 +487,8 @@
 
 <div class="app">
 
-    <!-- HEADER -->
+    <!-- ================= HEADER ================= -->
+
     <header class="header">
 
         <div class="brand">
@@ -446,6 +498,7 @@
             </div>
 
             <div>
+
                 <div class="brand-name">
                     BEST BET
                 </div>
@@ -453,6 +506,7 @@
                 <div class="brand-subtitle">
                     Football Odds & Predictions
                 </div>
+
             </div>
 
         </div>
@@ -464,38 +518,50 @@
     </header>
 
 
-    <!-- TOP TABS -->
+    <!-- ================= TABS ================= -->
+
     <div class="tabs">
 
-        <button class="tab active"
-                onclick="selectTab(this)">
+        <button
+            class="tab active"
+            onclick="selectTab(this, 'best')"
+        >
             🎯 Best Bet
         </button>
 
-        <button class="tab"
-                onclick="selectTab(this)">
+        <button
+            class="tab"
+            onclick="selectTab(this, 'football')"
+        >
             ⚽ Football
         </button>
 
-        <button class="tab"
-                onclick="selectTab(this)">
+        <button
+            class="tab"
+            onclick="selectTab(this, 'live')"
+        >
             🔴 Live
         </button>
 
-        <button class="tab"
-                onclick="selectTab(this)">
+        <button
+            class="tab"
+            onclick="selectTab(this, 'today')"
+        >
             📅 Today
         </button>
 
-        <button class="tab"
-                onclick="selectTab(this)">
+        <button
+            class="tab"
+            onclick="selectTab(this, 'leagues')"
+        >
             🏆 Leagues
         </button>
 
     </div>
 
 
-    <!-- BEST BET -->
+    <!-- ================= BEST BET HERO ================= -->
+
     <div class="hero">
 
         <div class="hero-top">
@@ -511,12 +577,18 @@
 
         </div>
 
-        <div class="hero-match">
-            Arsenal vs Chelsea
+        <div
+            class="hero-match"
+            id="heroMatch"
+        >
+            Loading...
         </div>
 
-        <div class="hero-info">
-            Premier League · Today · 19:30
+        <div
+            class="hero-info"
+            id="heroInfo"
+        >
+            Loading match data...
         </div>
 
         <div class="confidence">
@@ -527,14 +599,22 @@
                     Best Bet Confidence
                 </span>
 
-                <span class="confidence-value">
-                    82%
+                <span
+                    class="confidence-value"
+                    id="confidenceValue"
+                >
+                    0%
                 </span>
 
             </div>
 
             <div class="progress">
-                <div class="progress-bar"></div>
+
+                <div
+                    class="progress-bar"
+                    id="progressBar"
+                ></div>
+
             </div>
 
         </div>
@@ -542,7 +622,8 @@
     </div>
 
 
-    <!-- MATCHES -->
+    <!-- ================= MATCHES ================= -->
+
     <div class="section">
 
         <div class="section-header">
@@ -551,406 +632,96 @@
                 ⚽ Today's Matches
             </div>
 
-            <button class="see-all">
-                See all
+            <button
+                class="see-all"
+                onclick="loadMatches()"
+            >
+                Refresh
             </button>
 
         </div>
 
 
-        <!-- LEAGUE 1 -->
-        <div class="league">
+        <!-- Loading -->
 
-            <div class="league-header">
+        <div
+            id="loading"
+            class="loading"
+        >
 
-                <div class="league-name">
-                    🏆 Premier League
-                </div>
+            <div class="spinner"></div>
 
-                <div class="league-time">
-                    England
-                </div>
-
-            </div>
-
-
-            <!-- MATCH -->
-            <div class="match">
-
-                <div class="match-top">
-
-                    <div class="match-time">
-                        🕐 19:30
-                    </div>
-
-                    <div class="best-label">
-                        🎯 BEST BET
-                    </div>
-
-                </div>
-
-
-                <div class="teams">
-
-                    <div class="team team-home">
-                        Arsenal
-                    </div>
-
-                    <div class="vs">
-                        VS
-                    </div>
-
-                    <div class="team team-away">
-                        Chelsea
-                    </div>
-
-                </div>
-
-
-                <div class="odds">
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            1
-                        </span>
-
-                        <span class="odd-value">
-                            1.85
-                        </span>
-
-                    </button>
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            X
-                        </span>
-
-                        <span class="odd-value">
-                            3.60
-                        </span>
-
-                    </button>
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            2
-                        </span>
-
-                        <span class="odd-value">
-                            4.20
-                        </span>
-
-                    </button>
-
-                </div>
-
-
-                <div class="markets">
-
-                    <div class="market">
-
-                        <span>
-                            Over 2.5
-                        </span>
-
-                        <span class="market-value">
-                            1.90
-                        </span>
-
-                    </div>
-
-                    <div class="market">
-
-                        <span>
-                            BTTS
-                        </span>
-
-                        <span class="market-value">
-                            1.75
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- MATCH 2 -->
-            <div class="match">
-
-                <div class="match-top">
-
-                    <div class="match-time">
-                        🕐 21:00
-                    </div>
-
-                    <div class="best-label">
-                        ⭐ VALUE
-                    </div>
-
-                </div>
-
-
-                <div class="teams">
-
-                    <div class="team team-home">
-                        Liverpool
-                    </div>
-
-                    <div class="vs">
-                        VS
-                    </div>
-
-                    <div class="team team-away">
-                        Newcastle
-                    </div>
-
-                </div>
-
-
-                <div class="odds">
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            1
-                        </span>
-
-                        <span class="odd-value">
-                            1.55
-                        </span>
-
-                    </button>
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            X
-                        </span>
-
-                        <span class="odd-value">
-                            4.10
-                        </span>
-
-                    </button>
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            2
-                        </span>
-
-                        <span class="odd-value">
-                            5.80
-                        </span>
-
-                    </button>
-
-                </div>
-
-
-                <div class="markets">
-
-                    <div class="market">
-
-                        <span>
-                            Over 2.5
-                        </span>
-
-                        <span class="market-value">
-                            1.68
-                        </span>
-
-                    </div>
-
-                    <div class="market">
-
-                        <span>
-                            BTTS
-                        </span>
-
-                        <span class="market-value">
-                            1.82
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </div>
+            Loading matches...
 
         </div>
 
 
-        <!-- LEAGUE 2 -->
-        <div class="league">
+        <!-- Error -->
 
-            <div class="league-header">
-
-                <div class="league-name">
-                    🏆 La Liga
-                </div>
-
-                <div class="league-time">
-                    Spain
-                </div>
-
-            </div>
-
-
-            <div class="match">
-
-                <div class="match-top">
-
-                    <div class="match-time">
-                        🕐 20:00
-                    </div>
-
-                    <div class="best-label">
-                        🎯 BEST BET
-                    </div>
-
-                </div>
-
-
-                <div class="teams">
-
-                    <div class="team team-home">
-                        Barcelona
-                    </div>
-
-                    <div class="vs">
-                        VS
-                    </div>
-
-                    <div class="team team-away">
-                        Sevilla
-                    </div>
-
-                </div>
-
-
-                <div class="odds">
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            1
-                        </span>
-
-                        <span class="odd-value">
-                            1.42
-                        </span>
-
-                    </button>
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            X
-                        </span>
-
-                        <span class="odd-value">
-                            4.80
-                        </span>
-
-                    </button>
-
-                    <button class="odd"
-                            onclick="selectOdd(this)">
-
-                        <span class="odd-name">
-                            2
-                        </span>
-
-                        <span class="odd-value">
-                            7.20
-                        </span>
-
-                    </button>
-
-                </div>
-
-
-                <div class="markets">
-
-                    <div class="market">
-
-                        <span>
-                            Over 2.5
-                        </span>
-
-                        <span class="market-value">
-                            1.62
-                        </span>
-
-                    </div>
-
-                    <div class="market">
-
-                        <span>
-                            BTTS
-                        </span>
-
-                        <span class="market-value">
-                            1.78
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </div>
-
+        <div
+            id="error"
+            class="status error"
+            style="display:none;"
+        >
+            ❌ Failed to load matches.
         </div>
+
+
+        <!-- MATCHES WILL APPEAR HERE -->
+
+        <div id="matchesContainer"></div>
 
     </div>
 
 
-    <!-- FOOTER -->
-    <div style="
-        text-align:center;
-        padding:20px 16px;
-        opacity:.45;
-        font-size:11px;
-    ">
+    <!-- ================= FOOTER ================= -->
+
+    <div
+        style="
+            text-align:center;
+            padding:20px 16px;
+            opacity:.45;
+            font-size:11px;
+        "
+    >
         ⚡ BEST BET · Football analysis dashboard
     </div>
 
 </div>
 
 
-<!-- BOTTOM NAV -->
+<!-- ================= BOTTOM NAV ================= -->
+
 <nav class="bottom-nav">
 
-    <button class="nav-item active">
+    <button
+        class="nav-item active"
+        onclick="selectNav(this)"
+    >
         <span class="nav-icon">🏠</span>
         Home
     </button>
 
-    <button class="nav-item">
+    <button
+        class="nav-item"
+        onclick="selectNav(this)"
+    >
         <span class="nav-icon">⚽</span>
         Football
     </button>
 
-    <button class="nav-item">
+    <button
+        class="nav-item"
+        onclick="selectNav(this)"
+    >
         <span class="nav-icon">🎯</span>
         Best Bet
     </button>
 
-    <button class="nav-item">
+    <button
+        class="nav-item"
+        onclick="selectNav(this)"
+    >
         <span class="nav-icon">📜</span>
         History
     </button>
@@ -961,10 +732,10 @@
 <script>
 
     // =====================================================
-    // TAB SELECTION
+    // SELECT TAB
     // =====================================================
 
-    function selectTab(button) {
+    function selectTab(button, type) {
 
         document
             .querySelectorAll(".tab")
@@ -975,11 +746,50 @@
             });
 
         button.classList.add("active");
+
+        if (type === "best") {
+            loadBestBet();
+        }
+
+        if (type === "football") {
+            loadMatches();
+        }
+
+        if (type === "today") {
+            loadMatches();
+        }
+
+        if (type === "live") {
+
+            document
+                .getElementById("matchesContainer")
+                .innerHTML = `
+                    <div class="status">
+                        🔴 Live football API
+                        booda itti daballa.
+                    </div>
+                `;
+        }
+
+        if (type === "leagues") {
+
+            document
+                .getElementById("matchesContainer")
+                .innerHTML = `
+                    <div class="status">
+                        🏆 Premier League<br><br>
+                        🏆 La Liga<br><br>
+                        🏆 Serie A<br><br>
+                        🏆 Bundesliga<br><br>
+                        🏆 Champions League
+                    </div>
+                `;
+        }
     }
 
 
     // =====================================================
-    // ODDS SELECTION
+    // SELECT ODDS
     // =====================================================
 
     function selectOdd(button) {
@@ -991,7 +801,9 @@
             .querySelectorAll(".odd")
             .forEach(odd => {
 
-                odd.classList.remove("selected");
+                odd.classList.remove(
+                    "selected"
+                );
 
             });
 
@@ -1000,35 +812,500 @@
 
 
     // =====================================================
-    // BOTTOM NAV
+    // SELECT BOTTOM NAV
     // =====================================================
 
-    document
-        .querySelectorAll(".nav-item")
-        .forEach(item => {
+    function selectNav(button) {
 
-            item.addEventListener(
-                "click",
-                function () {
+        document
+            .querySelectorAll(".nav-item")
+            .forEach(nav => {
 
-                    document
-                        .querySelectorAll(".nav-item")
-                        .forEach(nav => {
+                nav.classList.remove(
+                    "active"
+                );
 
-                            nav.classList.remove(
-                                "active"
-                            );
+            });
 
-                        });
+        button.classList.add("active");
+    }
 
-                    this.classList.add("active");
 
-                }
+    // =====================================================
+    // CREATE MATCH HTML
+    // =====================================================
+
+    function createMatchHTML(match) {
+
+        const odds = match.odds || {};
+
+        const markets =
+            match.markets || {};
+
+        return `
+
+            <div class="match">
+
+                <div class="match-top">
+
+                    <div class="match-time">
+                        🕐 ${match.time || "--:--"}
+                    </div>
+
+                    <div class="best-label">
+                        ${match.label || "⚽ MATCH"}
+                    </div>
+
+                </div>
+
+
+                <div class="teams">
+
+                    <div class="team team-home">
+                        ${match.home || "Home"}
+                    </div>
+
+                    <div class="vs">
+                        VS
+                    </div>
+
+                    <div class="team team-away">
+                        ${match.away || "Away"}
+                    </div>
+
+                </div>
+
+
+                <div class="odds">
+
+                    <button
+                        class="odd"
+                        onclick="selectOdd(this)"
+                    >
+
+                        <span class="odd-name">
+                            1
+                        </span>
+
+                        <span class="odd-value">
+                            ${odds["1"] || "-"}
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        class="odd"
+                        onclick="selectOdd(this)"
+                    >
+
+                        <span class="odd-name">
+                            X
+                        </span>
+
+                        <span class="odd-value">
+                            ${odds["X"] || "-"}
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        class="odd"
+                        onclick="selectOdd(this)"
+                    >
+
+                        <span class="odd-name">
+                            2
+                        </span>
+
+                        <span class="odd-value">
+                            ${odds["2"] || "-"}
+                        </span>
+
+                    </button>
+
+                </div>
+
+
+                <div class="markets">
+
+                    <div class="market">
+
+                        <span>
+                            Over 2.5
+                        </span>
+
+                        <span class="market-value">
+                            ${markets["Over 2.5"] || "-"}
+                        </span>
+
+                    </div>
+
+
+                    <div class="market">
+
+                        <span>
+                            BTTS
+                        </span>
+
+                        <span class="market-value">
+                            ${markets["BTTS"] || "-"}
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `;
+    }
+
+
+    // =====================================================
+    // GROUP MATCHES BY LEAGUE
+    // =====================================================
+
+    function renderMatches(matches) {
+
+        const container =
+            document.getElementById(
+                "matchesContainer"
             );
 
+        if (!matches || matches.length === 0) {
+
+            container.innerHTML = `
+                <div class="status">
+                    ⚽ No matches available.
+                </div>
+            `;
+
+            return;
+        }
+
+
+        const leagues = {};
+
+
+        matches.forEach(match => {
+
+            const league =
+                match.league || "Other";
+
+            if (!leagues[league]) {
+                leagues[league] = [];
+            }
+
+            leagues[league].push(match);
+
         });
+
+
+        let html = "";
+
+
+        Object.keys(leagues).forEach(
+            leagueName => {
+
+                const leagueMatches =
+                    leagues[leagueName];
+
+                const country =
+                    leagueMatches[0].country ||
+                    "";
+
+
+                html += `
+
+                    <div class="league">
+
+                        <div class="league-header">
+
+                            <div class="league-name">
+                                🏆 ${leagueName}
+                            </div>
+
+                            <div class="league-time">
+                                ${country}
+                            </div>
+
+                        </div>
+
+                `;
+
+
+                leagueMatches.forEach(match => {
+
+                    html +=
+                        createMatchHTML(match);
+
+                });
+
+
+                html += `
+                    </div>
+                `;
+
+            }
+        );
+
+
+        container.innerHTML = html;
+    }
+
+
+    // =====================================================
+    // LOAD MATCHES FROM PYTHON API
+    // =====================================================
+
+    async function loadMatches() {
+
+        const loading =
+            document.getElementById(
+                "loading"
+            );
+
+        const error =
+            document.getElementById(
+                "error"
+            );
+
+        const container =
+            document.getElementById(
+                "matchesContainer"
+            );
+
+
+        loading.style.display =
+            "block";
+
+        error.style.display =
+            "none";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/matches",
+                    {
+                        cache: "no-store"
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "HTTP " +
+                    response.status
+                );
+
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !data.success ||
+                !Array.isArray(data.matches)
+            ) {
+
+                throw new Error(
+                    "Invalid API response"
+                );
+
+            }
+
+
+            renderMatches(
+                data.matches
+            );
+
+
+        } catch (err) {
+
+            console.error(
+                "Matches API error:",
+                err
+            );
+
+            container.innerHTML = "";
+
+            error.style.display =
+                "block";
+
+        } finally {
+
+            loading.style.display =
+                "none";
+
+        }
+    }
+
+
+    // =====================================================
+    // LOAD BEST BET
+    // =====================================================
+
+    async function loadBestBet() {
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/best-bet",
+                    {
+                        cache: "no-store"
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    "HTTP " +
+                    response.status
+                );
+
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                !data.success ||
+                !data.match
+            ) {
+
+                throw new Error(
+                    "Invalid Best Bet response"
+                );
+
+            }
+
+
+            const match =
+                data.match;
+
+
+            document
+                .getElementById(
+                    "heroMatch"
+                )
+                .textContent =
+                `${match.home} vs ${match.away}`;
+
+
+            document
+                .getElementById(
+                    "heroInfo"
+                )
+                .textContent =
+                `${match.league} · Today · ${match.time}`;
+
+
+            const confidence =
+                Number(
+                    match.confidence || 0
+                );
+
+
+            document
+                .getElementById(
+                    "confidenceValue"
+                )
+                .textContent =
+                `${confidence}%`;
+
+
+            document
+                .getElementById(
+                    "progressBar"
+                )
+                .style.width =
+                `${confidence}%`;
+
+
+        } catch (err) {
+
+            console.error(
+                "Best Bet API error:",
+                err
+            );
+
+
+            document
+                .getElementById(
+                    "heroMatch"
+                )
+                .textContent =
+                "Best Bet unavailable";
+
+
+            document
+                .getElementById(
+                    "heroInfo"
+                )
+                .textContent =
+                "Could not load match data";
+
+
+            document
+                .getElementById(
+                    "confidenceValue"
+                )
+                .textContent =
+                "0%";
+
+
+            document
+                .getElementById(
+                    "progressBar"
+                )
+                .style.width =
+                "0%";
+        }
+    }
+
+
+    // =====================================================
+    // START
+    // =====================================================
+
+    document.addEventListener(
+        "DOMContentLoaded",
+        function () {
+
+            loadMatches();
+
+            loadBestBet();
+
+        }
+    );
+
+
+    // =====================================================
+    // AUTO REFRESH
+    // =====================================================
+
+    setInterval(
+        function () {
+
+            loadMatches();
+
+            loadBestBet();
+
+        },
+        60000
+    );
 
 </script>
 
 </body>
-</html>
+    </html>
