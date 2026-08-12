@@ -2,7 +2,7 @@ import os
 import random
 import threading
 
-from flask import Flask
+from flask import Flask, jsonify, render_template
 
 from telegram import (
     Update,
@@ -18,53 +18,107 @@ from telegram.ext import (
 )
 
 
-# =========================================================
-# SETTINGS
-# =========================================================
-
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 web_app = Flask(__name__)
 
 
 # =========================================================
-# FLASK WEB SERVER
+# DEMO FOOTBALL DATA
+# =========================================================
+
+MATCHES = [
+    {
+        "league": "Premier League",
+        "country": "England",
+        "time": "19:30",
+        "home": "Arsenal",
+        "away": "Chelsea",
+        "odds": {
+            "1": "1.85",
+            "X": "3.60",
+            "2": "4.20"
+        },
+        "markets": {
+            "Over 2.5": "1.90",
+            "BTTS": "1.75"
+        },
+        "label": "🎯 BEST BET",
+        "confidence": 82
+    },
+    {
+        "league": "Premier League",
+        "country": "England",
+        "time": "21:00",
+        "home": "Liverpool",
+        "away": "Newcastle",
+        "odds": {
+            "1": "1.55",
+            "X": "4.10",
+            "2": "5.80"
+        },
+        "markets": {
+            "Over 2.5": "1.68",
+            "BTTS": "1.82"
+        },
+        "label": "⭐ VALUE",
+        "confidence": 78
+    },
+    {
+        "league": "La Liga",
+        "country": "Spain",
+        "time": "20:00",
+        "home": "Barcelona",
+        "away": "Sevilla",
+        "odds": {
+            "1": "1.42",
+            "X": "4.80",
+            "2": "7.20"
+        },
+        "markets": {
+            "Over 2.5": "1.62",
+            "BTTS": "1.78"
+        },
+        "label": "🎯 BEST BET",
+        "confidence": 85
+    }
+]
+
+
+# =========================================================
+# FLASK
 # =========================================================
 
 @web_app.route("/")
 def home():
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport"
-              content="width=device-width, initial-scale=1.0">
-        <title>Best Bet</title>
-    </head>
-
-    <body style="
-        background:#10182f;
-        color:white;
-        font-family:Arial;
-        text-align:center;
-        padding:40px;
-    ">
-
-        <h1>🎯 BEST BET</h1>
-
-        <p>🤖 Telegram Bot is running.</p>
-
-        <p>⚡ Keno Fast Demo is ready.</p>
-
-    </body>
-    </html>
-    """
+    return render_template("index.html")
 
 
 @web_app.route("/health")
 def health():
     return "OK"
+
+
+@web_app.route("/api/matches")
+def matches_api():
+    return jsonify({
+        "success": True,
+        "matches": MATCHES
+    })
+
+
+@web_app.route("/api/best-bet")
+def best_bet_api():
+
+    best = max(
+        MATCHES,
+        key=lambda match: match["confidence"]
+    )
+
+    return jsonify({
+        "success": True,
+        "match": best
+    })
 
 
 def run_web():
@@ -77,20 +131,18 @@ def run_web():
 
 
 # =========================================================
-# MAIN MENU
+# TELEGRAM MENUS
 # =========================================================
 
 def main_menu():
 
     keyboard = [
-
         [
             InlineKeyboardButton(
                 "🎯 BEST BET",
                 callback_data="best_bet"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "⚡ KENO FAST",
@@ -101,7 +153,6 @@ def main_menu():
                 callback_data="football"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "💰 DEPOSIT",
@@ -112,7 +163,6 @@ def main_menu():
                 callback_data="balance"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "💸 WITHDRAW",
@@ -123,7 +173,6 @@ def main_menu():
                 callback_data="history"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "🏆 WINNERS",
@@ -134,21 +183,16 @@ def main_menu():
                 callback_data="how_to_play"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "📞 SUPPORT",
                 callback_data="support"
             )
-        ],
+        ]
     ]
 
     return InlineKeyboardMarkup(keyboard)
 
-
-# =========================================================
-# KENO / NUMBER GAME MENU
-# =========================================================
 
 def keno_menu():
 
@@ -186,55 +230,45 @@ def keno_menu():
     return InlineKeyboardMarkup(keyboard)
 
 
-# =========================================================
-# FOOTBALL MENU
-# =========================================================
-
 def football_menu():
 
     keyboard = [
-
         [
             InlineKeyboardButton(
                 "📅 MATCHES",
                 callback_data="football_matches"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "🔴 LIVE",
                 callback_data="football_live"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "🏆 LEAGUES",
                 callback_data="football_leagues"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "📊 STANDINGS",
                 callback_data="football_standings"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "🔎 TEAMS",
                 callback_data="football_teams"
             )
         ],
-
         [
             InlineKeyboardButton(
                 "⬅️ BACK",
                 callback_data="back_main"
             )
-        ],
+        ]
     ]
 
     return InlineKeyboardMarkup(keyboard)
@@ -267,7 +301,7 @@ async def start(
 
 
 # =========================================================
-# BUTTON HANDLER
+# CALLBACK
 # =========================================================
 
 async def button_handler(
@@ -277,64 +311,71 @@ async def button_handler(
 
     query = update.callback_query
 
-    await query.answer()
+    # Telegram callback saffisaan acknowledge godhi
+    try:
+        await query.answer()
+    except Exception as error:
+        print(f"Callback answer warning: {error}")
 
-    # =====================================================
+    data = query.data
+
+    # -----------------------------------------------------
     # BEST BET
-    # =====================================================
+    # -----------------------------------------------------
 
-    if query.data == "best_bet":
+    if data == "best_bet":
+
+        best = max(
+            MATCHES,
+            key=lambda match: match["confidence"]
+        )
+
+        text = (
+            "🎯 *BEST BET*\n\n"
+            f"⚽ {best['home']} vs {best['away']}\n"
+            f"🏆 {best['league']}\n"
+            f"🕐 {best['time']}\n\n"
+            f"📊 Confidence: *{best['confidence']}%*\n\n"
+            f"1️⃣ {best['odds']['1']}\n"
+            f"❌ X {best['odds']['X']}\n"
+            f"2️⃣ {best['odds']['2']}\n\n"
+            "🧪 Demo data."
+        )
 
         await query.edit_message_text(
-            "🎯 *BEST BET*\n\n"
-            "Menu keessaa filannoo kee godhi.",
+            text,
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
 
+    # -----------------------------------------------------
+    # KENO
+    # -----------------------------------------------------
 
-    # =====================================================
-    # KENO FAST
-    # =====================================================
-
-    elif query.data == "keno_fast":
+    elif data == "keno_fast":
 
         await query.edit_message_text(
             "⚡ *KENO FAST*\n\n"
-            "Lakkoofsa 1 hanga 80 keessaa "
-            "filadhu.\n\n"
-            "🧪 Demo number game qofa.",
+            "Lakkoofsa 1 hanga 80 keessaa filadhu.",
             reply_markup=keno_menu(),
             parse_mode="Markdown"
         )
 
+    elif data.startswith("keno_number_"):
 
-    # =====================================================
-    # KENO NUMBER
-    # =====================================================
-
-    elif query.data.startswith("keno_number_"):
-
-        number = query.data.replace(
+        number = data.replace(
             "keno_number_",
             ""
         )
 
         await query.edit_message_text(
             f"🔢 Lakkoofsa filatame: *{number}*\n\n"
-            "Lakkoofsa biraa filachuu "
-            "ykn RANDOM DRAW gochuu dandeessa.\n\n"
-            "🧪 Demo qofa.",
+            "RANDOM DRAW ykn lakkoofsa biraa filadhu.",
             reply_markup=keno_menu(),
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # KENO RANDOM DRAW
-    # =====================================================
-
-    elif query.data == "keno_draw":
+    elif data == "keno_draw":
 
         result = random.sample(
             range(1, 81),
@@ -350,109 +391,91 @@ async def button_handler(
 
         await query.edit_message_text(
             "🎲 *RANDOM DRAW*\n\n"
-            f"🔢 Result:\n\n"
-            f"*{result_text}*\n\n"
-            "🧪 Demo number game qofa.",
+            f"🔢 Result:\n\n*{result_text}*\n\n"
+            "🧪 Demo qofa.",
             reply_markup=keno_menu(),
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # FOOTBALL
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif query.data == "football":
-
-        await query.edit_message_text(
-            " ",
-            reply_markup=football_menu()
-        )
-
-
-    # =====================================================
-    # FOOTBALL MATCHES
-    # =====================================================
-
-    elif query.data == "football_matches":
+    elif data == "football":
 
         await query.edit_message_text(
-            "📅 *MATCHES*\n\n"
-            "Taphoota football asitti "
-            "ilaalla.",
+            "⚽ *FOOTBALL*\n\n"
+            "Filannoo kee godhi.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
+    elif data == "football_matches":
 
-    # =====================================================
-    # FOOTBALL LIVE
-    # =====================================================
+        text = "📅 *TODAY'S MATCHES*\n\n"
 
-    elif query.data == "football_live":
+        for match in MATCHES:
+
+            text += (
+                f"⚽ {match['home']} vs "
+                f"{match['away']}\n"
+                f"🏆 {match['league']}\n"
+                f"🕐 {match['time']}\n\n"
+            )
+
+        await query.edit_message_text(
+            text,
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+    elif data == "football_live":
 
         await query.edit_message_text(
             "🔴 *LIVE*\n\n"
-            "Live football data asitti "
-            "mul'ata.",
+            "Live football API yeroo ammaa "
+            "hin walqabsiifamne.\n\n"
+            "🧪 Demo mode.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # FOOTBALL LEAGUES
-    # =====================================================
-
-    elif query.data == "football_leagues":
+    elif data == "football_leagues":
 
         await query.edit_message_text(
             "🏆 *LEAGUES*\n\n"
             "⚽ Premier League\n"
-            "⚽ Champions League\n"
             "⚽ La Liga\n"
             "⚽ Serie A\n"
-            "⚽ Bundesliga",
+            "⚽ Bundesliga\n"
+            "⚽ Champions League",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # FOOTBALL STANDINGS
-    # =====================================================
-
-    elif query.data == "football_standings":
+    elif data == "football_standings":
 
         await query.edit_message_text(
             "📊 *STANDINGS*\n\n"
-            "Gabatee sadarkaa league "
-            "asitti ilaalla.",
+            "Standing API booda itti daballa.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # FOOTBALL TEAMS
-    # =====================================================
-
-    elif query.data == "football_teams":
+    elif data == "football_teams":
 
         await query.edit_message_text(
             "🔎 *TEAMS*\n\n"
-            "Gareewwan football asitti "
-            "ilaalla.",
+            "Team search API booda itti daballa.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
+    # -----------------------------------------------------
+    # BACK
+    # -----------------------------------------------------
 
-    # =====================================================
-    # BACK MAIN
-    # =====================================================
-
-    elif query.data == "back_main":
+    elif data == "back_main":
 
         await query.edit_message_text(
             "🎯 *BEST BET*\n\n"
@@ -461,12 +484,11 @@ async def button_handler(
             parse_mode="Markdown"
         )
 
+    # -----------------------------------------------------
+    # OTHER
+    # -----------------------------------------------------
 
-    # =====================================================
-    # DEPOSIT
-    # =====================================================
-
-    elif query.data == "deposit":
+    elif data == "deposit":
 
         await query.edit_message_text(
             "💰 *DEPOSIT*\n\n"
@@ -475,12 +497,7 @@ async def button_handler(
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # BALANCE
-    # =====================================================
-
-    elif query.data == "balance":
+    elif data == "balance":
 
         await query.edit_message_text(
             "💳 *BALANCE*\n\n"
@@ -489,12 +506,7 @@ async def button_handler(
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # WITHDRAW
-    # =====================================================
-
-    elif query.data == "withdraw":
+    elif data == "withdraw":
 
         await query.edit_message_text(
             "💸 *WITHDRAW*\n\n"
@@ -503,68 +515,58 @@ async def button_handler(
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # HISTORY
-    # =====================================================
-
-    elif query.data == "history":
+    elif data == "history":
 
         await query.edit_message_text(
             "📜 *MY HISTORY*\n\n"
-            "Demo history as keessatti "
-            "mul'ata.",
+            "History system booda itti daballa.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # WINNERS
-    # =====================================================
-
-    elif query.data == "winners":
+    elif data == "winners":
 
         await query.edit_message_text(
             "🏆 *WINNERS*\n\n"
-            "Demo results as keessatti "
-            "mul'atu.",
+            "Demo winners booda itti daballa.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # HOW TO PLAY
-    # =====================================================
-
-    elif query.data == "how_to_play":
+    elif data == "how_to_play":
 
         await query.edit_message_text(
             "ℹ️ *HOW TO PLAY*\n\n"
-            "1️⃣ ⚡ KENO FAST filadhu.\n"
-            "2️⃣ Lakkoofsa 1–80 keessaa filadhu.\n"
-            "3️⃣ 🎲 RANDOM DRAW cuqaasi.\n"
-            "4️⃣ Result ilaali.\n\n"
+            "1️⃣ Football ykn Keno filadhu.\n"
+            "2️⃣ Filannoo kee godhi.\n"
+            "3️⃣ Result ilaali.\n\n"
             "🧪 Demo qofa.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
 
-
-    # =====================================================
-    # SUPPORT
-    # =====================================================
-
-    elif query.data == "support":
+    elif data == "support":
 
         await query.edit_message_text(
             "📞 *SUPPORT*\n\n"
-            "Yoo gargaarsa barbaadde, "
-            "admin/support qunnami.",
+            "Admin/support qunnami.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
+
+
+# =========================================================
+# ERROR HANDLER
+# =========================================================
+
+async def error_handler(
+    update: object,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    print(
+        f"❌ Telegram error: {context.error}"
+    )
 
 
 # =========================================================
@@ -579,15 +581,13 @@ def main():
             "BOT_TOKEN environment variable hin jiru."
         )
 
-
-    # Flask server jalqabi
+    # Flask
     threading.Thread(
         target=run_web,
         daemon=True
     ).start()
 
-
-    # Telegram application
+    # Telegram
     app = (
         Application
         .builder()
@@ -595,8 +595,6 @@ def main():
         .build()
     )
 
-
-    # /start
     app.add_handler(
         CommandHandler(
             "start",
@@ -604,31 +602,21 @@ def main():
         )
     )
 
-
-    # Inline buttons
     app.add_handler(
         CallbackQueryHandler(
             button_handler
         )
     )
 
-
-    print(
-        "🌐 Web server started..."
+    app.add_error_handler(
+        error_handler
     )
 
-    print(
-        "🤖 BEST BET BOT started..."
-    )
+    print("🌐 Web server started...")
+    print("🤖 BEST BET BOT started...")
 
-
-    # Telegram polling
     app.run_polling()
 
-
-# =========================================================
-# RUN
-# =========================================================
 
 if __name__ == "__main__":
     main()
