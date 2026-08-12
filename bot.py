@@ -1,5 +1,4 @@
 import os
-import random
 import threading
 from datetime import datetime, timezone
 
@@ -11,7 +10,6 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -35,34 +33,31 @@ web_app = Flask(__name__, static_folder=".")
 
 
 # =========================================================
-# DEMO USER DATA
+# SIMPLE MEMORY DATABASE
 # =========================================================
 
 users = {}
 
 
 def get_user(user_id, first_name="User"):
-
     if user_id not in users:
-
         users[user_id] = {
             "name": first_name,
             "balance": 0.0,
             "history": [],
-            "betslip": []
+            "betslip": [],
         }
 
     return users[user_id]
 
 
 # =========================================================
-# API REQUEST
+# FOOTBALL API
 # =========================================================
 
 def football_request(endpoint, params=None):
 
     if not FOOTBALL_API_KEY:
-
         return None, "FOOTBALL_API_KEY hin jiru."
 
     headers = {
@@ -70,32 +65,24 @@ def football_request(endpoint, params=None):
     }
 
     try:
-
         response = requests.get(
             f"{API_URL}/{endpoint}",
             headers=headers,
             params=params or {},
-            timeout=25
+            timeout=25,
         )
 
         if response.status_code != 200:
-
-            return None, (
-                f"API HTTP {response.status_code}"
-            )
+            return None, f"API HTTP {response.status_code}"
 
         data = response.json()
 
         if data.get("errors"):
-
-            return None, str(
-                data.get("errors")
-            )
+            return None, str(data["errors"])
 
         return data, None
 
     except requests.RequestException as error:
-
         return None, str(error)
 
 
@@ -106,141 +93,78 @@ def football_request(endpoint, params=None):
 def format_match_time(date_string):
 
     if not date_string:
-
         return "--:--"
 
     try:
-
         dt = datetime.fromisoformat(
-            date_string.replace(
-                "Z",
-                "+00:00"
-            )
+            date_string.replace("Z", "+00:00")
         )
 
-        return dt.astimezone().strftime(
-            "%H:%M"
-        )
+        return dt.astimezone().strftime("%H:%M")
 
     except Exception:
-
         return "--:--"
 
 
 # =========================================================
-# GET TODAY MATCHES
+# TODAY MATCHES
 # =========================================================
 
 def get_today_matches():
 
-    today = datetime.now(
-        timezone.utc
-    ).strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     data, error = football_request(
         "fixtures",
         {
             "date": today,
-            "timezone": "Africa/Addis_Ababa"
-        }
+            "timezone": "Africa/Addis_Ababa",
+        },
     )
 
     if error:
-
         return [], error
 
     matches = []
 
-    for item in data.get(
-        "response",
-        []
-    ):
+    for item in data.get("response", []):
 
-        fixture = item.get(
-            "fixture",
-            {}
+        fixture = item.get("fixture", {})
+        teams = item.get("teams", {})
+        league = item.get("league", {})
+
+        home = teams.get("home", {})
+        away = teams.get("away", {})
+
+        status = fixture.get("status", {}).get(
+            "short", ""
         )
 
-        teams = item.get(
-            "teams",
-            {}
-        )
-
-        league = item.get(
-            "league",
-            {}
-        )
-
-        home = teams.get(
-            "home",
-            {}
-        )
-
-        away = teams.get(
-            "away",
-            {}
-        )
-
-        status = fixture.get(
-            "status",
-            {}
-        ).get(
-            "short",
-            ""
-        )
-
-        match = {
-
+        matches.append({
             "id": fixture.get("id"),
-
-            "home": home.get(
-                "name",
-                "Home"
-            ),
-
-            "away": away.get(
-                "name",
-                "Away"
-            ),
-
-            "home_logo": home.get(
-                "logo"
-            ),
-
-            "away_logo": away.get(
-                "logo"
-            ),
-
-            "league": league.get(
-                "name",
-                "Unknown"
-            ),
-
-            "country": league.get(
-                "country",
-                ""
-            ),
-
+            "home": home.get("name", "Home"),
+            "away": away.get("name", "Away"),
+            "home_logo": home.get("logo"),
+            "away_logo": away.get("logo"),
+            "league": league.get("name", "Unknown"),
+            "country": league.get("country", ""),
             "time": format_match_time(
                 fixture.get("date")
             ),
-
+            "date": fixture.get("date"),
             "status": status,
-
             "odds": {
                 "1": "-",
                 "X": "-",
-                "2": "-"
+                "2": "-",
             },
-
             "markets": {
                 "Over 2.5": "-",
-                "BTTS": "-"
-            }
-
-        }
-
-        matches.append(match)
+                "Under 2.5": "-",
+                "BTTS": "-",
+                "No BTTS": "-",
+            },
+        })
 
     return matches, None
 
@@ -249,47 +173,36 @@ def get_today_matches():
 # ODDS PARSER
 # =========================================================
 
-def parse_odds(data):
+def empty_odds():
 
-    result = {
-
+    return {
         "1": "-",
         "X": "-",
         "2": "-",
-
         "Over 2.5": "-",
         "Under 2.5": "-",
-
         "BTTS": "-",
-        "No BTTS": "-"
-
+        "No BTTS": "-",
     }
 
-    response = data.get(
-        "response",
-        []
-    )
+
+def parse_odds(data):
+
+    result = empty_odds()
+
+    response = data.get("response", [])
 
     if not response:
-
         return result
 
     bookmakers = response[0].get(
-        "bookmakers",
-        []
+        "bookmakers", []
     )
 
     if not bookmakers:
-
         return result
 
-    # Use first available bookmaker.
-    bookmaker = bookmakers[0]
-
-    bets = bookmaker.get(
-        "bets",
-        []
-    )
+    bets = bookmakers[0].get("bets", [])
 
     for bet in bets:
 
@@ -297,271 +210,126 @@ def parse_odds(data):
             bet.get("name", "")
         ).lower()
 
-        values = bet.get(
-            "values",
-            []
-        )
+        bet_id = bet.get("id")
 
-        # -------------------------------------------------
-        # MATCH WINNER
-        # -------------------------------------------------
+        values = bet.get("values", [])
 
+        # 1X2
         if (
-            "match winner"
-            in bet_name
-            or bet.get("id") == 1
+            "match winner" in bet_name
+            or bet_id == 1
         ):
 
             for value in values:
 
                 label = str(
-                    value.get(
-                        "value",
-                        ""
-                    )
+                    value.get("value", "")
                 ).lower()
 
-                odd = value.get(
-                    "odd",
-                    "-"
-                )
+                odd = value.get("odd", "-")
 
-                if label in [
-                    "home",
-                    "1"
-                ]:
-
+                if label in ("home", "1"):
                     result["1"] = odd
 
-                elif label in [
-                    "draw",
-                    "x"
-                ]:
-
+                elif label in ("draw", "x"):
                     result["X"] = odd
 
-                elif label in [
-                    "away",
-                    "2"
-                ]:
-
+                elif label in ("away", "2"):
                     result["2"] = odd
 
-        # -------------------------------------------------
-        # OVER / UNDER
-        # -------------------------------------------------
-
+        # OVER UNDER
         if (
-            "over/under"
-            in bet_name
-            or bet.get("id") == 5
+            "over/under" in bet_name
+            or bet_id == 5
         ):
 
             for value in values:
 
                 label = str(
-                    value.get(
-                        "value",
-                        ""
-                    )
-                )
-
-                odd = value.get(
-                    "odd",
-                    "-"
-                )
-
-                if (
-                    "over 2.5"
-                    in label.lower()
-                ):
-
-                    result[
-                        "Over 2.5"
-                    ] = odd
-
-                elif (
-                    "under 2.5"
-                    in label.lower()
-                ):
-
-                    result[
-                        "Under 2.5"
-                    ] = odd
-
-        # -------------------------------------------------
-        # BOTH TEAMS TO SCORE
-        # -------------------------------------------------
-
-        if (
-            "both teams"
-            in bet_name
-            or bet.get("id") == 8
-        ):
-
-            for value in values:
-
-                label = str(
-                    value.get(
-                        "value",
-                        ""
-                    )
+                    value.get("value", "")
                 ).lower()
 
-                odd = value.get(
-                    "odd",
-                    "-"
-                )
+                odd = value.get("odd", "-")
+
+                if "over 2.5" in label:
+                    result["Over 2.5"] = odd
+
+                elif "under 2.5" in label:
+                    result["Under 2.5"] = odd
+
+        # BTTS
+        if (
+            "both teams" in bet_name
+            or bet_id == 8
+        ):
+
+            for value in values:
+
+                label = str(
+                    value.get("value", "")
+                ).lower()
+
+                odd = value.get("odd", "-")
 
                 if label == "yes":
-
-                    result[
-                        "BTTS"
-                    ] = odd
+                    result["BTTS"] = odd
 
                 elif label == "no":
-
-                    result[
-                        "No BTTS"
-                    ] = odd
+                    result["No BTTS"] = odd
 
     return result
 
 
 # =========================================================
-# GET MATCH ODDS
+# GET ODDS
 # =========================================================
 
-def get_match_odds(
-    fixture_id
-):
+def get_match_odds(fixture_id):
 
     if not fixture_id:
-
-        return {
-            "1": "-",
-            "X": "-",
-            "2": "-",
-            "Over 2.5": "-",
-            "Under 2.5": "-",
-            "BTTS": "-",
-            "No BTTS": "-"
-        }
+        return empty_odds()
 
     data, error = football_request(
         "odds",
         {
             "fixture": fixture_id
-        }
+        },
     )
 
     if error:
-
-        return {
-            "1": "-",
-            "X": "-",
-            "2": "-",
-            "Over 2.5": "-",
-            "Under 2.5": "-",
-            "BTTS": "-",
-            "No BTTS": "-"
-        }
+        return empty_odds()
 
     return parse_odds(data)
 
 
 # =========================================================
-# ADD ODDS TO MATCHES
+# PREDICTION
 # =========================================================
 
-def enrich_matches_with_odds(
-    matches,
-    limit=20
-):
-
-    for match in matches[:limit]:
-
-        fixture_id = match.get(
-            "id"
-        )
-
-        odds = get_match_odds(
-            fixture_id
-        )
-
-        match["odds"] = {
-            "1": odds.get("1", "-"),
-            "X": odds.get("X", "-"),
-            "2": odds.get("2", "-")
-        }
-
-        match["markets"] = {
-            "Over 2.5": odds.get(
-                "Over 2.5",
-                "-"
-            ),
-            "BTTS": odds.get(
-                "BTTS",
-                "-"
-            )
-        }
-
-        match["extra_markets"] = {
-            "Under 2.5": odds.get(
-                "Under 2.5",
-                "-"
-            ),
-            "No BTTS": odds.get(
-                "No BTTS",
-                "-"
-            )
-        }
-
-    return matches
-
-
-# =========================================================
-# GET PREDICTION
-# =========================================================
-
-def get_prediction(
-    fixture_id
-):
+def get_prediction(fixture_id):
 
     if not fixture_id:
-
         return None
 
     data, error = football_request(
         "predictions",
         {
             "fixture": fixture_id
-        }
+        },
     )
 
     if error:
-
         return None
 
-    response = data.get(
-        "response",
-        []
-    )
+    response = data.get("response", [])
 
     if not response:
-
         return None
 
-    prediction_data = response[0]
+    item = response[0]
 
-    prediction = prediction_data.get(
-        "predictions",
-        {}
-    )
-
-    teams = prediction_data.get(
-        "teams",
-        {}
+    prediction = item.get(
+        "predictions", {}
     )
 
     winner = prediction.get(
@@ -577,48 +345,31 @@ def get_prediction(
     ) or {}
 
     return {
-
         "advice": prediction.get(
-            "advice",
-            ""
+            "advice", ""
         ),
-
-        "winner": winner.get(
-            "name"
-        ),
-
+        "winner": winner.get("name"),
         "winner_comment": winner.get(
             "comment"
         ),
-
         "home_percent": percent.get(
-            "home",
-            "0%"
+            "home", "0%"
         ),
-
         "draw_percent": percent.get(
-            "draw",
-            "0%"
+            "draw", "0%"
         ),
-
         "away_percent": percent.get(
-            "away",
-            "0%"
+            "away", "0%"
         ),
-
         "under_over": prediction.get(
             "under_over"
         ),
-
         "goals_home": goals.get(
             "home"
         ),
-
         "goals_away": goals.get(
             "away"
         ),
-
-        "teams": teams
     }
 
 
@@ -626,51 +377,35 @@ def get_prediction(
 # CONFIDENCE
 # =========================================================
 
-def calculate_confidence(
-    prediction
-):
+def calculate_confidence(prediction):
 
     if not prediction:
-
         return 0
 
     values = []
 
-    for key in [
+    for key in (
         "home_percent",
         "draw_percent",
-        "away_percent"
-    ]:
-
-        value = prediction.get(
-            key,
-            "0%"
-        )
+        "away_percent",
+    ):
 
         try:
-
-            values.append(
-                float(
-                    str(
-                        value
-                    ).replace(
-                        "%",
-                        ""
-                    )
-                )
+            value = float(
+                str(
+                    prediction.get(key, "0%")
+                ).replace("%", "")
             )
 
-        except Exception:
+            values.append(value)
 
+        except Exception:
             pass
 
     if not values:
-
         return 0
 
-    return int(
-        max(values)
-    )
+    return int(max(values))
 
 
 # =========================================================
@@ -682,23 +417,20 @@ def get_best_bet():
     matches, error = get_today_matches()
 
     if error:
-
         return None, error
 
     if not matches:
+        return None, "Har'a match hin argamne."
 
-        return None, (
-            "Har'a match hin argamne."
-        )
+    best = None
 
-    for match in matches[:15]:
+    for match in matches[:20]:
 
         prediction = get_prediction(
-            match.get("id")
+            match["id"]
         )
 
         if not prediction:
-
             continue
 
         confidence = calculate_confidence(
@@ -706,62 +438,46 @@ def get_best_bet():
         )
 
         if confidence <= 0:
-
             continue
 
         odds = get_match_odds(
-            match.get("id")
+            match["id"]
         )
 
-        match["odds"] = {
-            "1": odds.get("1", "-"),
-            "X": odds.get("X", "-"),
-            "2": odds.get("2", "-")
-        }
+        winner = prediction.get("winner")
 
-        match["markets"] = {
-            "Over 2.5": odds.get(
-                "Over 2.5",
-                "-"
-            ),
-            "BTTS": odds.get(
-                "BTTS",
-                "-"
-            )
-        }
-
-        if prediction.get(
-            "winner"
-        ):
-
-            bet = prediction[
-                "winner"
-            ]
-
+        if winner:
+            bet = winner
         else:
-
             bet = (
-                prediction.get(
-                    "advice"
-                )
+                prediction.get("advice")
                 or "Analysis"
             )
 
-        return {
+        candidate = {
             **match,
             "prediction": prediction,
+            "confidence": confidence,
             "bet": bet,
-            "confidence": confidence
-        }, None
+            "odds": odds,
+        }
+
+        if best is None:
+            best = candidate
+
+        elif confidence > best["confidence"]:
+            best = candidate
+
+    if best:
+        return best, None
 
     return None, (
-        "Prediction har'aaf "
-        "hin argamne."
+        "Prediction har'aaf hin argamne."
     )
 
 
 # =========================================================
-# TELEGRAM MAIN MENU
+# MAIN MENU
 # =========================================================
 
 def main_menu():
@@ -783,8 +499,8 @@ def main_menu():
 
             InlineKeyboardButton(
                 "⚡ KENO FAST",
-                callback_data="keno_fast"
-            )
+                callback_data="keno"
+            ),
         ],
 
         [
@@ -803,7 +519,7 @@ def main_menu():
             InlineKeyboardButton(
                 "💳 BALANCE",
                 callback_data="balance"
-            )
+            ),
         ],
 
         [
@@ -815,13 +531,13 @@ def main_menu():
             InlineKeyboardButton(
                 "🏆 WINNERS",
                 callback_data="winners"
-            )
+            ),
         ],
 
         [
             InlineKeyboardButton(
                 "ℹ️ HOW TO PLAY",
-                callback_data="how_to_play"
+                callback_data="how"
             )
         ],
 
@@ -830,12 +546,10 @@ def main_menu():
                 "📞 SUPPORT",
                 callback_data="support"
             )
-        ]
+        ],
     ]
 
-    return InlineKeyboardMarkup(
-        keyboard
-    )
+    return InlineKeyboardMarkup(keyboard)
 
 
 # =========================================================
@@ -849,28 +563,35 @@ def football_menu():
         [
             InlineKeyboardButton(
                 "📅 TODAY MATCHES",
-                callback_data="football_matches"
+                callback_data="matches"
             )
         ],
 
         [
             InlineKeyboardButton(
                 "🎯 PREDICTIONS",
-                callback_data="football_prediction"
+                callback_data="prediction"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🔥 BEST BET",
+                callback_data="best_bet"
             )
         ],
 
         [
             InlineKeyboardButton(
                 "🔴 LIVE",
-                callback_data="football_live"
+                callback_data="live"
             )
         ],
 
         [
             InlineKeyboardButton(
                 "🏆 LEAGUES",
-                callback_data="football_leagues"
+                callback_data="leagues"
             )
         ],
 
@@ -883,84 +604,33 @@ def football_menu():
 
         [
             InlineKeyboardButton(
-                "⬅️ BACK",
-                callback_data="back_main"
+                "⬅️ HOME",
+                callback_data="home"
             )
-        ]
+        ],
     ]
 
-    return InlineKeyboardMarkup(
-        keyboard
-    )
+    return InlineKeyboardMarkup(keyboard)
 
 
 # =========================================================
-# KENO MENU
-# =========================================================
-
-def keno_menu():
-
-    keyboard = []
-
-    for start in range(
-        1,
-        81,
-        10
-    ):
-
-        row = []
-
-        for number in range(
-            start,
-            start + 10
-        ):
-
-            row.append(
-                InlineKeyboardButton(
-                    str(number),
-                    callback_data=(
-                        f"keno_number_{number}"
-                    )
-                )
-            )
-
-        keyboard.append(row)
-
-    keyboard.append([
-        InlineKeyboardButton(
-            "🎲 RANDOM DRAW",
-            callback_data="keno_draw"
-        )
-    ])
-
-    keyboard.append([
-        InlineKeyboardButton(
-            "⬅️ BACK",
-            callback_data="back_main"
-        )
-    ])
-
-    return InlineKeyboardMarkup(
-        keyboard
-    )
-
-
-# =========================================================
-# BET SLIP KEYBOARD
+# BETSLIP
 # =========================================================
 
 def betslip_keyboard():
 
-    keyboard = [
+    return InlineKeyboardMarkup([
 
         [
             InlineKeyboardButton(
                 "🗑️ CLEAR",
                 callback_data="clear_betslip"
-            ),
+            )
+        ],
 
+        [
             InlineKeyboardButton(
-                "💰 PLACE DEMO BET",
+                "💰 DEMO BET",
                 callback_data="place_bet"
             )
         ],
@@ -974,20 +644,12 @@ def betslip_keyboard():
 
         [
             InlineKeyboardButton(
-                "⬅️ HOME",
-                callback_data="back_main"
+                "🏠 HOME",
+                callback_data="home"
             )
-        ]
-    ]
+        ],
+    ])
 
-    return InlineKeyboardMarkup(
-        keyboard
-    )
-
-
-# =========================================================
-# ADD BET TO SLIP
-# =========================================================
 
 def add_to_betslip(
     user_id,
@@ -996,86 +658,59 @@ def add_to_betslip(
     away,
     market,
     selection,
-    odd
+    odd,
 ):
 
-    user = get_user(
-        user_id
-    )
+    user = get_user(user_id)
 
-    # Same fixture + market -> replace.
     user["betslip"] = [
         item
         for item in user["betslip"]
         if not (
-            item["fixture_id"]
-            == fixture_id
-            and item["market"]
-            == market
+            str(item["fixture_id"])
+            == str(fixture_id)
+            and item["market"] == market
         )
     ]
 
     user["betslip"].append({
-
         "fixture_id": fixture_id,
-
         "home": home,
-
         "away": away,
-
         "market": market,
-
         "selection": selection,
-
-        "odd": float(odd)
-
+        "odd": float(odd),
     })
 
 
-# =========================================================
-# BETSLIP TEXT
-# =========================================================
+def get_betslip_text(user_id):
 
-def get_betslip_text(
-    user_id
-):
-
-    user = get_user(
-        user_id
-    )
+    user = get_user(user_id)
 
     slips = user["betslip"]
 
     if not slips:
-
         return (
             "🎟️ *BET SLIP*\n\n"
-            "Bet hin qabdu.\n\n"
-            "⚽ Football keessaa "
-            "odds tokko cuqaasi."
+            "Bet tokko illee hin qabdu.\n\n"
+            "⚽ Football → match → odds filadhu."
         )
 
     total_odds = 1.0
 
-    text = (
-        "🎟️ *BET SLIP*\n\n"
-    )
+    text = "🎟️ *BET SLIP*\n\n"
 
-    for index, item in enumerate(
+    for i, item in enumerate(
         slips,
         start=1
     ):
 
-        odd = float(
-            item["odd"]
-        )
-
+        odd = float(item["odd"])
         total_odds *= odd
 
         text += (
-            f"*{index}.* "
-            f"{item['home']} "
-            f"vs "
+            f"*{i}.* "
+            f"{item['home']} vs "
             f"{item['away']}\n"
             f"🎯 {item['market']}: "
             f"*{item['selection']}*\n"
@@ -1084,9 +719,8 @@ def get_betslip_text(
 
     text += (
         "━━━━━━━━━━━━━━\n"
-        f"📈 *Total Odds:* "
-        f"{total_odds:.2f}\n\n"
-        "💡 Kun demo bet slip dha."
+        f"📈 Total Odds: *{total_odds:.2f}*\n\n"
+        "⚠️ Demo betting qofa."
     )
 
     return text
@@ -1112,12 +746,12 @@ async def start(
         f"👋 Baga nagaan dhuftan "
         f"*{user.first_name}*!\n\n"
         "🎯 *BEST BET*\n\n"
-        "⚽ Football odds\n"
-        "📊 Predictions\n"
-        "🎟️ Bet Slip\n"
-        "📅 Today's matches\n"
+        "⚽ Football matches\n"
+        "💰 Odds\n"
+        "🎯 Predictions\n"
+        "🔥 Best Bet\n"
         "🔴 Live football\n"
-        "👤 Profile\n\n"
+        "🎟️ Bet Slip\n\n"
         "👇 Menu keessaa filadhu."
     )
 
@@ -1150,178 +784,79 @@ async def button_handler(
 
     data = query.data
 
-    # =====================================================
-    # BEST BET
-    # =====================================================
+    # -----------------------------------------------------
+    # HOME
+    # -----------------------------------------------------
 
-    if data == "best_bet":
-
-        match, error = get_best_bet()
-
-        if error:
-
-            await query.edit_message_text(
-                "🎯 *BEST BET*\n\n"
-                f"⚠️ {error}\n\n"
-                "API key/quota kee ilaali.",
-                reply_markup=main_menu(),
-                parse_mode="Markdown"
-            )
-
-            return
-
-        prediction = match[
-            "prediction"
-        ]
-
-        text = (
-            "🎯 *BEST BET*\n\n"
-            f"⚽ *{match['home']} "
-            f"vs {match['away']}*\n\n"
-            f"🏆 {match['league']}\n"
-            f"🕐 {match['time']}\n\n"
-            f"🔥 *Prediction:* "
-            f"{match['bet']}\n"
-            f"📊 *Confidence:* "
-            f"{match['confidence']}%\n\n"
-            f"🏠 Home: "
-            f"{prediction['home_percent']}\n"
-            f"🤝 Draw: "
-            f"{prediction['draw_percent']}\n"
-            f"✈️ Away: "
-            f"{prediction['away_percent']}\n\n"
-            f"💰 1: "
-            f"{match['odds']['1']}\n"
-            f"💰 X: "
-            f"{match['odds']['X']}\n"
-            f"💰 2: "
-            f"{match['odds']['2']}\n\n"
-            "⚠️ Prediction bu'aa "
-            "mirkanaa'aa miti."
-        )
-
-        keyboard = [
-
-            [
-                InlineKeyboardButton(
-                    "🏠 1",
-                    callback_data=(
-                        f"bet|{match['id']}|1"
-                    )
-                ),
-
-                InlineKeyboardButton(
-                    "🤝 X",
-                    callback_data=(
-                        f"bet|{match['id']}|X"
-                    )
-                ),
-
-                InlineKeyboardButton(
-                    "✈️ 2",
-                    callback_data=(
-                        f"bet|{match['id']}|2"
-                    )
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "🎟️ BET SLIP",
-                    callback_data="betslip"
-                )
-            ],
-
-            [
-                InlineKeyboardButton(
-                    "⬅️ FOOTBALL",
-                    callback_data="football"
-                )
-            ]
-        ]
+    if data == "home":
 
         await query.edit_message_text(
-            text,
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            ),
+            "🎯 *BEST BET*\n\n"
+            "Menu keessaa filadhu.",
+            reply_markup=main_menu(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
     # FOOTBALL
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data == "football":
+    if data == "football":
 
         await query.edit_message_text(
             "⚽ *FOOTBALL*\n\n"
-            "Football menu keessaa filadhu.",
+            "Filannoo kee godhi.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
     # TODAY MATCHES
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data == "football_matches":
+    if data == "matches":
 
         matches, error = get_today_matches()
 
         if error:
 
             await query.edit_message_text(
-                "⚽ *TODAY MATCHES*\n\n"
+                f"⚽ *TODAY MATCHES*\n\n"
                 f"❌ {error}",
                 reply_markup=football_menu(),
                 parse_mode="Markdown"
             )
-
             return
 
         if not matches:
 
             await query.edit_message_text(
                 "⚽ *TODAY MATCHES*\n\n"
-                "Match har'aa hin argamne.",
+                "Har'a match hin argamne.",
                 reply_markup=football_menu(),
                 parse_mode="Markdown"
             )
-
             return
 
-        # Add odds to first 12.
-        matches = enrich_matches_with_odds(
-            matches,
-            limit=12
-        )
-
-        text = (
-            "📅 *TODAY'S MATCHES*\n\n"
-        )
-
+        text = "📅 *TODAY MATCHES*\n\n"
         keyboard = []
 
-        for match in matches[:10]:
+        for match in matches[:15]:
 
             text += (
-                f"⚽ *{match['home']}* "
-                f"vs "
+                f"⚽ *{match['home']}* vs "
                 f"*{match['away']}*\n"
                 f"🏆 {match['league']}\n"
-                f"🕐 {match['time']}\n"
-                f"1️⃣ {match['odds']['1']}  "
-                f"❌ {match['odds']['X']}  "
-                f"2️⃣ {match['odds']['2']}\n\n"
+                f"🕐 {match['time']}\n\n"
             )
 
             keyboard.append([
                 InlineKeyboardButton(
                     (
-                        f"⚽ {match['home']}"
-                        f" vs "
-                        f"{match['away']}"
+                        f"⚽ {match['home']} "
+                        f"vs {match['away']}"
                     )[:60],
                     callback_data=(
                         f"match|{match['id']}"
@@ -1331,14 +866,7 @@ async def button_handler(
 
         keyboard.append([
             InlineKeyboardButton(
-                "🎟️ BET SLIP",
-                callback_data="betslip"
-            )
-        ])
-
-        keyboard.append([
-            InlineKeyboardButton(
-                "⬅️ BACK",
+                "⬅️ FOOTBALL",
                 callback_data="football"
             )
         ])
@@ -1350,50 +878,41 @@ async def button_handler(
             ),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
     # MATCH DETAILS
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data.startswith(
-        "match|"
-    ):
+    if data.startswith("match|"):
 
-        fixture_id = data.split(
-            "|"
-        )[1]
+        fixture_id = data.split("|")[1]
 
         matches, error = get_today_matches()
 
         if error:
-
-            await query.edit_message_text(
-                f"❌ {error}",
-                reply_markup=football_menu()
+            await query.answer(
+                "API error.",
+                show_alert=True
             )
-
             return
 
         selected = None
 
         for match in matches:
 
-            if str(
-                match["id"]
-            ) == str(
+            if str(match["id"]) == str(
                 fixture_id
             ):
-
                 selected = match
                 break
 
         if not selected:
 
-            await query.edit_message_text(
-                "❌ Match hin argamne.",
-                reply_markup=football_menu()
+            await query.answer(
+                "Match hin argamne.",
+                show_alert=True
             )
-
             return
 
         odds = get_match_odds(
@@ -1420,14 +939,13 @@ async def button_handler(
                 f"🤝 Draw: "
                 f"{prediction.get('draw_percent', '0%')}\n"
                 f"✈️ Away: "
-                f"{prediction.get('away_percent', '0%')}\n"
+                f"{prediction.get('away_percent', '0%')}"
             )
 
         else:
 
             prediction_text = (
-                "🎯 Prediction: "
-                "Unavailable\n"
+                "🎯 Prediction: Unavailable"
             )
 
         text = (
@@ -1438,19 +956,15 @@ async def button_handler(
             f"🌍 {selected['country']}\n"
             f"🕐 {selected['time']}\n\n"
             "💰 *1X2 ODDS*\n"
-            f"🏠 1: *{odds['1']}*\n"
-            f"🤝 X: *{odds['X']}*\n"
-            f"✈️ 2: *{odds['2']}*\n\n"
+            f"1️⃣ {odds['1']}\n"
+            f"❌ {odds['X']}\n"
+            f"2️⃣ {odds['2']}\n\n"
             "📊 *MARKETS*\n"
-            f"⬆️ Over 2.5: "
-            f"*{odds['Over 2.5']}*\n"
-            f"⬇️ Under 2.5: "
-            f"*{odds['Under 2.5']}*\n"
-            f"⚽ BTTS Yes: "
-            f"*{odds['BTTS']}*\n"
-            f"🚫 BTTS No: "
-            f"*{odds['No BTTS']}*\n\n"
-            f"{prediction_text}\n"
+            f"⬆️ Over 2.5: {odds['Over 2.5']}\n"
+            f"⬇️ Under 2.5: {odds['Under 2.5']}\n"
+            f"⚽ BTTS Yes: {odds['BTTS']}\n"
+            f"🚫 BTTS No: {odds['No BTTS']}\n\n"
+            f"{prediction_text}\n\n"
             "👇 Odds filadhu."
         )
 
@@ -1463,20 +977,18 @@ async def button_handler(
                         f"bet|{fixture_id}|1"
                     )
                 ),
-
                 InlineKeyboardButton(
                     f"❌ {odds['X']}",
                     callback_data=(
                         f"bet|{fixture_id}|X"
                     )
                 ),
-
                 InlineKeyboardButton(
                     f"2️⃣ {odds['2']}",
                     callback_data=(
                         f"bet|{fixture_id}|2"
                     )
-                )
+                ),
             ],
 
             [
@@ -1516,9 +1028,9 @@ async def button_handler(
             [
                 InlineKeyboardButton(
                     "⬅️ MATCHES",
-                    callback_data="football_matches"
+                    callback_data="matches"
                 )
-            ]
+            ],
         ]
 
         await query.edit_message_text(
@@ -1528,45 +1040,38 @@ async def button_handler(
             ),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
     # ADD BET
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data.startswith(
-        "bet|"
-    ):
+    if data.startswith("bet|"):
 
         parts = data.split("|")
 
         if len(parts) != 3:
-
             return
 
         fixture_id = parts[1]
-        selection_code = parts[2]
+        code = parts[2]
 
         matches, error = get_today_matches()
 
         if error:
-
             await query.answer(
                 "API error.",
                 show_alert=True
             )
-
             return
 
         selected = None
 
         for match in matches:
 
-            if str(
-                match["id"]
-            ) == str(
+            if str(match["id"]) == str(
                 fixture_id
             ):
-
                 selected = match
                 break
 
@@ -1576,7 +1081,6 @@ async def button_handler(
                 "Match hin argamne.",
                 show_alert=True
             )
-
             return
 
         odds = get_match_odds(
@@ -1619,39 +1123,30 @@ async def button_handler(
                 "BTTS",
                 "Yes",
                 odds["BTTS"]
-            )
-
+            ),
         }
 
-        if selection_code not in mapping:
+        if code not in mapping:
 
             await query.answer(
                 "Selection hin beekamne.",
                 show_alert=True
             )
-
             return
 
-        market, selection, odd = mapping[
-            selection_code
-        ]
+        market, selection, odd = mapping[code]
 
         try:
-
             odd_value = float(
-                str(odd).replace(
-                    ",",
-                    "."
-                )
+                str(odd).replace(",", ".")
             )
 
         except Exception:
 
             await query.answer(
-                "Odd yeroo ammaa hin jiru.",
+                "Odd hin jiru.",
                 show_alert=True
             )
-
             return
 
         if odd_value <= 1:
@@ -1660,7 +1155,6 @@ async def button_handler(
                 "Odd sirrii hin jiru.",
                 show_alert=True
             )
-
             return
 
         add_to_betslip(
@@ -1670,68 +1164,59 @@ async def button_handler(
             selected["away"],
             market,
             selection,
-            odd_value
+            odd_value,
         )
 
         await query.answer(
-            f"✅ {selection} bet slip keessa gale.",
+            "✅ Bet slip keessa gale.",
             show_alert=True
         )
 
         await query.edit_message_text(
-            get_betslip_text(
-                user.id
-            ),
+            get_betslip_text(user.id),
             reply_markup=betslip_keyboard(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
     # BET SLIP
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data == "betslip":
+    if data == "betslip":
 
         await query.edit_message_text(
-            get_betslip_text(
-                user.id
-            ),
+            get_betslip_text(user.id),
             reply_markup=betslip_keyboard(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
     # CLEAR BETSLIP
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data == "clear_betslip":
+    if data == "clear_betslip":
 
-        user_data = get_user(
-            user.id
-        )
-
-        user_data["betslip"] = []
+        get_user(user.id)["betslip"] = []
 
         await query.edit_message_text(
-            "🎟️ *BET SLIP*\n\n"
-            "🗑️ Bet slip qulqullaa'e.",
+            "🗑️ *BET SLIP QULQULLEESAME*\n\n"
+            "Bet slip kee duwwaa dha.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
-    # PLACE DEMO BET
-    # =====================================================
+    # -----------------------------------------------------
+    # DEMO BET
+    # -----------------------------------------------------
 
-    elif data == "place_bet":
+    if data == "place_bet":
 
-        user_data = get_user(
-            user.id
-        )
+        user_data = get_user(user.id)
 
-        slips = user_data[
-            "betslip"
-        ]
+        slips = user_data["betslip"]
 
         if not slips:
 
@@ -1739,138 +1224,179 @@ async def button_handler(
                 "Bet slip duwwaa dha.",
                 show_alert=True
             )
-
             return
 
         stake = 10.0
 
-        if user_data[
-            "balance"
-        ] < stake:
+        if user_data["balance"] < stake:
 
             await query.edit_message_text(
-                "💰 *BALANCE XIQQA*\n\n"
-                f"Balance kee: "
+                "💳 *BALANCE XIQQA*\n\n"
+                f"Balance: "
                 f"*{user_data['balance']:.2f}*\n\n"
-                "Demo bet gochuuf "
-                f"{stake:.2f} barbaachisa.\n\n"
-                "⚠️ Deposit dhugaa hin "
-                "hojjenne.",
+                f"Demo stake: *{stake:.2f}*\n\n"
+                "⚠️ Deposit dhugaa hin jiru.",
                 reply_markup=main_menu(),
                 parse_mode="Markdown"
             )
-
             return
 
         total_odds = 1.0
 
         for item in slips:
+            total_odds *= float(item["odd"])
 
-            total_odds *= float(
-                item["odd"]
-            )
+        potential = stake * total_odds
 
-        potential_win = (
-            stake *
-            total_odds
-        )
+        user_data["balance"] -= stake
 
-        user_data[
-            "balance"
-        ] -= stake
-
-        now = datetime.now(
-            timezone.utc
-        ).strftime(
-            "%Y-%m-%d %H:%M"
-        )
-
-        user_data[
-            "history"
-        ].append({
-
-            "time": now,
-
+        user_data["history"].append({
+            "time": datetime.now(
+                timezone.utc
+            ).strftime("%Y-%m-%d %H:%M"),
             "stake": stake,
-
             "odds": total_odds,
-
-            "potential": potential_win,
-
+            "potential": potential,
             "status": "OPEN",
-
-            "selections": [
-                (
-                    item["home"]
-                    + " vs "
-                    + item["away"]
-                    + " - "
-                    + item["selection"]
-                )
-                for item in slips
-            ]
-
         })
 
-        user_data[
-            "betslip"
-        ] = []
+        user_data["betslip"] = []
 
         await query.edit_message_text(
             "✅ *DEMO BET PLACED*\n\n"
-            f"💰 Stake: "
-            f"*{stake:.2f}*\n"
-            f"📈 Total Odds: "
-            f"*{total_odds:.2f}*\n"
-            f"🏆 Potential Win: "
-            f"*{potential_win:.2f}*\n\n"
-            f"💳 Balance: "
-            f"*{user_data['balance']:.2f}*\n\n"
-            "⚠️ Kun demo/testing qofa.",
+            f"💰 Stake: *{stake:.2f}*\n"
+            f"📈 Odds: *{total_odds:.2f}*\n"
+            f"🏆 Potential: *{potential:.2f}*\n\n"
+            "⚠️ Demo/testing qofa.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
-    # FOOTBALL PREDICTION
-    # =====================================================
+    # -----------------------------------------------------
+    # BEST BET
+    # -----------------------------------------------------
 
-    elif data == "football_prediction":
+    if data == "best_bet":
+
+        await query.edit_message_text(
+            "🎯 *BEST BET*\n\n"
+            "⏳ Match fi prediction barbaadaa jira...",
+            parse_mode="Markdown"
+        )
 
         match, error = get_best_bet()
 
         if error:
 
             await query.edit_message_text(
-                "🎯 *PREDICTION*\n\n"
+                f"🎯 *BEST BET*\n\n"
+                f"❌ {error}\n\n"
+                "FOOTBALL_API_KEY fi API quota kee ilaali.",
+                reply_markup=football_menu(),
+                parse_mode="Markdown"
+            )
+            return
+
+        prediction = match["prediction"]
+
+        text = (
+            "🔥 *BEST BET*\n\n"
+            f"⚽ *{match['home']} vs "
+            f"{match['away']}*\n\n"
+            f"🏆 {match['league']}\n"
+            f"🕐 {match['time']}\n\n"
+            f"🎯 Pick: *{match['bet']}*\n"
+            f"📊 Confidence: *{match['confidence']}%*\n\n"
+            f"🏠 Home: {prediction['home_percent']}\n"
+            f"🤝 Draw: {prediction['draw_percent']}\n"
+            f"✈️ Away: {prediction['away_percent']}\n\n"
+            f"1️⃣ {match['odds']['1']}\n"
+            f"❌ {match['odds']['X']}\n"
+            f"2️⃣ {match['odds']['2']}\n\n"
+            "⚠️ Prediction bu'aa mirkanaa'aa miti."
+        )
+
+        keyboard = [
+
+            [
+                InlineKeyboardButton(
+                    f"1️⃣ {match['odds']['1']}",
+                    callback_data=(
+                        f"bet|{match['id']}|1"
+                    )
+                ),
+                InlineKeyboardButton(
+                    f"❌ {match['odds']['X']}",
+                    callback_data=(
+                        f"bet|{match['id']}|X"
+                    )
+                ),
+                InlineKeyboardButton(
+                    f"2️⃣ {match['odds']['2']}",
+                    callback_data=(
+                        f"bet|{match['id']}|2"
+                    )
+                ),
+            ],
+
+            [
+                InlineKeyboardButton(
+                    "🎟️ BET SLIP",
+                    callback_data="betslip"
+                )
+            ],
+
+            [
+                InlineKeyboardButton(
+                    "⚽ FOOTBALL",
+                    callback_data="football"
+                )
+            ],
+        ]
+
+        await query.edit_message_text(
+            text,
+            reply_markup=InlineKeyboardMarkup(
+                keyboard
+            ),
+            parse_mode="Markdown"
+        )
+        return
+
+    # -----------------------------------------------------
+    # PREDICTION
+    # -----------------------------------------------------
+
+    if data == "prediction":
+
+        match, error = get_best_bet()
+
+        if error:
+
+            await query.edit_message_text(
+                f"🎯 *PREDICTION*\n\n"
                 f"❌ {error}",
                 reply_markup=football_menu(),
                 parse_mode="Markdown"
             )
-
             return
 
-        prediction = match[
-            "prediction"
-        ]
+        prediction = match["prediction"]
 
         text = (
             "🎯 *FOOTBALL PREDICTION*\n\n"
-            f"⚽ *{match['home']} "
-            f"vs {match['away']}*\n\n"
+            f"⚽ *{match['home']} vs "
+            f"{match['away']}*\n\n"
             f"🏆 {match['league']}\n"
             f"🕐 {match['time']}\n\n"
-            f"🔥 Prediction: "
-            f"*{match['bet']}*\n"
+            f"🔥 Pick: *{match['bet']}*\n"
             f"📊 Confidence: "
             f"*{match['confidence']}%*\n\n"
-            f"🏠 Home: "
-            f"{prediction['home_percent']}\n"
-            f"🤝 Draw: "
-            f"{prediction['draw_percent']}\n"
-            f"✈️ Away: "
-            f"{prediction['away_percent']}\n\n"
-            "⚠️ Kun API analysis dha."
+            f"🏠 Home: {prediction['home_percent']}\n"
+            f"🤝 Draw: {prediction['draw_percent']}\n"
+            f"✈️ Away: {prediction['away_percent']}\n\n"
+            "⚠️ API analysis qofa."
         )
 
         await query.edit_message_text(
@@ -1878,34 +1404,30 @@ async def button_handler(
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
     # LIVE
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data == "football_live":
+    if data == "live":
 
         live_data, error = football_request(
             "fixtures",
-            {
-                "live": "all"
-            }
+            {"live": "all"}
         )
 
         if error:
 
             await query.edit_message_text(
-                "🔴 *LIVE*\n\n"
-                f"❌ {error}",
+                f"🔴 *LIVE*\n\n❌ {error}",
                 reply_markup=football_menu(),
                 parse_mode="Markdown"
             )
-
             return
 
         live = live_data.get(
-            "response",
-            []
+            "response", []
         )
 
         if not live:
@@ -1916,64 +1438,46 @@ async def button_handler(
                 reply_markup=football_menu(),
                 parse_mode="Markdown"
             )
-
             return
 
-        text = (
-            "🔴 *LIVE MATCHES*\n\n"
-        )
+        text = "🔴 *LIVE MATCHES*\n\n"
 
-        for item in live[:10]:
+        for item in live[:15]:
 
             teams = item.get(
-                "teams",
-                {}
+                "teams", {}
             )
 
             goals = item.get(
-                "goals",
-                {}
+                "goals", {}
             )
 
             home = teams.get(
-                "home",
-                {}
+                "home", {}
             ).get(
-                "name",
-                "Home"
+                "name", "Home"
             )
 
             away = teams.get(
-                "away",
-                {}
+                "away", {}
             ).get(
-                "name",
-                "Away"
+                "name", "Away"
             )
 
-            home_goals = goals.get(
-                "home"
-            )
-
-            away_goals = goals.get(
-                "away"
-            )
+            hg = goals.get("home")
+            ag = goals.get("away")
 
             elapsed = item.get(
-                "fixture",
-                {}
+                "fixture", {}
             ).get(
-                "status",
-                {}
+                "status", {}
             ).get(
-                "elapsed",
-                ""
+                "elapsed"
             )
 
             text += (
                 f"⚽ *{home}* "
-                f"{home_goals or 0} - "
-                f"{away_goals or 0} "
+                f"{hg or 0}-{ag or 0} "
                 f"*{away}*\n"
                 f"⏱️ {elapsed or '-'}'\n\n"
             )
@@ -1983,52 +1487,401 @@ async def button_handler(
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
     # LEAGUES
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data == "football_leagues":
+    if data == "leagues":
 
         await query.edit_message_text(
-            "🏆 *LEAGUES*\n\n"
-            "🏴 Premier League\n"
+            "🏆 *POPULAR LEAGUES*\n\n"
+            "🇬🇧 Premier League\n"
             "🇪🇸 La Liga\n"
             "🇮🇹 Serie A\n"
             "🇩🇪 Bundesliga\n"
             "🇫🇷 Ligue 1\n"
-            "🏆 Champions League",
+            "🏆 UEFA Champions League\n"
+            "🏆 UEFA Europa League\n\n"
+            "⚠️ League filtering dabalataan "
+            "ni cimsina.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
+        return
 
-    # =====================================================
+    # -----------------------------------------------------
+    # PROFILE
+    # -----------------------------------------------------
+
+    if data == "profile":
+
+        user_data = get_user(user.id)
+
+        await query.edit_message_text(
+            "👤 *PROFILE*\n\n"
+            f"Name: *{user_data['name']}*\n"
+            f"User ID: `{user.id}`\n"
+            f"Balance: *{user_data['balance']:.2f}*\n"
+            f"Bets: *{len(user_data['history'])}*",
+            reply_markup=main_menu(),
+            parse_mode="Markdown"
+        )
+        return
+
+    # -----------------------------------------------------
+    # BALANCE
+    # -----------------------------------------------------
+
+    if data == "balance":
+
+        user_data = get_user(user.id)
+
+        await query.edit_message_text(
+            "💳 *BALANCE*\n\n"
+            f"Balance kee: "
+            f"*{user_data['balance']:.2f}*\n\n"
+            "⚠️ Real-money deposit hin hojjenne.",
+            reply_markup=main_menu(),
+            parse_mode="Markdown"
+        )
+        return
+
+    # -----------------------------------------------------
+    # HISTORY
+    # -----------------------------------------------------
+
+    if data == "history":
+
+        user_data = get_user(user.id)
+
+        history = user_data["history"]
+
+        if not history:
+
+            text = (
+                "📜 *HISTORY*\n\n"
+                "History hin jiru."
+            )
+
+        else:
+
+            text = "📜 *HISTORY*\n\n"
+
+            for item in history[-10:]:
+
+                text += (
+                    f"🕐 {item['time']}\n"
+                    f"💰 Stake: {item['stake']:.2f}\n"
+                    f"📈 Odds: {item['odds']:.2f}\n"
+                    f"🏆 Potential: {item['potential']:.2f}\n"
+                    f"📌 {item['status']}\n\n"
+                )
+
+        await query.edit_message_text(
+            text,
+            reply_markup=main_menu(),
+            parse_mode="Markdown"
+        )
+        return
+
+    # -----------------------------------------------------
+    # WINNERS
+    # -----------------------------------------------------
+
+    if data == "winners":
+
+        await query.edit_message_text(
+            "🏆 *WINNERS*\n\n"
+            "Demo winners board yeroo ammaa "
+            "qopheeffamaa jira.",
+            reply_markup=main_menu(),
+            parse_mode="Markdown"
+        )
+        return
+
+    # -----------------------------------------------------
+    # HOW
+    # -----------------------------------------------------
+
+    if data == "how":
+
+        await query.edit_message_text(
+            "ℹ️ *HOW TO PLAY*\n\n"
+            "1️⃣ Football seeni\n"
+            "2️⃣ Match filadhu\n"
+            "3️⃣ Odds filadhu\n"
+            "4️⃣ Bet Slip ilaali\n"
+            "5️⃣ Demo bet qofa yaali\n\n"
+            "⚠️ Kun demo/testing system dha.",
+            reply_markup=main_menu(),
+            parse_mode="Markdown"
+        )
+        return
+
+    # -----------------------------------------------------
+    # SUPPORT
+    # -----------------------------------------------------
+
+    if data == "support":
+
+        await query.edit_message_text(
+            "📞 *SUPPORT*\n\n"
+            "Rakkoo yoo qabaatte admin kee qunnami.",
+            reply_markup=main_menu(),
+            parse_mode="Markdown"
+        )
+        return
+
+    # -----------------------------------------------------
     # KENO
-    # =====================================================
+    # -----------------------------------------------------
 
-    elif data == "keno_fast":
+    if data == "keno":
 
         await query.edit_message_text(
             "⚡ *KENO FAST*\n\n"
-            "Lakkoofsa 1 hanga 80 "
-            "keessaa filadhu.\n\n"
-            "🧪 Demo qofa.",
-            reply_markup=keno_menu(),
+            "Keno system dabalataan ni ijaarrama.\n\n"
+            "Amma Football irratti xiyyeeffanna.",
+            reply_markup=main_menu(),
             parse_mode="Markdown"
         )
+        return
 
-    elif data.startswith(
-        "keno_number_"
-    ):
 
-        number = data.replace(
-            "keno_number_",
-            ""
+# =========================================================
+# FLASK WEBSITE
+# =========================================================
+
+@web_app.route("/")
+def index():
+
+    if os.path.exists("index.html"):
+        return send_from_directory(
+            ".",
+            "index.html"
         )
 
-        await query.edit_message_text(
-            f"🔢 Lakkoofsa filatame: "
-            f"*{number}*\n\n"
-            "Lakkoofsa biraa filadhu.",
-            reply_markup=keno_menu(),
-            parse_mode="Markdown
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>BEST BET</title>
+        <meta name="viewport"
+              content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <h1>🎯 BEST BET</h1>
+        <p>Football prediction system is running.</p>
+    </body>
+    </html>
+    """
+
+
+@web_app.route("/api/status")
+def api_status():
+
+    return jsonify({
+        "status": "online",
+        "service": "BEST BET",
+        "football_api": bool(
+            FOOTBALL_API_KEY
+        ),
+        "telegram_bot": bool(
+            BOT_TOKEN
+        ),
+    })
+
+
+@web_app.route("/api/matches")
+def api_matches():
+
+    matches, error = get_today_matches()
+
+    if error:
+        return jsonify({
+            "success": False,
+            "error": error,
+            "matches": [],
+        }), 500
+
+    # Odds are API calls, so limit them.
+    for match in matches[:15]:
+
+        odds = get_match_odds(
+            match["id"]
+        )
+
+        match["odds"] = odds
+
+    return jsonify({
+        "success": True,
+        "count": len(matches),
+        "matches": matches,
+    })
+
+
+@web_app.route("/api/live")
+def api_live():
+
+    data, error = football_request(
+        "fixtures",
+        {"live": "all"}
+    )
+
+    if error:
+
+        return jsonify({
+            "success": False,
+            "error": error,
+            "matches": [],
+        }), 500
+
+    return jsonify({
+        "success": True,
+        "matches": data.get(
+            "response", []
+        ),
+    })
+
+
+@web_app.route("/api/prediction/<int:fixture_id>")
+def api_prediction(fixture_id):
+
+    prediction = get_prediction(
+        fixture_id
+    )
+
+    if not prediction:
+
+        return jsonify({
+            "success": False,
+            "error": "Prediction hin argamne.",
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "prediction": prediction,
+        "confidence": calculate_confidence(
+            prediction
+        ),
+    })
+
+
+@web_app.route("/api/odds/<int:fixture_id>")
+def api_odds(fixture_id):
+
+    odds = get_match_odds(
+        fixture_id
+    )
+
+    return jsonify({
+        "success": True,
+        "fixture_id": fixture_id,
+        "odds": odds,
+    })
+
+
+@web_app.route("/api/best-bet")
+def api_best_bet():
+
+    match, error = get_best_bet()
+
+    if error:
+
+        return jsonify({
+            "success": False,
+            "error": error,
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "best_bet": match,
+    })
+
+
+# =========================================================
+# FLASK SERVER
+# =========================================================
+
+def run_web():
+
+    web_app.run(
+        host="0.0.0.0",
+        port=PORT,
+        debug=False,
+        use_reloader=False,
+    )
+
+
+# =========================================================
+# MAIN
+# =========================================================
+
+def main():
+
+    if not BOT_TOKEN:
+
+        raise RuntimeError(
+            "BOT_TOKEN hin jiru. "
+            "Render Environment Variables keessatti "
+            "BOT_TOKEN galchi."
+        )
+
+    # Start Flask in background.
+    web_thread = threading.Thread(
+        target=run_web,
+        daemon=True,
+    )
+
+    web_thread.start()
+
+    print(
+        "===================================="
+    )
+    print("BEST BET BOT STARTING")
+    print(
+        "===================================="
+    )
+    print(
+        f"Web server: PORT {PORT}"
+    )
+    print(
+        f"Football API: "
+        f"{'READY' if FOOTBALL_API_KEY else 'MISSING'}"
+    )
+    print(
+        "Telegram Bot: READY"
+    )
+
+    application = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .build()
+    )
+
+    application.add_handler(
+        CommandHandler(
+            "start",
+            start
+        )
+    )
+
+    application.add_handler(
+        CallbackQueryHandler(
+            button_handler
+        )
+    )
+
+    print(
+        "Telegram polling started..."
+    )
+
+    application.run_polling(
+        drop_pending_updates=True
+    )
+
+
+if __name__ == "__main__":
+    main()
