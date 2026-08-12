@@ -1,9 +1,10 @@
 import os
 import random
 import threading
+from datetime import datetime, timezone
 
 import requests
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 
 from telegram import (
     Update,
@@ -24,291 +25,317 @@ from telegram.ext import (
 # =========================================================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-API_FOOTBALL_KEY = os.getenv("API_FOOTBALL_KEY")
+FOOTBALL_API_KEY = os.getenv("FOOTBALL_API_KEY")
 
-API_BASE_URL = "https://v3.football.api-sports.io"
+PORT = int(os.getenv("PORT", "10000"))
 
-web_app = Flask(__name__)
+API_URL = "https://v3.football.api-sports.io"
 
-
-# =========================================================
-# FLASK WEB SERVER
-# =========================================================
-
-@web_app.route("/")
-def home():
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport"
-              content="width=device-width, initial-scale=1.0">
-        <title>BEST BET</title>
-    </head>
-
-    <body style="
-        background:#10182f;
-        color:white;
-        font-family:Arial;
-        text-align:center;
-        padding:40px;
-    ">
-
-        <h1>🎯 BEST BET</h1>
-
-        <p>🤖 Telegram Bot is running.</p>
-
-        <p>⚽ Football API connected.</p>
-
-        <p>⚡ Keno Fast Demo is ready.</p>
-
-    </body>
-    </html>
-    """
-
-
-@web_app.route("/health")
-def health():
-    return "OK"
+web_app = Flask(__name__, static_folder=".")
 
 
 # =========================================================
-# WEB API - MATCHES
+# SIMPLE USER DATA
 # =========================================================
 
-@web_app.route("/api/matches")
-def api_matches():
+users = {}
 
-    if not API_FOOTBALL_KEY:
-        return jsonify({
-            "success": False,
-            "error": "API_FOOTBALL_KEY is not configured.",
-            "matches": []
-        }), 500
 
-    try:
-
-        headers = {
-            "x-apisports-key": API_FOOTBALL_KEY
+def get_user(user_id, first_name="User"):
+    if user_id not in users:
+        users[user_id] = {
+            "name": first_name,
+            "balance": 0.0,
+            "history": [],
         }
 
+    return users[user_id]
+
+
+# =========================================================
+# FOOTBALL API
+# =========================================================
+
+def football_request(endpoint, params=None):
+
+    if not FOOTBALL_API_KEY:
+        return None, "FOOTBALL_API_KEY hin jiru."
+
+    headers = {
+        "x-apisports-key": FOOTBALL_API_KEY
+    }
+
+    try:
         response = requests.get(
-            f"{API_BASE_URL}/fixtures",
+            f"{API_URL}/{endpoint}",
             headers=headers,
-            params={
-                "date": "2026-08-12"
-            },
-            timeout=15
+            params=params or {},
+            timeout=20
         )
 
         if response.status_code != 200:
-            return jsonify({
-                "success": False,
-                "error": f"API HTTP {response.status_code}",
-                "matches": []
-            }), response.status_code
+            return None, f"API HTTP {response.status_code}"
 
         data = response.json()
 
-        matches = []
+        if data.get("errors"):
+            return None, str(data["errors"])
 
-        for item in data.get("response", []):
+        return data, None
 
-            fixture = item.get("fixture", {})
-            teams = item.get("teams", {})
-            league = item.get("league", {})
-
-            home = teams.get("home", {}).get(
-                "name",
-                "Home"
-            )
-
-            away = teams.get("away", {}).get(
-                "name",
-                "Away"
-            )
-
-            date_time = fixture.get(
-                "date",
-                ""
-            )
-
-            time_text = "--:--"
-
-            if "T" in date_time:
-                time_text = date_time.split("T")[1][:5]
-
-            matches.append({
-                "id": fixture.get("id"),
-                "home": home,
-                "away": away,
-                "time": time_text,
-                "league": league.get(
-                    "name",
-                    "Other"
-                ),
-                "country": league.get(
-                    "country",
-                    ""
-                ),
-                "label": "⚽ MATCH",
-                "odds": {
-                    "1": "-",
-                    "X": "-",
-                    "2": "-"
-                },
-                "markets": {
-                    "Over 2.5": "-",
-                    "BTTS": "-"
-                }
-            })
-
-        return jsonify({
-            "success": True,
-            "matches": matches
-        })
-
-    except Exception as error:
-
-        return jsonify({
-            "success": False,
-            "error": str(error),
-            "matches": []
-        }), 500
+    except requests.RequestException as error:
+        return None, str(error)
 
 
 # =========================================================
-# WEB API - BEST BET
+# GET TODAY MATCHES
 # =========================================================
 
-@web_app.route("/api/best-bet")
-def api_best_bet():
+def get_today_matches():
 
-    if not API_FOOTBALL_KEY:
-        return jsonify({
-            "success": False,
-            "error": "API_FOOTBALL_KEY is not configured."
-        }), 500
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    try:
-
-        headers = {
-            "x-apisports-key": API_FOOTBALL_KEY
+    data, error = football_request(
+        "fixtures",
+        {
+            "date": today,
+            "timezone": "Africa/Addis_Ababa"
         }
+    )
 
-        response = requests.get(
-            f"{API_BASE_URL}/fixtures",
-            headers=headers,
-            params={
-                "date": "2026-08-12"
-            },
-            timeout=15
-        )
+    if error:
+        return [], error
 
-        if response.status_code != 200:
-            return jsonify({
-                "success": False,
-                "error": f"API HTTP {response.status_code}"
-            }), response.status_code
+    matches = []
 
-        data = response.json()
+    for item in data.get("response", []):
 
-        fixtures = data.get(
-            "response",
-            []
-        )
+        fixture = item.get("fixture", {})
+        teams = item.get("teams", {})
+        league = item.get("league", {})
 
-        if not fixtures:
+        home = teams.get("home", {})
+        away = teams.get("away", {})
 
-            return jsonify({
-                "success": False,
-                "error": "No matches found."
-            })
-
-        item = fixtures[0]
-
-        fixture = item.get(
-            "fixture",
-            {}
-        )
-
-        teams = item.get(
-            "teams",
-            {}
-        )
-
-        league = item.get(
-            "league",
-            {}
-        )
-
-        date_time = fixture.get(
-            "date",
-            ""
-        )
+        date_string = fixture.get("date", "")
 
         time_text = "--:--"
 
-        if "T" in date_time:
-            time_text = date_time.split("T")[1][:5]
+        try:
+            dt = datetime.fromisoformat(
+                date_string.replace("Z", "+00:00")
+            )
 
-        match = {
-            "home": teams.get(
-                "home",
-                {}
-            ).get(
-                "name",
-                "Home"
-            ),
+            time_text = dt.astimezone().strftime("%H:%M")
 
-            "away": teams.get(
-                "away",
-                {}
-            ).get(
-                "name",
-                "Away"
-            ),
+        except Exception:
+            pass
 
-            "league": league.get(
-                "name",
-                "Football"
-            ),
+        status = fixture.get("status", {}).get(
+            "short",
+            ""
+        )
 
+        matches.append({
+            "id": fixture.get("id"),
+            "home": home.get("name", "Home"),
+            "away": away.get("name", "Away"),
+            "home_logo": home.get("logo"),
+            "away_logo": away.get("logo"),
+            "league": league.get("name", "Unknown"),
+            "country": league.get("country", ""),
             "time": time_text,
-
-            "confidence": 60
-        }
-
-        return jsonify({
-            "success": True,
-            "match": match
+            "status": status,
         })
 
-    except Exception as error:
-
-        return jsonify({
-            "success": False,
-            "error": str(error)
-        }), 500
+    return matches, None
 
 
 # =========================================================
-# FLASK RUNNER
+# GET PREDICTION
 # =========================================================
 
-def run_web():
+def get_prediction(fixture_id):
 
-    port = int(
-        os.environ.get(
-            "PORT",
-            10000
-        )
+    if not fixture_id:
+        return None
+
+    data, error = football_request(
+        "predictions",
+        {
+            "fixture": fixture_id
+        }
     )
 
-    web_app.run(
-        host="0.0.0.0",
-        port=port
+    if error:
+        return None
+
+    response = data.get("response", [])
+
+    if not response:
+        return None
+
+    prediction_data = response[0]
+
+    prediction = prediction_data.get(
+        "predictions",
+        {}
+    )
+
+    teams = prediction_data.get(
+        "teams",
+        {}
+    )
+
+    winner = prediction.get("winner") or {}
+
+    advice = prediction.get(
+        "advice",
+        ""
+    )
+
+    percent = prediction.get(
+        "percent",
+        {}
+    )
+
+    home_percent = percent.get(
+        "home",
+        "0%"
+    )
+
+    draw_percent = percent.get(
+        "draw",
+        "0%"
+    )
+
+    away_percent = percent.get(
+        "away",
+        "0%"
+    )
+
+    return {
+        "advice": advice,
+        "winner": winner.get("name"),
+        "winner_comment": winner.get(
+            "comment"
+        ),
+        "home_percent": home_percent,
+        "draw_percent": draw_percent,
+        "away_percent": away_percent,
+        "under_over": prediction.get(
+            "under_over"
+        ),
+        "goals_home": prediction.get(
+            "goals",
+            {}
+        ).get("home"),
+        "goals_away": prediction.get(
+            "goals",
+            {}
+        ).get("away"),
+        "teams": teams,
+    }
+
+
+# =========================================================
+# BEST BET
+# =========================================================
+
+def calculate_confidence(prediction):
+
+    if not prediction:
+        return 0
+
+    values = []
+
+    for key in [
+        "home_percent",
+        "draw_percent",
+        "away_percent"
+    ]:
+
+        value = prediction.get(key, "0%")
+
+        try:
+            values.append(
+                float(
+                    str(value).replace("%", "")
+                )
+            )
+        except Exception:
+            pass
+
+    if not values:
+        return 0
+
+    return int(max(values))
+
+
+def get_best_bet():
+
+    matches, error = get_today_matches()
+
+    if error:
+        return None, error
+
+    if not matches:
+        return None, "Har'a match hin argamne."
+
+    # Check several matches until a prediction is found.
+    for match in matches[:15]:
+
+        prediction = get_prediction(
+            match.get("id")
+        )
+
+        if not prediction:
+            continue
+
+        confidence = calculate_confidence(
+            prediction
+        )
+
+        if confidence <= 0:
+            continue
+
+        if prediction.get("winner"):
+
+            bet = prediction.get(
+                "winner"
+            )
+
+        else:
+
+            bet = prediction.get(
+                "advice"
+            ) or "Analysis"
+
+        result = {
+            **match,
+            "prediction": prediction,
+            "bet": bet,
+            "confidence": confidence
+        }
+
+        return result, None
+
+    return None, "Prediction har'aaf hin argamne."
+
+
+# =========================================================
+# FORMAT MATCH FOR TELEGRAM
+# =========================================================
+
+def match_text(match):
+
+    return (
+        f"⚽ *{match['home']} vs "
+        f"{match['away']}*\n\n"
+        f"🏆 {match['league']}\n"
+        f"🌍 {match['country']}\n"
+        f"🕐 {match['time']}\n"
+        f"📡 Status: {match['status'] or 'NS'}"
     )
 
 
@@ -329,20 +356,20 @@ def main_menu():
 
         [
             InlineKeyboardButton(
-                "⚡ KENO FAST",
-                callback_data="keno_fast"
+                "⚽ FOOTBALL",
+                callback_data="football"
             ),
 
             InlineKeyboardButton(
-                "⚽ FOOTBALL",
-                callback_data="football"
+                "⚡ KENO FAST",
+                callback_data="keno_fast"
             )
         ],
 
         [
             InlineKeyboardButton(
-                "💰 DEPOSIT",
-                callback_data="deposit"
+                "👤 PROFILE",
+                callback_data="profile"
             ),
 
             InlineKeyboardButton(
@@ -353,22 +380,17 @@ def main_menu():
 
         [
             InlineKeyboardButton(
-                "💸 WITHDRAW",
-                callback_data="withdraw"
+                "📜 HISTORY",
+                callback_data="history"
             ),
 
             InlineKeyboardButton(
-                "📜 MY HISTORY",
-                callback_data="history"
+                "🏆 WINNERS",
+                callback_data="winners"
             )
         ],
 
         [
-            InlineKeyboardButton(
-                "🏆 WINNERS",
-                callback_data="winners"
-            ),
-
             InlineKeyboardButton(
                 "ℹ️ HOW TO PLAY",
                 callback_data="how_to_play"
@@ -383,56 +405,7 @@ def main_menu():
         ],
     ]
 
-    return InlineKeyboardMarkup(
-        keyboard
-    )
-
-
-# =========================================================
-# KENO MENU
-# =========================================================
-
-def keno_menu():
-
-    keyboard = []
-
-    for start in range(1, 81, 10):
-
-        row = []
-
-        for number in range(
-            start,
-            start + 10
-        ):
-
-            row.append(
-                InlineKeyboardButton(
-                    str(number),
-                    callback_data=(
-                        f"keno_number_{number}"
-                    )
-                )
-            )
-
-        keyboard.append(row)
-
-    keyboard.append([
-        InlineKeyboardButton(
-            "🎲 RANDOM DRAW",
-            callback_data="keno_draw"
-        )
-    ])
-
-    keyboard.append([
-        InlineKeyboardButton(
-            "⬅️ BACK",
-            callback_data="back_main"
-        )
-    ])
-
-    return InlineKeyboardMarkup(
-        keyboard
-    )
+    return InlineKeyboardMarkup(keyboard)
 
 
 # =========================================================
@@ -445,8 +418,15 @@ def football_menu():
 
         [
             InlineKeyboardButton(
-                "📅 MATCHES",
+                "📅 TODAY MATCHES",
                 callback_data="football_matches"
+            )
+        ],
+
+        [
+            InlineKeyboardButton(
+                "🎯 PREDICTIONS",
+                callback_data="football_prediction"
             )
         ],
 
@@ -466,29 +446,53 @@ def football_menu():
 
         [
             InlineKeyboardButton(
-                "📊 STANDINGS",
-                callback_data="football_standings"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "🔎 TEAMS",
-                callback_data="football_teams"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
                 "⬅️ BACK",
                 callback_data="back_main"
             )
         ],
     ]
 
-    return InlineKeyboardMarkup(
-        keyboard
-    )
+    return InlineKeyboardMarkup(keyboard)
+
+
+# =========================================================
+# KENO MENU
+# =========================================================
+
+def keno_menu():
+
+    keyboard = []
+
+    for start in range(1, 81, 10):
+
+        row = []
+
+        for number in range(start, start + 10):
+
+            row.append(
+                InlineKeyboardButton(
+                    str(number),
+                    callback_data=f"keno_number_{number}"
+                )
+            )
+
+        keyboard.append(row)
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "🎲 RANDOM DRAW",
+            callback_data="keno_draw"
+        )
+    ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "⬅️ BACK",
+            callback_data="back_main"
+        )
+    ])
+
+    return InlineKeyboardMarkup(keyboard)
 
 
 # =========================================================
@@ -502,18 +506,20 @@ async def start(
 
     user = update.effective_user
 
-    first_name = (
-        user.first_name
-        if user
-        else "User"
+    get_user(
+        user.id,
+        user.first_name or "User"
     )
 
     text = (
-        f"👋 Baga nagaan dhuftan, "
-        f"{first_name}!\n\n"
+        f"👋 Baga nagaan dhuftan "
+        f"*{user.first_name}*!\n\n"
         "🎯 *BEST BET*\n\n"
-        "Menu armaan gadii keessaa "
-        "filannoo kee godhi."
+        "⚽ Football prediction\n"
+        "📅 Today's matches\n"
+        "👤 Profile\n"
+        "💳 Balance\n\n"
+        "👇 Menu keessaa filadhu."
     )
 
     await update.message.reply_text(
@@ -536,103 +542,73 @@ async def button_handler(
 
     await query.answer()
 
+    user = query.from_user
+
+    get_user(
+        user.id,
+        user.first_name or "User"
+    )
+
     # =====================================================
     # BEST BET
     # =====================================================
 
     if query.data == "best_bet":
 
-        await query.edit_message_text(
+        match, error = get_best_bet()
+
+        if error:
+
+            await query.edit_message_text(
+                "🎯 *BEST BET*\n\n"
+                f"⚠️ {error}\n\n"
+                "API key fi quota kee ilaali.",
+                reply_markup=main_menu(),
+                parse_mode="Markdown"
+            )
+
+            return
+
+        prediction = match["prediction"]
+
+        text = (
             "🎯 *BEST BET*\n\n"
-            "Menu keessaa filannoo kee godhi.",
-            reply_markup=main_menu(),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # KENO FAST
-    # =====================================================
-
-    elif query.data == "keno_fast":
-
-        await query.edit_message_text(
-            "⚡ *KENO FAST*\n\n"
-            "Lakkoofsa 1 hanga 80 keessaa "
-            "filadhu.\n\n"
-            "🧪 Demo qofa.",
-            reply_markup=keno_menu(),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # KENO NUMBER
-    # =====================================================
-
-    elif query.data.startswith(
-        "keno_number_"
-    ):
-
-        number = query.data.replace(
-            "keno_number_",
-            ""
+            f"⚽ *{match['home']} vs "
+            f"{match['away']}*\n\n"
+            f"🏆 {match['league']}\n"
+            f"🕐 {match['time']}\n\n"
+            f"🔥 *Prediction:* "
+            f"{match['bet']}\n"
+            f"📊 *Confidence:* "
+            f"{match['confidence']}%\n\n"
+            f"🏠 Home: "
+            f"{prediction['home_percent']}\n"
+            f"🤝 Draw: "
+            f"{prediction['draw_percent']}\n"
+            f"✈️ Away: "
+            f"{prediction['away_percent']}\n\n"
+            "⚠️ Prediction is API analysis, "
+            "not a guaranteed result."
         )
 
         await query.edit_message_text(
-            f"🔢 Lakkoofsa filatame: "
-            f"*{number}*\n\n"
-            "Lakkoofsa biraa filachuu "
-            "ykn RANDOM DRAW gochuu "
-            "dandeessa.\n\n"
-            "🧪 Demo qofa.",
-            reply_markup=keno_menu(),
+            text,
+            reply_markup=football_menu(),
             parse_mode="Markdown"
         )
 
-
     # =====================================================
-    # KENO RANDOM DRAW
-    # =====================================================
-
-    elif query.data == "keno_draw":
-
-        result = random.sample(
-            range(1, 81),
-            10
-        )
-
-        result.sort()
-
-        result_text = ", ".join(
-            str(number)
-            for number in result
-        )
-
-        await query.edit_message_text(
-            "🎲 *RANDOM DRAW*\n\n"
-            f"🔢 Result:\n\n"
-            f"*{result_text}*\n\n"
-            "🧪 Demo number game qofa.",
-            reply_markup=keno_menu(),
-            parse_mode="Markdown"
-        )
-
-
-    # =====================================================
-    # FOOTBALL MAIN
+    # FOOTBALL
     # =====================================================
 
     elif query.data == "football":
 
         await query.edit_message_text(
             "⚽ *FOOTBALL*\n\n"
-            "Filannoo armaan gadii "
-            "keessaa tokko filadhu:",
+            "Football menu keessaa filadhu.",
             reply_markup=football_menu(),
             parse_mode="Markdown"
         )
-
 
     # =====================================================
     # FOOTBALL MATCHES
@@ -640,24 +616,24 @@ async def button_handler(
 
     elif query.data == "football_matches":
 
-        await query.edit_message_text(
-            "📅 *MATCHES*\n\n"
-            "Taphoota har'aa API-Football "
-            "irraa fidna.\n\n"
-            "⏳ Mee xiqqoo eegii...",
-            parse_mode="Markdown"
-        )
+        matches, error = get_today_matches()
 
-        matches = get_today_matches()
+        if error:
+
+            await query.edit_message_text(
+                "⚽ *TODAY MATCHES*\n\n"
+                f"❌ {error}",
+                reply_markup=football_menu(),
+                parse_mode="Markdown"
+            )
+
+            return
 
         if not matches:
 
             await query.edit_message_text(
-                "📅 *MATCHES*\n\n"
-                "⚠️ Har'a match argachuu "
-                "hin dandeenye.\n\n"
-                "API key ykn API connection "
-                "keessan ilaali.",
+                "⚽ *TODAY MATCHES*\n\n"
+                "Match har'aa hin argamne.",
                 reply_markup=football_menu(),
                 parse_mode="Markdown"
             )
@@ -666,12 +642,13 @@ async def button_handler(
 
         text = "📅 *TODAY'S MATCHES*\n\n"
 
-        for match in matches[:15]:
+        for match in matches[:12]:
 
             text += (
-                f"⚽ *{match['league']}*\n"
-                f"🏠 {match['home']}\n"
-                f"🆚 {match['away']}\n"
+                f"⚽ *{match['home']}* "
+                f"vs "
+                f"*{match['away']}*\n"
+                f"🏆 {match['league']}\n"
                 f"🕐 {match['time']}\n\n"
             )
 
@@ -681,44 +658,147 @@ async def button_handler(
             parse_mode="Markdown"
         )
 
-
     # =====================================================
-    # FOOTBALL LIVE
+    # FOOTBALL PREDICTION
     # =====================================================
 
-    elif query.data == "football_live":
+    elif query.data == "football_prediction":
 
-        await query.edit_message_text(
-            "🔴 *LIVE FOOTBALL*\n\n"
-            "⏳ Live data barbaadaa jira...",
-            parse_mode="Markdown"
-        )
+        match, error = get_best_bet()
 
-        live_matches = get_live_matches()
-
-        if not live_matches:
+        if error:
 
             await query.edit_message_text(
-                "🔴 *LIVE FOOTBALL*\n\n"
-                "Amma live match hin jiru "
-                "ykn API irraa data hin argamne.",
+                "🎯 *PREDICTION*\n\n"
+                f"❌ {error}",
                 reply_markup=football_menu(),
                 parse_mode="Markdown"
             )
 
             return
 
-        text = "🔴 *LIVE FOOTBALL*\n\n"
+        prediction = match["prediction"]
 
-        for match in live_matches[:15]:
+        text = (
+            "🎯 *FOOTBALL PREDICTION*\n\n"
+            f"⚽ *{match['home']} vs "
+            f"{match['away']}*\n\n"
+            f"🏆 {match['league']}\n"
+            f"🕐 {match['time']}\n\n"
+            f"🔥 Prediction: *{match['bet']}*\n"
+            f"📊 Confidence: "
+            f"*{match['confidence']}%*\n\n"
+            f"🏠 Home: "
+            f"{prediction['home_percent']}\n"
+            f"🤝 Draw: "
+            f"{prediction['draw_percent']}\n"
+            f"✈️ Away: "
+            f"{prediction['away_percent']}\n\n"
+            "⚠️ Kun prediction API irratti "
+            "hundaa'e; bu'aan mirkanaa'aa miti."
+        )
+
+        await query.edit_message_text(
+            text,
+            reply_markup=football_menu(),
+            parse_mode="Markdown"
+        )
+
+    # =====================================================
+    # LIVE
+    # =====================================================
+
+    elif query.data == "football_live":
+
+        data, error = football_request(
+            "fixtures",
+            {
+                "live": "all"
+            }
+        )
+
+        if error:
+
+            await query.edit_message_text(
+                "🔴 *LIVE*\n\n"
+                f"❌ {error}",
+                reply_markup=football_menu(),
+                parse_mode="Markdown"
+            )
+
+            return
+
+        live = data.get(
+            "response",
+            []
+        )
+
+        if not live:
+
+            await query.edit_message_text(
+                "🔴 *LIVE*\n\n"
+                "Ammaaf live match hin jiru.",
+                reply_markup=football_menu(),
+                parse_mode="Markdown"
+            )
+
+            return
+
+        text = "🔴 *LIVE MATCHES*\n\n"
+
+        for item in live[:10]:
+
+            teams = item.get(
+                "teams",
+                {}
+            )
+
+            goals = item.get(
+                "goals",
+                {}
+            )
+
+            home = teams.get(
+                "home",
+                {}
+            ).get(
+                "name",
+                "Home"
+            )
+
+            away = teams.get(
+                "away",
+                {}
+            ).get(
+                "name",
+                "Away"
+            )
+
+            home_goals = goals.get(
+                "home"
+            )
+
+            away_goals = goals.get(
+                "away"
+            )
+
+            elapsed = item.get(
+                "fixture",
+                {}
+            ).get(
+                "status",
+                {}
+            ).get(
+                "elapsed",
+                ""
+            )
 
             text += (
-                f"🏆 {match['league']}\n"
-                f"⚽ {match['home']} "
-                f"vs "
-                f"{match['away']}\n"
-                f"📊 {match['score']}\n"
-                f"⏱️ {match['elapsed']}'\n\n"
+                f"⚽ *{home}* "
+                f"{home_goals or 0} - "
+                f"{away_goals or 0} "
+                f"*{away}*\n"
+                f"⏱️ {elapsed or '-'}'\n\n"
             )
 
         await query.edit_message_text(
@@ -727,9 +807,8 @@ async def button_handler(
             parse_mode="Markdown"
         )
 
-
     # =====================================================
-    # FOOTBALL LEAGUES
+    # LEAGUES
     # =====================================================
 
     elif query.data == "football_leagues":
@@ -746,65 +825,82 @@ async def button_handler(
             parse_mode="Markdown"
         )
 
-
     # =====================================================
-    # FOOTBALL STANDINGS
+    # KENO
     # =====================================================
 
-    elif query.data == "football_standings":
+    elif query.data == "keno_fast":
 
         await query.edit_message_text(
-            "📊 *STANDINGS*\n\n"
-            "League filadhuuf standings "
-            "API irraa itti aansee "
-            "dabaluu dandeenya.",
-            reply_markup=football_menu(),
+            "⚡ *KENO FAST*\n\n"
+            "Lakkoofsa 1 hanga 80 keessaa "
+            "filadhu.\n\n"
+            "🧪 Demo qofa.",
+            reply_markup=keno_menu(),
             parse_mode="Markdown"
         )
 
+    elif query.data.startswith(
+        "keno_number_"
+    ):
 
-    # =====================================================
-    # FOOTBALL TEAMS
-    # =====================================================
-
-    elif query.data == "football_teams":
+        number = query.data.replace(
+            "keno_number_",
+            ""
+        )
 
         await query.edit_message_text(
-            "🔎 *TEAMS*\n\n"
-            "Team barbaaduuf maqaa "
-            "garee sanaa fayyadamna.",
-            reply_markup=football_menu(),
+            f"🔢 Lakkoofsa filatame: "
+            f"*{number}*\n\n"
+            "Lakkoofsa biraa filadhu.",
+            reply_markup=keno_menu(),
             parse_mode="Markdown"
         )
 
+    elif query.data == "keno_draw":
 
-    # =====================================================
-    # BACK MAIN
-    # =====================================================
+        result = random.sample(
+            range(1, 81),
+            10
+        )
 
-    elif query.data == "back_main":
+        result.sort()
+
+        result_text = ", ".join(
+            str(x)
+            for x in result
+        )
 
         await query.edit_message_text(
-            "🎯 *BEST BET*\n\n"
-            "Menu keessaa filannoo kee godhi.",
+            "🎲 *RANDOM DRAW*\n\n"
+            f"🔢 *{result_text}*\n\n"
+            "🧪 Demo qofa.",
+            reply_markup=keno_menu(),
+            parse_mode="Markdown"
+        )
+
+    # =====================================================
+    # PROFILE
+    # =====================================================
+
+    elif query.data == "profile":
+
+        profile = get_user(
+            user.id,
+            user.first_name or "User"
+        )
+
+        await query.edit_message_text(
+            "👤 *PROFILE*\n\n"
+            f"Name: *{profile['name']}*\n"
+            f"Telegram ID: `{user.id}`\n"
+            f"💳 Balance: "
+            f"*{profile['balance']:.2f}*\n"
+            f"📜 History: "
+            f"*{len(profile['history'])}*",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
-
-
-    # =====================================================
-    # DEPOSIT
-    # =====================================================
-
-    elif query.data == "deposit":
-
-        await query.edit_message_text(
-            "💰 *DEPOSIT*\n\n"
-            "Deposit system hin jiru.",
-            reply_markup=main_menu(),
-            parse_mode="Markdown"
-        )
-
 
     # =====================================================
     # BALANCE
@@ -812,27 +908,21 @@ async def button_handler(
 
     elif query.data == "balance":
 
+        profile = get_user(
+            user.id,
+            user.first_name or "User"
+        )
+
         await query.edit_message_text(
             "💳 *BALANCE*\n\n"
-            "Balance system hin jiru.",
+            f"👤 {profile['name']}\n"
+            f"💰 Balance: "
+            f"*{profile['balance']:.2f}*\n\n"
+            "Deposit/payment system "
+            "ammaaf hin hidhamne.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
-
-
-    # =====================================================
-    # WITHDRAW
-    # =====================================================
-
-    elif query.data == "withdraw":
-
-        await query.edit_message_text(
-            "💸 *WITHDRAW*\n\n"
-            "Withdrawal system hin jiru.",
-            reply_markup=main_menu(),
-            parse_mode="Markdown"
-        )
-
 
     # =====================================================
     # HISTORY
@@ -840,14 +930,35 @@ async def button_handler(
 
     elif query.data == "history":
 
+        profile = get_user(
+            user.id,
+            user.first_name or "User"
+        )
+
+        if not profile["history"]:
+
+            text = (
+                "📜 *MY HISTORY*\n\n"
+                "History duwwaa dha."
+            )
+
+        else:
+
+            text = "📜 *MY HISTORY*\n\n"
+
+            for item in profile[
+                "history"
+            ][-10:]:
+
+                text += (
+                    f"• {item}\n"
+                )
+
         await query.edit_message_text(
-            "📜 *MY HISTORY*\n\n"
-            "Demo history as keessatti "
-            "mul'ata.",
+            text,
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
-
 
     # =====================================================
     # WINNERS
@@ -857,12 +968,13 @@ async def button_handler(
 
         await query.edit_message_text(
             "🏆 *WINNERS*\n\n"
-            "Demo results as keessatti "
-            "mul'atu.",
+            "Demo winners table.\n\n"
+            "🥇 User — Best Bet\n"
+            "🥈 User — Football\n"
+            "🥉 User — Keno",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
-
 
     # =====================================================
     # HOW TO PLAY
@@ -872,15 +984,15 @@ async def button_handler(
 
         await query.edit_message_text(
             "ℹ️ *HOW TO PLAY*\n\n"
-            "1️⃣ ⚡ KENO FAST filadhu.\n"
-            "2️⃣ Lakkoofsa 1–80 keessaa filadhu.\n"
-            "3️⃣ 🎲 RANDOM DRAW cuqaasi.\n"
-            "4️⃣ Result ilaali.\n\n"
-            "🧪 Demo qofa.",
+            "1️⃣ ⚽ Football filadhu.\n"
+            "2️⃣ 📅 Today's Matches ilaali.\n"
+            "3️⃣ 🎯 Prediction filadhu.\n"
+            "4️⃣ Best Bet analysis ilaali.\n\n"
+            "⚠️ Prediction bu'aa mirkanaa'aa "
+            "miti.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
-
 
     # =====================================================
     # SUPPORT
@@ -890,245 +1002,158 @@ async def button_handler(
 
         await query.edit_message_text(
             "📞 *SUPPORT*\n\n"
-            "Yoo gargaarsa barbaadde, "
-            "admin/support qunnami.",
+            "Admin/support qunnami.",
+            reply_markup=main_menu(),
+            parse_mode="Markdown"
+        )
+
+    # =====================================================
+    # BACK
+    # =====================================================
+
+    elif query.data == "back_main":
+
+        await query.edit_message_text(
+            "🎯 *BEST BET*\n\n"
+            "Menu keessaa filadhu.",
             reply_markup=main_menu(),
             parse_mode="Markdown"
         )
 
 
 # =========================================================
-# API-FOOTBALL: TODAY MATCHES
+# WEB API — MATCHES
 # =========================================================
 
-def get_today_matches():
+@web_app.route("/api/matches")
+def api_matches():
 
-    if not API_FOOTBALL_KEY:
-        return []
+    matches, error = get_today_matches()
 
-    try:
+    if error:
 
-        headers = {
-            "x-apisports-key": API_FOOTBALL_KEY
+        return jsonify({
+            "success": False,
+            "error": error,
+            "matches": []
+        }), 500
+
+    return jsonify({
+        "success": True,
+        "matches": matches
+    })
+
+
+# =========================================================
+# WEB API — BEST BET
+# =========================================================
+
+@web_app.route("/api/best-bet")
+def api_best_bet():
+
+    match, error = get_best_bet()
+
+    if error:
+
+        return jsonify({
+            "success": False,
+            "error": error
+        }), 500
+
+    return jsonify({
+        "success": True,
+        "match": {
+            "id": match.get("id"),
+            "home": match.get("home"),
+            "away": match.get("away"),
+            "league": match.get("league"),
+            "country": match.get("country"),
+            "time": match.get("time"),
+            "prediction": match.get(
+                "prediction"
+            ),
+            "bet": match.get("bet"),
+            "confidence": match.get(
+                "confidence"
+            )
         }
-
-        response = requests.get(
-            f"{API_BASE_URL}/fixtures",
-            headers=headers,
-            params={
-                "date": "2026-08-12"
-            },
-            timeout=15
-        )
-
-        if response.status_code != 200:
-            print(
-                "API error:",
-                response.status_code,
-                response.text
-            )
-
-            return []
-
-        data = response.json()
-
-        result = []
-
-        for item in data.get(
-            "response",
-            []
-        ):
-
-            fixture = item.get(
-                "fixture",
-                {}
-            )
-
-            teams = item.get(
-                "teams",
-                {}
-            )
-
-            league = item.get(
-                "league",
-                {}
-            )
-
-            date_time = fixture.get(
-                "date",
-                ""
-            )
-
-            time_text = "--:--"
-
-            if "T" in date_time:
-
-                time_text = (
-                    date_time
-                    .split("T")[1][:5]
-                )
-
-            result.append({
-
-                "home": teams.get(
-                    "home",
-                    {}
-                ).get(
-                    "name",
-                    "Home"
-                ),
-
-                "away": teams.get(
-                    "away",
-                    {}
-                ).get(
-                    "name",
-                    "Away"
-                ),
-
-                "league": league.get(
-                    "name",
-                    "Football"
-                ),
-
-                "time": time_text
-            })
-
-        return result
-
-    except Exception as error:
-
-        print(
-            "get_today_matches error:",
-            error
-        )
-
-        return []
+    })
 
 
 # =========================================================
-# API-FOOTBALL: LIVE MATCHES
+# WEB HOME
 # =========================================================
 
-def get_live_matches():
+@web_app.route("/")
+def home():
 
-    if not API_FOOTBALL_KEY:
-        return []
+    index_path = os.path.join(
+        os.getcwd(),
+        "index.html"
+    )
 
-    try:
+    if os.path.exists(index_path):
 
-        headers = {
-            "x-apisports-key": API_FOOTBALL_KEY
-        }
-
-        response = requests.get(
-            f"{API_BASE_URL}/fixtures",
-            headers=headers,
-            params={
-                "live": "all"
-            },
-            timeout=15
+        return send_from_directory(
+            os.getcwd(),
+            "index.html"
         )
 
-        if response.status_code != 200:
-            return []
+    return """
+    <html>
+    <head>
+        <meta name="viewport"
+              content="width=device-width,initial-scale=1">
+        <title>BEST BET</title>
+    </head>
 
-        data = response.json()
+    <body style="
+        background:#10182f;
+        color:white;
+        font-family:Arial;
+        text-align:center;
+        padding:40px;
+    ">
 
-        result = []
+        <h1>🎯 BEST BET</h1>
 
-        for item in data.get(
-            "response",
-            []
-        ):
+        <p>⚽ Football API is running.</p>
 
-            fixture = item.get(
-                "fixture",
-                {}
-            )
+        <p>🤖 Telegram Bot is running.</p>
 
-            teams = item.get(
-                "teams",
-                {}
-            )
+    </body>
+    </html>
+    """
 
-            league = item.get(
-                "league",
-                {}
-            )
 
-            goals = item.get(
-                "goals",
-                {}
-            )
+# =========================================================
+# HEALTH
+# =========================================================
 
-            status = fixture.get(
-                "status",
-                {}
-            )
+@web_app.route("/health")
+def health():
 
-            home_score = goals.get(
-                "home"
-            )
-
-            away_score = goals.get(
-                "away"
-            )
-
-            if home_score is None:
-                home_score = 0
-
-            if away_score is None:
-                away_score = 0
-
-            elapsed = status.get(
-                "elapsed"
-            )
-
-            if elapsed is None:
-                elapsed = 0
-
-            result.append({
-
-                "home": teams.get(
-                    "home",
-                    {}
-                ).get(
-                    "name",
-                    "Home"
-                ),
-
-                "away": teams.get(
-                    "away",
-                    {}
-                ).get(
-                    "name",
-                    "Away"
-                ),
-
-                "league": league.get(
-                    "name",
-                    "Football"
-                ),
-
-                "score": (
-                    f"{home_score} - "
-                    f"{away_score}"
-                ),
-
-                "elapsed": elapsed
-            })
-
-        return result
-
-    except Exception as error:
-
-        print(
-            "get_live_matches error:",
-            error
+    return jsonify({
+        "status": "OK",
+        "bot": bool(BOT_TOKEN),
+        "football_api": bool(
+            FOOTBALL_API_KEY
         )
+    })
 
-        return []
+
+# =========================================================
+# WEB SERVER
+# =========================================================
+
+def run_web():
+
+    web_app.run(
+        host="0.0.0.0",
+        port=PORT,
+        debug=False,
+        use_reloader=False
+    )
 
 
 # =========================================================
@@ -1144,32 +1169,18 @@ def main():
             "hin jiru."
         )
 
-    if not API_FOOTBALL_KEY:
+    if not FOOTBALL_API_KEY:
 
         print(
-            "⚠️ API_FOOTBALL_KEY hin jiru."
+            "⚠️ FOOTBALL_API_KEY hin jiru. "
+            "Telegram bot ni jalqaba, "
+            "garuu football API hin hojjetu."
         )
-
-        print(
-            "Football API hin hojjetu hanga "
-            "API key environment variable "
-            "keessa galchitutti."
-        )
-
-
-    # =====================================================
-    # START FLASK
-    # =====================================================
 
     threading.Thread(
         target=run_web,
         daemon=True
     ).start()
-
-
-    # =====================================================
-    # TELEGRAM APPLICATION
-    # =====================================================
 
     app = (
         Application
@@ -1178,11 +1189,6 @@ def main():
         .build()
     )
 
-
-    # =====================================================
-    # /START
-    # =====================================================
-
     app.add_handler(
         CommandHandler(
             "start",
@@ -1190,34 +1196,19 @@ def main():
         )
     )
 
-
-    # =====================================================
-    # INLINE BUTTONS
-    # =====================================================
-
     app.add_handler(
         CallbackQueryHandler(
             button_handler
         )
     )
 
-
     print(
-        "🌐 Web server started..."
+        "🌐 BEST BET web server started"
     )
 
     print(
-        "🤖 BEST BET BOT started..."
+        "🤖 BEST BET Telegram bot started"
     )
-
-    print(
-        "⚽ Football menu ready..."
-    )
-
-
-    # =====================================================
-    # POLLING
-    # =====================================================
 
     app.run_polling(
         drop_pending_updates=True
