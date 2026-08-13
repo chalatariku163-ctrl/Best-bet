@@ -1,1657 +1,437 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>BEST BET - Football</title>
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="theme-color" content="#0b1420">
+<title>BEST BET</title>
 <style>
-
-*{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#0b1420;color:#fff;font-family:Arial,Helvetica,sans-serif}
+body{min-height:100vh}
+button{font:inherit}
+header{background:#142638;padding:28px 14px 24px;text-align:center}
+.logo{font-size:36px;font-weight:900;color:#ffd400;letter-spacing:-1px}
+.sub{font-size:13px;color:#9fb0c2;margin-top:7px}
+nav{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;background:#101e2c;position:sticky;top:0;z-index:20}
+nav button{border:0;border-radius:15px;padding:10px 3px;background:#24384b;color:#fff;font-weight:900;line-height:1.25;min-height:66px}
+nav button.active{background:#ffd400;color:#111}
+main{padding:14px;max-width:980px;margin:auto}
+.panel{background:#142638;border-radius:22px;padding:14px;min-height:500px}
+h2{margin:2px 0 8px;font-size:29px}
+h3{margin:0}
+.status{color:#9fb0c2;font-size:13px}
+.error{color:#ff8585;white-space:pre-wrap}
+.empty{text-align:center;padding:45px 12px;color:#9fb0c2;line-height:1.6}
+.days{display:flex;gap:8px;overflow-x:auto;padding:10px 0 14px;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.days button{flex:0 0 auto;border:0;border-radius:13px;padding:11px 15px;background:#263c50;color:#fff;font-weight:900;min-width:82px}
+.days button.active{background:#ffd400;color:#111}
+.day-title{font-size:21px;font-weight:900;margin:4px 0 12px}
+.match{background:#1a2c3d;border-radius:18px;padding:15px;margin:12px 0}
+.teams{font-size:18px;font-weight:900;line-height:1.35}
+.vs{color:#9fb0c2;font-size:13px;font-weight:700}
+.meta{font-size:12px;color:#9fb0c2;margin:7px 0 12px;line-height:1.5}
+.odds{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.odd{background:#263b4f;padding:12px 5px;border-radius:13px;text-align:center;cursor:pointer;border:2px solid transparent;min-height:68px}
+.odd b{display:block;font-size:18px;margin-top:5px}
+.odd.selected{background:#2ecc71;color:#111;border-color:#fff}
+.market-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.market-chip{background:#203b54;border:0;border-radius:11px;padding:8px 11px;color:#fff;font-weight:800;cursor:pointer}
+.market-chip b{color:#ffd400}
+.big{width:100%;border:0;border-radius:13px;padding:13px;margin-top:11px;background:#ffd400;color:#111;font-weight:900;cursor:pointer}
+.back{background:#263b4f;color:#fff}
+.yellow{color:#ffd400}
+.market{background:#172a3b;border-radius:15px;margin-top:12px;overflow:hidden}
+.market-title{padding:12px;font-weight:900;background:#20364a}
+.market-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:9px}
+.selection{background:#263b4f;border:2px solid transparent;border-radius:12px;padding:11px;cursor:pointer;text-align:left;color:#fff}
+.selection.selected{background:#2ecc71;color:#111;border-color:#fff}
+.selection span{display:block;font-size:12px;color:#b9c8d4}
+.selection.selected span{color:#111}
+.selection b{display:block;margin-top:4px}
+.best-card{border:1px solid #ffd400}
+.slip-item{background:#1a2c3d;padding:13px;border-radius:13px;margin:8px 0}
+.stat-box{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.stat{background:#1a2c3d;border-radius:12px;padding:12px}
+.small{font-size:11px;color:#9fb0c2}
+.loader{text-align:center;padding:40px 10px;color:#9fb0c2}
+@media(max-width:520px){
+ .logo{font-size:34px}
+ h2{font-size:27px}
+ .teams{font-size:16px}
+ .odds{gap:6px}
+ .odd{padding:10px 3px}
+ .market-grid{grid-template-columns:1fr 1fr}
 }
-
-body{
-    font-family:Arial,Helvetica,sans-serif;
-    background:#101a28;
-    color:#fff;
-    min-height:100vh;
-    padding-bottom:85px;
-}
-
-button{
-    font-family:inherit;
-}
-
-.app{
-    width:100%;
-    max-width:700px;
-    margin:auto;
-}
-
-/* ================= HEADER ================= */
-
-.header{
-    height:72px;
-    padding:10px 16px;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    background:#121f2e;
-}
-
-.menu{
-    font-size:30px;
-    color:#cbd2d9;
-    cursor:pointer;
-}
-
-.brand{
-    display:flex;
-    align-items:center;
-    gap:8px;
-}
-
-.brand-icon{
-    width:42px;
-    height:42px;
-    border-radius:8px;
-    background:#fff;
-    color:#162438;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:23px;
-}
-
-.brand-name{
-    color:#ffd900;
-    font-size:21px;
-    font-weight:900;
-}
-
-.brand-subtitle{
-    color:#5f80a0;
-    font-size:8px;
-}
-
-.profile{
-    width:40px;
-    height:40px;
-    border-radius:50%;
-    background:#253545;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:20px;
-    cursor:pointer;
-}
-
-/* ================= SPORTS ================= */
-
-.sports{
-    display:flex;
-    overflow-x:auto;
-    background:#152334;
-    scrollbar-width:none;
-}
-
-.sports::-webkit-scrollbar{
-    display:none;
-}
-
-.sport{
-    min-width:105px;
-    padding:13px 8px 12px;
-    text-align:center;
-    color:#8d99a7;
-    border:none;
-    background:none;
-    cursor:pointer;
-    font-size:13px;
-}
-
-.sport-icon{
-    display:block;
-    font-size:28px;
-    margin-bottom:5px;
-}
-
-.sport.active{
-    color:#fff;
-    background:#1b2a3b;
-    font-weight:900;
-}
-
-/* ================= FOOTBALL NAV ================= */
-
-.football-nav{
-    display:flex;
-    gap:28px;
-    padding:18px 18px 10px;
-    background:#101a28;
-    overflow-x:auto;
-    scrollbar-width:none;
-}
-
-.football-nav::-webkit-scrollbar{
-    display:none;
-}
-
-.football-tab{
-    border:none;
-    background:none;
-    color:#aeb7c2;
-    white-space:nowrap;
-    font-size:15px;
-    font-weight:700;
-    padding-bottom:9px;
-    cursor:pointer;
-}
-
-.football-tab.active{
-    color:#fff;
-    border-bottom:3px solid #ffd600;
-}
-
-/* ================= FILTERS ================= */
-
-.filters{
-    display:flex;
-    gap:9px;
-    padding:8px 15px 17px;
-    overflow-x:auto;
-    scrollbar-width:none;
-}
-
-.filters::-webkit-scrollbar{
-    display:none;
-}
-
-.filter{
-    border:none;
-    background:#223342;
-    color:#fff;
-    padding:11px 16px;
-    border-radius:22px;
-    white-space:nowrap;
-    font-size:13px;
-    font-weight:800;
-    cursor:pointer;
-}
-
-.filter.active{
-    background:#273a4b;
-}
-
-/* ================= BANNER ================= */
-
-.banner{
-    margin:0 15px 18px;
-    min-height:105px;
-    border-radius:5px;
-    padding:16px;
-    background:
-        linear-gradient(
-            110deg,
-            #d8ed18,
-            #8fd329,
-            #d5ef17
-        );
-    color:#15321d;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    overflow:hidden;
-}
-
-.banner-text{
-    max-width:65%;
-}
-
-.banner-small{
-    font-size:11px;
-    font-weight:900;
-}
-
-.banner-title{
-    font-size:24px;
-    font-weight:1000;
-    margin-top:5px;
-}
-
-.banner-right{
-    font-size:35px;
-}
-
-/* ================= SECTION ================= */
-
-.section{
-    padding:0 15px;
-}
-
-.section-header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:4px 3px 10px;
-}
-
-.section-title{
-    font-size:17px;
-    font-weight:900;
-}
-
-.refresh{
-    border:none;
-    background:#243545;
-    color:#fff;
-    padding:8px 11px;
-    border-radius:10px;
-    cursor:pointer;
-}
-
-/* ================= TABLE HEADER ================= */
-
-.odds-header{
-    display:grid;
-    grid-template-columns:1fr 65px 65px 65px;
-    align-items:center;
-    padding:5px 12px 8px;
-    color:#aeb8c3;
-    font-size:13px;
-    font-weight:800;
-}
-
-.odds-header div:not(:first-child){
-    text-align:center;
-}
-
-/* ================= LEAGUE ================= */
-
-.league{
-    margin-bottom:11px;
-    background:#152332;
-    border-radius:10px;
-    overflow:hidden;
-    border:1px solid rgba(255,255,255,.025);
-}
-
-.league-header{
-    padding:13px 13px 10px;
-    color:#aeb8c3;
-    font-size:12px;
-    border-bottom:1px solid rgba(255,255,255,.05);
-    display:flex;
-    justify-content:space-between;
-}
-
-.league-name{
-    font-weight:800;
-}
-
-.league-country{
-    opacity:.65;
-}
-
-/* ================= MATCH ================= */
-
-.match{
-    padding:15px 12px 16px;
-    border-bottom:1px solid rgba(255,255,255,.06);
-}
-
-.match:last-child{
-    border-bottom:none;
-}
-
-.match-info{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    margin-bottom:12px;
-}
-
-.match-time{
-    color:#aab5c1;
-    font-size:12px;
-}
-
-.match-label{
-    color:#8fa0b0;
-    font-size:10px;
-}
-
-.match-row{
-    display:grid;
-    grid-template-columns:1fr 65px 65px 65px;
-    align-items:center;
-    gap:4px;
-}
-
-.teams{
-    min-width:0;
-}
-
-.team{
-    font-size:15px;
-    font-weight:800;
-    line-height:1.55;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-}
-
-.odd{
-    height:49px;
-    border:none;
-    border-radius:24px;
-    background:#203342;
-    color:#fff;
-    font-size:15px;
-    font-weight:900;
-    cursor:pointer;
-}
-
-.odd:hover{
-    background:#2b4355;
-}
-
-.odd.selected{
-    background:#ffd600;
-    color:#111;
-}
-
-.markets-count{
-    text-align:right;
-    color:#75b82d;
-    font-size:13px;
-    font-weight:900;
-    margin-top:10px;
-    cursor:pointer;
-}
-
-/* ================= STATUS ================= */
-
-.status{
-    text-align:center;
-    padding:22px;
-    border-radius:12px;
-    background:#192837;
-    color:#aeb9c5;
-    margin-bottom:12px;
-    font-size:13px;
-}
-
-.loading{
-    text-align:center;
-    padding:30px;
-    color:#aab5c1;
-}
-
-.spinner{
-    width:28px;
-    height:28px;
-    border:3px solid #304354;
-    border-top-color:#ffd600;
-    border-radius:50%;
-    margin:0 auto 10px;
-    animation:spin .8s linear infinite;
-}
-
-@keyframes spin{
-    to{
-        transform:rotate(360deg);
-    }
-}
-
-/* ================= BEST BET ================= */
-
-.best-card{
-    margin:0 15px 16px;
-    padding:16px;
-    border-radius:13px;
-    background:#1a2b3b;
-    border:1px solid rgba(255,255,255,.06);
-}
-
-.best-title{
-    color:#ffd600;
-    font-weight:900;
-    margin-bottom:9px;
-}
-
-.best-match{
-    font-size:17px;
-    font-weight:900;
-}
-
-.best-info{
-    color:#8f9dac;
-    font-size:11px;
-    margin-top:5px;
-}
-
-.confidence{
-    margin-top:13px;
-}
-
-.confidence-row{
-    display:flex;
-    justify-content:space-between;
-    font-size:11px;
-    color:#aab5c1;
-    margin-bottom:6px;
-}
-
-.progress{
-    height:6px;
-    background:#26394a;
-    border-radius:10px;
-    overflow:hidden;
-}
-
-.progress-bar{
-    height:100%;
-    width:0;
-    background:#ffd600;
-}
-
-/* ================= PROFILE ================= */
-
-.profile-card{
-    margin-top:12px;
-    background:#172736;
-    border-radius:15px;
-    padding:20px;
-}
-
-.profile-avatar{
-    width:65px;
-    height:65px;
-    margin:auto;
-    border-radius:50%;
-    background:#263b4c;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-size:30px;
-}
-
-.profile-name{
-    text-align:center;
-    font-weight:900;
-    font-size:18px;
-    margin:12px 0;
-}
-
-.profile-line{
-    display:flex;
-    justify-content:space-between;
-    padding:12px 0;
-    border-bottom:1px solid rgba(255,255,255,.06);
-    font-size:13px;
-    color:#b5c0cb;
-}
-
-.balance-card{
-    margin-top:12px;
-    background:#1c2e3e;
-    padding:18px;
-    border-radius:15px;
-}
-
-.balance-label{
-    color:#8293a3;
-    font-size:11px;
-}
-
-.balance-value{
-    font-size:27px;
-    font-weight:900;
-    margin-top:5px;
-}
-
-.balance-actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-    margin-top:15px;
-}
-
-.balance-button{
-    border:none;
-    padding:12px;
-    border-radius:10px;
-    background:#263b4b;
-    color:#fff;
-    font-weight:900;
-}
-
-/* ================= BOTTOM NAV ================= */
-
-.bottom-nav{
-    position:fixed;
-    z-index:100;
-    bottom:0;
-    left:50%;
-    transform:translateX(-50%);
-    width:100%;
-    max-width:700px;
-    height:75px;
-    background:#142131;
-    border-top:1px solid rgba(255,255,255,.07);
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-}
-
-.nav-item{
-    border:none;
-    background:none;
-    color:#8995a2;
-    cursor:pointer;
-    font-size:11px;
-    font-weight:800;
-}
-
-.nav-icon{
-    display:block;
-    font-size:23px;
-    margin-bottom:3px;
-}
-
-.nav-item.active{
-    color:#ffd600;
-}
-
-/* ================= RESPONSIVE ================= */
-
-@media(max-width:390px){
-
-    .match-row,
-    .odds-header{
-        grid-template-columns:1fr 58px 58px 58px;
-    }
-
-    .odd{
-        height:45px;
-        font-size:13px;
-    }
-
-    .team{
-        font-size:13px;
-    }
-
-    .banner-title{
-        font-size:20px;
-    }
-
-}
-
 </style>
 </head>
-
 <body>
 
-<div class="app">
-
-<!-- HEADER -->
-
-<header class="header">
-
-    <div class="menu">
-        ☰
-    </div>
-
-    <div class="brand">
-
-        <div class="brand-icon">
-            ⚽
-        </div>
-
-        <div>
-            <div class="brand-name">
-                BEST BET
-            </div>
-
-            <div class="brand-subtitle">
-                Football Odds
-            </div>
-        </div>
-
-    </div>
-
-    <div
-        class="profile"
-        onclick="profilePage(document.querySelectorAll('.nav-item')[3])"
-    >
-        👤
-    </div>
-
+<header>
+  <div class="logo">🎯 BEST BET</div>
+  <div class="sub">Football odds • predictions • bet slip</div>
 </header>
 
-
-<!-- SPORTS -->
-
-<div class="sports">
-
-    <button
-        class="sport active"
-        onclick="footballPage(document.querySelectorAll('.nav-item')[1])"
-    >
-        <span class="sport-icon">⚽</span>
-        Soccer
-    </button>
-
-    <button class="sport">
-        <span class="sport-icon">🏆</span>
-        Leagues
-    </button>
-
-    <button class="sport">
-        <span class="sport-icon">🔴</span>
-        Live
-    </button>
-
-    <button class="sport">
-        <span class="sport-icon">⭐</span>
-        Popular
-    </button>
-
-    <button class="sport">
-        <span class="sport-icon">•••</span>
-        More
-    </button>
-
-</div>
-
-
-<!-- FOOTBALL PAGE -->
-
-<div id="footballPage">
-
-    <div class="football-nav">
-
-        <button
-            class="football-tab active"
-            onclick="footballSection(this,'highlights')"
-        >
-            Highlights
-        </button>
-
-        <button
-            class="football-tab"
-            onclick="footballSection(this,'upcoming')"
-        >
-            Upcoming
-        </button>
-
-        <button
-            class="football-tab"
-            onclick="footballSection(this,'countries')"
-        >
-            Countries
-        </button>
-
-        <button
-            class="football-tab"
-            onclick="footballSection(this,'zoom')"
-        >
-            Zoom Soccer
-        </button>
-
-    </div>
-
-
-    <div class="filters">
-
-        <button class="filter">
-            ⚙ Filters
-        </button>
-
-        <button class="filter active">
-            Today⌄
-        </button>
-
-        <button class="filter">
-            Highlights⌄
-        </button>
-
-        <button class="filter">
-            1X2⌄
-        </button>
-
-    </div>
-
-
-    <!-- BANNER -->
-
-    <div class="banner">
-
-        <div class="banner-text">
-
-            <div class="banner-small">
-                ⚡ BEST BET FOOTBALL
-            </div>
-
-            <div class="banner-title">
-                PREDICT & WIN
-            </div>
-
-            <div class="banner-small">
-                Smart football analysis
-            </div>
-
-        </div>
-
-        <div class="banner-right">
-            ⚽🏆
-        </div>
-
-    </div>
-
-
-    <!-- BEST BET -->
-
-    <div class="best-card">
-
-        <div class="best-title">
-            🎯 BEST BET
-        </div>
-
-        <div
-            class="best-match"
-            id="heroMatch"
-        >
-            Loading...
-        </div>
-
-        <div
-            class="best-info"
-            id="heroInfo"
-        >
-            Loading match data...
-        </div>
-
-        <div class="confidence">
-
-            <div class="confidence-row">
-
-                <span>
-                    Prediction Confidence
-                </span>
-
-                <strong id="confidenceValue">
-                    0%
-                </strong>
-
-            </div>
-
-            <div class="progress">
-
-                <div
-                    class="progress-bar"
-                    id="progressBar"
-                ></div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- MATCHES -->
-
-    <div class="section">
-
-        <div class="section-header">
-
-            <div
-                class="section-title"
-                id="sectionTitle"
-            >
-                Football Matches
-            </div>
-
-            <button
-                class="refresh"
-                onclick="loadMatches()"
-            >
-                ↻
-            </button>
-
-        </div>
-
-
-        <div class="odds-header">
-
-            <div>
-                Teams
-            </div>
-
-            <div>
-                1
-            </div>
-
-            <div>
-                X
-            </div>
-
-            <div>
-                2
-            </div>
-
-        </div>
-
-
-        <div
-            id="loading"
-            class="loading"
-        >
-
-            <div class="spinner"></div>
-
-            Loading matches...
-
-        </div>
-
-
-        <div
-            id="error"
-            class="status"
-            style="display:none;"
-        >
-            ❌ Failed to load football data.
-        </div>
-
-
-        <div id="matchesContainer"></div>
-
-    </div>
-
-</div>
-
-
-<!-- FOOTER -->
-
-<div style="
-    text-align:center;
-    padding:20px 10px;
-    color:#687887;
-    font-size:10px;
-">
-
-    BEST BET · Football Analysis
-
-</div>
-
-</div>
-
-
-<!-- BOTTOM NAV -->
-
-<nav class="bottom-nav">
-
-    <button
-        class="nav-item"
-        onclick="homePage(this)"
-    >
-
-        <span class="nav-icon">🏠</span>
-
-        Home
-
-    </button>
-
-
-    <button
-        class="nav-item active"
-        onclick="footballPage(this)"
-    >
-
-        <span class="nav-icon">⚽</span>
-
-        Football
-
-    </button>
-
-
-    <button
-        class="nav-item"
-        onclick="bestPage(this)"
-    >
-
-        <span class="nav-icon">🎯</span>
-
-        Best Bet
-
-    </button>
-
-
-    <button
-        class="nav-item"
-        onclick="profilePage(this)"
-    >
-
-        <span class="nav-icon">👤</span>
-
-        Profile
-
-    </button>
-
+<nav>
+  <button id="tabMatches" class="active" onclick="tab('matches',this)">📅<br>Today</button>
+  <button onclick="tab('best',this)">🎯<br>Best Bet</button>
+  <button onclick="tab('live',this)">🔴<br>Live</button>
+  <button onclick="tab('slip',this)">🎟️<br>Bet Slip</button>
 </nav>
 
+<main>
+<section id="content" class="panel">
+  <div class="loader">⏳ Loading football matches...</div>
+</section>
+</main>
 
 <script>
+let matches=[];
+let slip=JSON.parse(localStorage.getItem("bestbet_slip")||"[]");
 
-let allMatches = [];
-
-
-/* =====================================================
-   FOOTBALL SECTION
-===================================================== */
-
-function footballSection(button,type){
-
-    document
-        .querySelectorAll(".football-tab")
-        .forEach(item=>{
-            item.classList.remove("active");
-        });
-
-    button.classList.add("active");
-
-    if(type === "highlights"){
-        document.getElementById("sectionTitle").textContent =
-            "Highlights";
-        loadMatches();
-    }
-
-    if(type === "upcoming"){
-        document.getElementById("sectionTitle").textContent =
-            "Upcoming Matches";
-        loadMatches();
-    }
-
-    if(type === "countries"){
-        showCountries();
-    }
-
-    if(type === "zoom"){
-        document.getElementById("sectionTitle").textContent =
-            "Zoom Soccer";
-        loadMatches();
-    }
+function esc(x){
+  return String(x??"").replace(/[&<>"']/g,m=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
 }
 
+function saveSlip(){
+  localStorage.setItem("bestbet_slip",JSON.stringify(slip));
+}
 
-/* =====================================================
-   CREATE MATCH
-===================================================== */
+async function api(path){
+  const r=await fetch(path,{cache:"no-store"});
+  const d=await r.json();
+  if(!r.ok) throw new Error(d.error||"Server error");
+  return d;
+}
 
-function createMatchHTML(match){
+function tab(name,btn){
+  document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+  btn.classList.add("active");
+  if(name==="matches") loadMatches();
+  if(name==="best") loadBest();
+  if(name==="live") loadLive();
+  if(name==="slip") renderSlip();
+}
 
-    const odds = match.odds || {};
+function dateKey(date){
+  const d=new Date(date);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
 
-    return `
+function dateLabel(date){
+  const d=new Date(date);
+  const now=new Date();
+  const t=dateKey(now);
+  const tm=new Date(now);
+  tm.setDate(tm.getDate()+1);
+  const tomorrow=dateKey(tm);
+  const k=dateKey(d);
+  if(k===t) return "TODAY";
+  if(k===tomorrow) return "TOMORROW";
+  return d.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
+}
 
+function loadMatches(){
+  const c=document.getElementById("content");
+  c.innerHTML='<div class="loader">⏳ Loading football matches...</div>';
+
+  api("/api/matches").then(d=>{
+    matches=d.matches||[];
+    if(!matches.length){
+      c.innerHTML=`
+        <h2>⚽ Football</h2>
+        <div class="empty">
+          No football matches with available odds found.
+          <br><br><span class="status">${esc(d.message||"")}</span>
+        </div>`;
+      return;
+    }
+    renderDayTabs();
+  }).catch(e=>{
+    c.innerHTML=`<h2>⚠️ Error</h2><div class="error">${esc(e.message)}</div>`;
+  });
+}
+
+function renderDayTabs(){
+  const groups={};
+  matches.forEach(m=>{
+    if(!m.commence_time)return;
+    const k=dateKey(m.commence_time);
+    if(!groups[k])groups[k]=[];
+    groups[k].push(m);
+  });
+
+  const keys=Object.keys(groups).sort();
+  if(!keys.length){
+    document.getElementById("content").innerHTML='<div class="empty">No matches found.</div>';
+    return;
+  }
+
+  let html=`
+    <h2>📅 Football Matches</h2>
+    <div class="status">Today → Next 7 Days • ${matches.length} matches</div>
+    <div class="days">`;
+
+  keys.forEach((k,i)=>{
+    html+=`<button class="${i===0?'active':''}" onclick="showDay('${k}',this)">
+      ${esc(dateLabel(k+"T12:00:00"))}<br><small>${groups[k].length} matches</small>
+    </button>`;
+  });
+
+  html+=`</div><div id="dayMatches"></div>`;
+  document.getElementById("content").innerHTML=html;
+  showDay(keys[0],document.querySelector(".days button"));
+}
+
+function showDay(key,btn){
+  document.querySelectorAll(".days button").forEach(x=>x.classList.remove("active"));
+  if(btn)btn.classList.add("active");
+
+  const list=matches.filter(m=>dateKey(m.commence_time)===key);
+  const box=document.getElementById("dayMatches");
+  if(!box)return;
+
+  let html=`<div class="day-title">${esc(dateLabel(key+"T12:00:00"))}</div>`;
+  html+=list.length?list.map(renderMatch).join(""):'<div class="empty">No matches.</div>';
+  box.innerHTML=html;
+}
+
+function isSelected(id,betId){
+  return slip.some(x=>String(x.id)===String(id)&&String(x.betId)===String(betId));
+}
+
+function oddButton(m,label,odd,betId="h2h"){
+  if(odd==null){
+    return `<div class="odd"><span>${label}</span><b>-</b></div>`;
+  }
+  const selected=isSelected(m.id,betId);
+  const bet={
+    id:m.id,home:m.home,away:m.away,league:m.league,
+    market:"1X2",selection:label,odd:Number(odd),betId:betId
+  };
+  return `<div class="odd ${selected?'selected':''}" onclick='selectBet(${JSON.stringify(bet)})'>
+    ${label}<b>${Number(odd).toFixed(2)}</b>
+  </div>`;
+}
+
+function chip(label,odd){
+  if(odd==null)return `<div class="market-chip">${esc(label)}: <b>-</b></div>`;
+  return `<div class="market-chip">${esc(label)}: <b>${Number(odd).toFixed(2)}</b></div>`;
+}
+
+function renderMatch(m){
+  const h=m.h2h||{};
+  const t=m.totals||{};
+  const btts=m.btts||{};
+
+  return `<div class="match">
+    <div class="teams">${esc(m.home)} <span class="vs">vs</span> ${esc(m.away)}</div>
+    <div class="meta">🏆 ${esc(m.league)} • 🕐 ${esc(m.time||"")}</div>
+
+    <div class="odds">
+      ${oddButton(m,"1",h.home)}
+      ${oddButton(m,"X",h.draw)}
+      ${oddButton(m,"2",h.away)}
+    </div>
+
+    <div class="market-row">
+      ${chip("O2.5",t.over)}
+      ${chip("U2.5",t.under)}
+      ${chip("BTTS Yes",btts.yes)}
+      ${chip("BTTS No",btts.no)}
+    </div>
+
+    <button class="big back" onclick="openMatch('${esc(m.id)}')">
+      📊 View All Markets
+    </button>
+  </div>`;
+}
+
+function selectBet(bet){
+  if(!bet.odd||Number(bet.odd)<=1){
+    alert("Odd is not available.");
+    return;
+  }
+
+  slip=slip.filter(x=>!(
+    String(x.id)===String(bet.id)&&String(x.betId)===String(bet.betId)
+  ));
+  slip.push(bet);
+  saveSlip();
+
+  const activeDay=document.querySelector(".days button.active");
+  const current=matches.find(x=>String(x.id)===String(bet.id));
+  if(current)openMatch(String(bet.id));
+  else renderSlip();
+}
+
+function marketButton(m,market,selection,odd,betId){
+  const selected=isSelected(m.id,betId);
+  const bet={
+    id:m.id,home:m.home,away:m.away,league:m.league,
+    market:market,selection:selection,odd:Number(odd),betId:String(betId)
+  };
+
+  return `<button class="selection ${selected?'selected':''}" onclick='selectBet(${JSON.stringify(bet)})'>
+    <span>${esc(selection)}</span>
+    <b>@ ${Number(odd).toFixed(2)}</b>
+  </button>`;
+}
+
+function openMatch(id){
+  const c=document.getElementById("content");
+  c.innerHTML='<div class="loader">⏳ Loading all markets...</div>';
+
+  api("/api/match/"+encodeURIComponent(id)).then(d=>{
+    const m=d.match;
+    const markets=d.markets||[];
+
+    let html=`
+      <button class="big back" onclick="loadMatches()">⬅️ Back to Matches</button>
+      <h2>⚽ ${esc(m.home)} vs ${esc(m.away)}</h2>
+      <div class="meta">🏆 ${esc(m.league)} • 🕐 ${esc(m.time||"")}</div>`;
+
+    if(d.best_bet){
+      html+=`
+      <div class="market best-card">
+        <div class="market-title">🎯 Best Bet</div>
+        <div style="padding:13px" class="yellow">
+          <b>${esc(d.best_bet.selection)}</b> @ ${Number(d.best_bet.odd).toFixed(2)}
+        </div>
+      </div>`;
+    }
+
+    if(!markets.length){
+      html+=`
+      <div class="market">
+        <div class="market-title">⚠️ Markets</div>
+        <div style="padding:13px" class="error">
+          ${esc(d.odds_error||"No markets available.")}
+        </div>
+      </div>`;
+    }
+
+    markets.forEach(market=>{
+      html+=`
+      <div class="market">
+        <div class="market-title">${esc(market.name)}</div>
+        <div class="market-grid">
+          ${(market.selections||[]).map(s=>marketButton(
+            m,market.name,s.value,s.odd,market.id
+          )).join("")}
+        </div>
+      </div>`;
+    });
+
+    html+=`<button class="big" onclick="renderSlip()">🎟️ Bet Slip (${slip.length})</button>`;
+    c.innerHTML=html;
+  }).catch(e=>{
+    c.innerHTML=`<h2>⚠️ Error</h2><div class="error">${esc(e.message)}</div>`;
+  });
+}
+
+function loadBest(){
+  const c=document.getElementById("content");
+  c.innerHTML='<div class="loader">⏳ Finding best bets...</div>';
+
+  api("/api/matches").then(d=>{
+    const list=(d.matches||[]).filter(x=>x.best_bet);
+    if(!list.length){
+      c.innerHTML=`
+        <h2>🎯 Best Bet</h2>
+        <div class="empty">No Best Bet available in the current odds data.</div>`;
+      return;
+    }
+
+    let html=`
+      <h2>🎯 Best Bet</h2>
+      <div class="status">Odds-based suggestion • Not a guarantee</div>`;
+
+    list.forEach(m=>{
+      html+=`
+      <div class="match best-card">
+        <div class="teams">${esc(m.home)} <span class="vs">vs</span> ${esc(m.away)}</div>
+        <div class="meta">🏆 ${esc(m.league)} • 🕐 ${esc(m.time||"")}</div>
+        <div class="yellow">🎯 <b>${esc(m.best_bet.selection)}</b> @ ${Number(m.best_bet.odd).toFixed(2)}</div>
+        <button class="big" onclick="openMatch('${esc(m.id)}')">📊 Open Markets</button>
+      </div>`;
+    });
+    c.innerHTML=html;
+  }).catch(e=>{
+    c.innerHTML=`<h2>⚠️ Error</h2><div class="error">${esc(e.message)}</div>`;
+  });
+}
+
+function loadLive(){
+  const c=document.getElementById("content");
+  c.innerHTML='<div class="loader">⏳ Loading live matches...</div>';
+
+  api("/api/live").then(d=>{
+    const list=d.matches||[];
+    if(!list.length){
+      c.innerHTML=`<h2>🔴 Live</h2><div class="empty">No live matches now.</div>`;
+      return;
+    }
+
+    c.innerHTML=`
+      <h2>🔴 Live</h2>
+      ${list.map(x=>`
         <div class="match">
-
-            <div class="match-info">
-
-                <div class="match-time">
-                    🕐 ${match.time || "--:--"}
-                </div>
-
-                <div class="match-label">
-                    ${match.label || "Football"}
-                </div>
-
-            </div>
-
-
-            <div class="match-row">
-
-                <div class="teams">
-
-                    <div class="team">
-                        ${match.home || "Home"}
-                    </div>
-
-                    <div class="team">
-                        ${match.away || "Away"}
-                    </div>
-
-                </div>
-
-
-                <button
-                    class="odd"
-                    onclick="selectOdd(this)"
-                >
-                    ${odds["1"] || "-"}
-                </button>
-
-
-                <button
-                    class="odd"
-                    onclick="selectOdd(this)"
-                >
-                    ${odds["X"] || "-"}
-                </button>
-
-
-                <button
-                    class="odd"
-                    onclick="selectOdd(this)"
-                >
-                    ${odds["2"] || "-"}
-                </button>
-
-            </div>
-
-
-            <div
-                class="markets-count"
-                onclick="openMarkets('${match.home || ""}','${match.away || ""}')"
-            >
-                +${match.market_count || 42} Markets
-            </div>
-
-        </div>
-
-    `;
+          <div class="teams">${esc(x.home)} ${x.home_score??0} - ${x.away_score??0} ${esc(x.away)}</div>
+          <div class="meta">🔴 LIVE • ${esc(x.league||"")}</div>
+        </div>`).join("")}`;
+  }).catch(e=>{
+    c.innerHTML=`<h2>🔴 Live</h2><div class="error">${esc(e.message)}</div>`;
+  });
 }
 
+function renderSlip(){
+  const c=document.getElementById("content");
+  if(!slip.length){
+    c.innerHTML=`<h2>🎟️ Bet Slip</h2><div class="empty">Your Bet Slip is empty.<br>⚽ Match keessaa selection filadhu.</div>`;
+    return;
+  }
 
-/* =====================================================
-   RENDER
-===================================================== */
+  let total=1;
+  let html=`<h2>🎟️ Bet Slip</h2>`;
 
-function renderMatches(matches){
+  slip.forEach((x,i)=>{
+    total*=Number(x.odd);
+    html+=`
+      <div class="slip-item">
+        <b>${i+1}. ${esc(x.home)} vs ${esc(x.away)}</b>
+        <div class="meta">${esc(x.league||"")}</div>
+        <div>📊 ${esc(x.market)}</div>
+        <div class="yellow">🎯 ${esc(x.selection)} @ ${Number(x.odd).toFixed(2)}</div>
+        <button class="big back" onclick="removeBet(${i})">🗑 Remove</button>
+      </div>`;
+  });
 
-    const container =
-        document.getElementById("matchesContainer");
+  html+=`
+    <div class="market">
+      <div class="market-title">📈 Total Odds: ${total.toFixed(2)}</div>
+    </div>
+    <button class="big" onclick="clearSlip()">🗑 Clear Bet Slip</button>`;
 
-    if(!matches || matches.length === 0){
-
-        container.innerHTML = `
-
-            <div class="status">
-
-                ⚽ No matches available.
-
-                <br><br>
-
-                Please check your Football API.
-
-            </div>
-
-        `;
-
-        return;
-    }
-
-
-    const leagues = {};
-
-
-    matches.forEach(match=>{
-
-        const league =
-            match.league || "International Clubs";
-
-        if(!leagues[league]){
-            leagues[league] = [];
-        }
-
-        leagues[league].push(match);
-
-    });
-
-
-    let html = "";
-
-
-    Object.keys(leagues).forEach(leagueName=>{
-
-        const list =
-            leagues[leagueName];
-
-        const country =
-            list[0].country || "International";
-
-
-        html += `
-
-            <div class="league">
-
-                <div class="league-header">
-
-                    <div class="league-name">
-                        ⚽ ${leagueName}
-                    </div>
-
-                    <div class="league-country">
-                        ${country}
-                    </div>
-
-                </div>
-
-        `;
-
-
-        list.forEach(match=>{
-
-            html += createMatchHTML(match);
-
-        });
-
-
-        html += `
-
-            </div>
-
-        `;
-
-    });
-
-
-    container.innerHTML = html;
+  c.innerHTML=html;
 }
 
-
-/* =====================================================
-   SELECT ODDS
-===================================================== */
-
-function selectOdd(button){
-
-    const row =
-        button.parentElement;
-
-    row
-        .querySelectorAll(".odd")
-        .forEach(item=>{
-            item.classList.remove("selected");
-        });
-
-    button.classList.add("selected");
+function removeBet(i){
+  slip.splice(i,1);
+  saveSlip();
+  renderSlip();
 }
 
-
-/* =====================================================
-   LOAD MATCHES
-===================================================== */
-
-async function loadMatches(){
-
-    const loading =
-        document.getElementById("loading");
-
-    const error =
-        document.getElementById("error");
-
-    const container =
-        document.getElementById("matchesContainer");
-
-
-    loading.style.display = "block";
-
-    error.style.display = "none";
-
-
-    try{
-
-        const response =
-            await fetch(
-                "/api/matches",
-                {
-                    cache:"no-store"
-                }
-            );
-
-
-        if(!response.ok){
-
-            throw new Error(
-                "HTTP " + response.status
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        if(
-            !data.success ||
-            !Array.isArray(data.matches)
-        ){
-
-            throw new Error(
-                "Invalid API response"
-            );
-
-        }
-
-
-        allMatches =
-            data.matches;
-
-
-        renderMatches(
-            allMatches
-        );
-
-
-    }catch(err){
-
-        console.error(err);
-
-        container.innerHTML = "";
-
-        error.style.display = "block";
-
-    }finally{
-
-        loading.style.display = "none";
-
-    }
+function clearSlip(){
+  slip=[];
+  saveSlip();
+  renderSlip();
 }
 
-
-/* =====================================================
-   BEST BET
-===================================================== */
-
-async function loadBestBet(){
-
-    try{
-
-        const response =
-            await fetch(
-                "/api/best-bet",
-                {
-                    cache:"no-store"
-                }
-            );
-
-
-        if(!response.ok){
-
-            throw new Error(
-                "Best Bet unavailable"
-            );
-
-        }
-
-
-        const data =
-            await response.json();
-
-
-        if(
-            !data.success ||
-            !data.match
-        ){
-
-            throw new Error(
-                "No Best Bet"
-            );
-
-        }
-
-
-        const match =
-            data.match;
-
-
-        document.getElementById(
-            "heroMatch"
-        ).textContent =
-            `${match.home} vs ${match.away}`;
-
-
-        document.getElementById(
-            "heroInfo"
-        ).textContent =
-            `${match.league || "Football"} · ${match.time || ""}`;
-
-
-        const confidence =
-            Number(match.confidence || 0);
-
-
-        document.getElementById(
-            "confidenceValue"
-        ).textContent =
-            confidence + "%";
-
-
-        document.getElementById(
-            "progressBar"
-        ).style.width =
-            confidence + "%";
-
-
-    }catch(err){
-
-        console.log(err);
-
-        document.getElementById(
-            "heroMatch"
-        ).textContent =
-            "Best Bet unavailable";
-
-        document.getElementById(
-            "heroInfo"
-        ).textContent =
-            "Football API data unavailable";
-
-    }
-}
-
-
-/* =====================================================
-   COUNTRIES
-===================================================== */
-
-function showCountries(){
-
-    document.getElementById(
-        "sectionTitle"
-    ).textContent =
-        "Countries";
-
-
-    document.getElementById(
-        "matchesContainer"
-    ).innerHTML = `
-
-        <div class="league">
-
-            <div class="league-header">
-                <div class="league-name">
-                    🏴 England
-                </div>
-                <div>Premier League</div>
-            </div>
-
-        </div>
-
-
-        <div class="league">
-
-            <div class="league-header">
-                <div class="league-name">
-                    🇪🇸 Spain
-                </div>
-                <div>La Liga</div>
-            </div>
-
-        </div>
-
-
-        <div class="league">
-
-            <div class="league-header">
-                <div class="league-name">
-                    🇮🇹 Italy
-                </div>
-                <div>Serie A</div>
-            </div>
-
-        </div>
-
-
-        <div class="league">
-
-            <div class="league-header">
-                <div class="league-name">
-                    🇩🇪 Germany
-                </div>
-                <div>Bundesliga</div>
-            </div>
-
-        </div>
-
-
-        <div class="league">
-
-            <div class="league-header">
-                <div class="league-name">
-                    🇫🇷 France
-                </div>
-                <div>Ligue 1</div>
-            </div>
-
-        </div>
-
-    `;
-}
-
-
-/* =====================================================
-   MARKETS
-===================================================== */
-
-function openMarkets(home,away){
-
-    alert(
-        "More markets for " +
-        home +
-        " vs " +
-        away +
-        " will be connected to your API."
-    );
-
-}
-
-
-/* =====================================================
-   HOME
-===================================================== */
-
-function homePage(button){
-
-    setNav(button);
-
-    document.getElementById(
-        "sectionTitle"
-    ).textContent =
-        "Today's Matches";
-
-    loadMatches();
-    loadBestBet();
-
-}
-
-
-/* =====================================================
-   FOOTBALL
-===================================================== */
-
-function footballPage(button){
-
-    setNav(button);
-
-    document.getElementById(
-        "sectionTitle"
-    ).textContent =
-        "Football Matches";
-
-    document
-        .querySelectorAll(".sport")
-        .forEach(item=>{
-            item.classList.remove("active");
-        });
-
-    document
-        .querySelector(".sport")
-        .classList.add("active");
-
-    loadMatches();
-    loadBestBet();
-
-}
-
-
-/* =====================================================
-   BEST BET
-===================================================== */
-
-function bestPage(button){
-
-    setNav(button);
-
-    document.getElementById(
-        "sectionTitle"
-    ).textContent =
-        "Best Bet";
-
-    loadBestBet();
-    loadMatches();
-
-}
-
-
-/* =====================================================
-   PROFILE
-===================================================== */
-
-function profilePage(button){
-
-    setNav(button);
-
-    document.getElementById(
-        "sectionTitle"
-    ).textContent =
-        "My Profile";
-
-
-    document.getElementById(
-        "matchesContainer"
-    ).innerHTML = `
-
-        <div class="profile-card">
-
-            <div class="profile-avatar">
-                👤
-            </div>
-
-            <div class="profile-name">
-                BEST BET USER
-            </div>
-
-            <div class="profile-line">
-                <span>Account</span>
-                <strong>Active</strong>
-            </div>
-
-            <div class="profile-line">
-                <span>Balance</span>
-                <strong>0.00 ETB</strong>
-            </div>
-
-            <div class="profile-line">
-                <span>Bets</span>
-                <strong>0</strong>
-            </div>
-
-        </div>
-
-
-        <div class="balance-card">
-
-            <div class="balance-label">
-                AVAILABLE BALANCE
-            </div>
-
-            <div class="balance-value">
-                0.00 ETB
-            </div>
-
-            <div class="balance-actions">
-
-                <button
-                    class="balance-button"
-                    onclick="alert('Deposit system will be connected later.')"
-                >
-                    💰 Deposit
-                </button>
-
-                <button
-                    class="balance-button"
-                    onclick="alert('Withdraw system will be connected later.')"
-                >
-                    💸 Withdraw
-                </button>
-
-            </div>
-
-        </div>
-
-    `;
-
-}
-
-
-/* =====================================================
-   NAV ACTIVE
-===================================================== */
-
-function setNav(button){
-
-    document
-        .querySelectorAll(".nav-item")
-        .forEach(item=>{
-            item.classList.remove("active");
-        });
-
-    if(button){
-        button.classList.add("active");
-    }
-
-}
-
-
-/* =====================================================
-   START
-===================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function(){
-
-        footballPage(
-            document.querySelectorAll(".nav-item")[1]
-        );
-
-    }
-);
-
-
-/* =====================================================
-   AUTO REFRESH
-===================================================== */
-
-setInterval(
-    function(){
-
-        loadMatches();
-        loadBestBet();
-
-    },
-    60000
-);
-
+loadMatches();
 </script>
-
 </body>
-    </html>
+</html>
