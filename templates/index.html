@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BEST BET</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #111827;
+        }
+
+        .header {
+            background: #111827;
+            color: white;
+            padding: 18px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            color: #cbd5e1;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 15px;
+        }
+
+        .status {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .match {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+
+        .league {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .teams {
+            font-size: 17px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .time {
+            color: #374151;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .odds {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .odd {
+            background: #eef2ff;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-weight: bold;
+        }
+
+        button {
+            border: none;
+            background: #111827;
+            color: white;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>⚽ BEST BET</h1>
+    <p>Football • Today → Next 7 Days</p>
+</div>
+
+<div class="container">
+
+    <div class="status">
+        <strong>System:</strong>
+        <span id="status">Loading...</span>
+    </div>
+
+    <button onclick="loadMatches(true)">
+        🔄 Refresh
+    </button>
+
+    <div id="content">
+        <div class="loading">
+            ⚽ Matches loading...
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+async function loadMatches(refresh = false) {
+
+    const content = document.getElementById("content");
+    const status = document.getElementById("status");
+
+    status.textContent = "Loading...";
+
+    content.innerHTML = `
+        <div class="loading">
+            ⚽ Matches loading...
+        </div>
+    `;
+
+    try {
+
+        let url = "/api/matches";
+
+        if (refresh) {
+            url += "?refresh=1";
+        }
+
+        const response = await fetch(url);
+
+        const text = await response.text();
+
+        let data;
+
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error(
+                "Server JSON osoo hin deebisin. HTTP " +
+                response.status +
+                ": " +
+                text.substring(0, 300)
+            );
+        }
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.error ||
+                data.message ||
+                "Matches loading failed."
+            );
+        }
+
+        status.textContent =
+            "Online • " +
+            data.count +
+            " matches";
+
+        if (!data.matches || data.matches.length === 0) {
+
+            content.innerHTML = `
+                <div class="status">
+                    ⚽ No football matches with available
+                    odds found in the 7-day period.
+                </div>
+            `;
+
+            return;
+        }
+
+        content.innerHTML = data.matches.map(match => {
+
+            let odds = "";
+
+            if (match.h2h) {
+
+                if (match.h2h.home) {
+                    odds += `
+                        <div class="odd">
+                            1 ${Number(match.h2h.home).toFixed(2)}
+                        </div>
+                    `;
+                }
+
+                if (match.h2h.draw) {
+                    odds += `
+                        <div class="odd">
+                            X ${Number(match.h2h.draw).toFixed(2)}
+                        </div>
+                    `;
+                }
+
+                if (match.h2h.away) {
+                    odds += `
+                        <div class="odd">
+                            2 ${Number(match.h2h.away).toFixed(2)}
+                        </div>
+                    `;
+                }
+            }
+
+            if (match.totals && match.totals.over) {
+                odds += `
+                    <div class="odd">
+                        O2.5 ${Number(match.totals.over).toFixed(2)}
+                    </div>
+                `;
+            }
+
+            if (match.totals && match.totals.under) {
+                odds += `
+                    <div class="odd">
+                        U2.5 ${Number(match.totals.under).toFixed(2)}
+                    </div>
+                `;
+            }
+
+            if (match.btts && match.btts.yes) {
+                odds += `
+                    <div class="odd">
+                        BTTS ${Number(match.btts.yes).toFixed(2)}
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="match">
+
+                    <div class="league">
+                        🏆 ${escapeHtml(match.league || "Football")}
+                    </div>
+
+                    <div class="teams">
+                        ⚽ ${escapeHtml(match.home)}
+                        vs
+                        ${escapeHtml(match.away)}
+                    </div>
+
+                    <div class="time">
+                        🕐 ${escapeHtml(match.time || "")}
+                    </div>
+
+                    <div class="odds">
+                        ${odds}
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.textContent = "Error";
+
+        content.innerHTML = `
+            <div class="error">
+                <strong>❌ Internal server error</strong>
+                <br><br>
+                ${escapeHtml(error.message)}
+            </div>
+        `;
+    }
+}
+
+
+function escapeHtml(value) {
+
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+loadMatches();
+
+</script>
+
+</body>
+</html>
