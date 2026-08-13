@@ -1,6 +1,6 @@
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 import requests
 from flask import Flask, jsonify, render_template_string
@@ -11,6 +11,7 @@ from telegram import (
     InlineKeyboardMarkup,
     WebAppInfo,
 )
+
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -24,28 +25,36 @@ from telegram.ext import (
 # =========================================================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
-ODDS_API_KEY = os.getenv("ODDS_API_KEY", "").strip()
+
+ODDS_API_KEY = os.getenv(
+    "ODDS_API_KEY",
+    ""
+).strip()
 
 WEB_APP_URL = os.getenv(
     "WEB_APP_URL",
     "https://best-bet-7t7f.onrender.com",
 ).strip()
 
-PORT = int(os.getenv("PORT", "10000"))
+PORT = int(
+    os.getenv("PORT", "10000")
+)
 
 ODDS_BASE = "https://api.the-odds-api.com/v4"
 
 REGIONS = os.getenv(
     "ODDS_REGIONS",
-    "eu",
+    "eu"
 ).strip()
 
-# Markets requested from The Odds API
+# h2h is requested first because it has broad soccer coverage.
 MARKETS = "h2h,totals,spreads"
+
+# Today + next 7 days
+DAYS_AHEAD = 7
 
 web_app = Flask(__name__)
 
-# Demo user storage
 USERS = {}
 
 
@@ -54,7 +63,9 @@ USERS = {}
 # =========================================================
 
 def get_user(user_id, name="User"):
+
     if user_id not in USERS:
+
         USERS[user_id] = {
             "name": name,
             "balance": 0.0,
@@ -66,9 +77,11 @@ def get_user(user_id, name="User"):
 
 
 def total_odds(user_id):
+
     total = 1.0
 
     for item in get_user(user_id)["betslip"]:
+
         try:
             total *= float(item["odd"])
         except Exception:
@@ -83,8 +96,9 @@ def add_demo_bet(
     market,
     selection,
     odd,
-    bet_id=None,
+    bet_id=None
 ):
+
     try:
         odd = float(odd)
     except Exception:
@@ -95,7 +109,7 @@ def add_demo_bet(
 
     user = get_user(user_id)
 
-    # One selection per fixture + market
+    # Same fixture + same market = replace old selection
     user["betslip"] = [
         x
         for x in user["betslip"]
@@ -106,13 +120,24 @@ def add_demo_bet(
     ]
 
     user["betslip"].append({
+
         "fixture_id": match["id"],
+
         "home": match["home"],
+
         "away": match["away"],
-        "league": match.get("league", ""),
+
+        "league": match.get(
+            "league",
+            ""
+        ),
+
         "market": market,
+
         "selection": selection,
+
         "odd": odd,
+
         "bet_id": bet_id,
     })
 
@@ -120,10 +145,13 @@ def add_demo_bet(
 
 
 def betslip_text(user_id):
+
     user = get_user(user_id)
+
     slips = user["betslip"]
 
     if not slips:
+
         return (
             "🎟️ *BET SLIP*\n\n"
             "Bet hin qabdu.\n\n"
@@ -132,79 +160,113 @@ def betslip_text(user_id):
 
     total = total_odds(user_id)
 
-    text = "🎟️ *BET SLIP*\n\n"
+    text = (
+        "🎟️ *BET SLIP*\n\n"
+    )
 
-    for i, item in enumerate(slips, 1):
+    for i, item in enumerate(
+        slips,
+        1
+    ):
+
         text += (
-            f"*{i}.* {item['home']} vs {item['away']}\n"
+            f"*{i}.* "
+            f"{item['home']} vs "
+            f"{item['away']}\n"
             f"🏆 {item.get('league', '')}\n"
             f"📊 {item['market']}\n"
             f"🎯 *{item['selection']}*\n"
             f"Odd: *{item['odd']:.2f}*\n\n"
         )
 
-    text += "━━━━━━━━━━━━━━\n"
-    text += f"📈 *Total Odds:* {total:.2f}\n\n"
-    text += "🧪 Demo/testing qofa."
+    text += (
+        "━━━━━━━━━━━━━━\n"
+        f"📈 *Total Odds:* {total:.2f}\n\n"
+        "🧪 Demo/testing qofa."
+    )
 
     return text
 
 
 # =========================================================
-# THE ODDS API REQUEST
+# ODDS API
 # =========================================================
 
-def odds_request(path, params=None):
+def odds_request(
+    path,
+    params=None
+):
+
     if not ODDS_API_KEY:
+
         raise RuntimeError(
-            "ODDS_API_KEY hin jiru. "
-            "Render Environment Variables keessatti "
-            "ODDS_API_KEY galchi."
+            "ODDS_API_KEY hin jiru."
         )
 
-    params = dict(params or {})
+    params = dict(
+        params or {}
+    )
+
     params["apiKey"] = ODDS_API_KEY
 
     response = requests.get(
+
         ODDS_BASE + path,
+
         params=params,
+
         timeout=30,
+
         headers={
-            "Accept": "application/json",
-            "User-Agent": "BestBet/1.0",
+            "Accept": "application/json"
         },
     )
 
     if response.status_code != 200:
+
         try:
             body = response.json()
         except Exception:
-            body = response.text[:500]
+            body = response.text[:1000]
 
         raise RuntimeError(
-            f"Odds API error {response.status_code}: {body}"
+            f"Odds API error "
+            f"{response.status_code}: "
+            f"{body}"
         )
 
     return response.json()
 
 
 # =========================================================
-# FOOTBALL SPORTS
+# SOCCER SPORTS
 # =========================================================
 
 def soccer_sports():
-    sports = odds_request("/sports")
+
+    sports = odds_request(
+        "/sports"
+    )
 
     result = []
 
     for sport in sports:
-        key = str(sport.get("key", ""))
+
+        key = str(
+            sport.get(
+                "key",
+                ""
+            )
+        )
 
         if (
             sport.get("active")
             and key.startswith("soccer_")
         ):
-            result.append(sport)
+
+            result.append(
+                sport
+            )
 
     return result
 
@@ -213,31 +275,46 @@ def soccer_sports():
 # CONVERT EVENT
 # =========================================================
 
-def convert_event(event, sport):
+def convert_event(
+    event,
+    sport
+):
+
     h2h = {}
+
     totals = {}
+
     spreads = []
 
-    home_team = event.get("home_team")
-    away_team = event.get("away_team")
+    for bookmaker in event.get(
+        "bookmakers",
+        []
+    ):
 
-    # -----------------------------------------------------
-    # Read all bookmakers
-    # -----------------------------------------------------
+        for market in bookmaker.get(
+            "markets",
+            []
+        ):
 
-    for bookmaker in event.get("bookmakers", []):
+            key = market.get(
+                "key"
+            )
 
-        for market in bookmaker.get("markets", []):
-
-            market_key = market.get("key")
-
-            for outcome in market.get("outcomes", []):
+            for outcome in market.get(
+                "outcomes",
+                []
+            ):
 
                 name = str(
-                    outcome.get("name", "")
-                ).strip()
+                    outcome.get(
+                        "name",
+                        ""
+                    )
+                )
 
-                price = outcome.get("price")
+                price = outcome.get(
+                    "price"
+                )
 
                 if price is None:
                     continue
@@ -247,40 +324,52 @@ def convert_event(event, sport):
                 except Exception:
                     continue
 
-                if price <= 1:
-                    continue
-
-                # =================================================
+                # -------------------------
                 # 1X2
-                # =================================================
+                # -------------------------
 
-                if market_key == "h2h":
+                if key == "h2h":
 
-                    if name == home_team:
-                        old = h2h.get("home")
+                    if (
+                        name
+                        == event.get(
+                            "home_team"
+                        )
+                    ):
 
-                        if old is None or price > old:
-                            h2h["home"] = price
+                        h2h.setdefault(
+                            "home",
+                            price
+                        )
 
-                    elif name == away_team:
-                        old = h2h.get("away")
+                    elif (
+                        name
+                        == event.get(
+                            "away_team"
+                        )
+                    ):
 
-                        if old is None or price > old:
-                            h2h["away"] = price
+                        h2h.setdefault(
+                            "away",
+                            price
+                        )
 
-                    elif name.lower() == "draw":
-                        old = h2h.get("draw")
+                    elif name == "Draw":
 
-                        if old is None or price > old:
-                            h2h["draw"] = price
+                        h2h.setdefault(
+                            "draw",
+                            price
+                        )
 
-                # =================================================
+                # -------------------------
                 # TOTALS
-                # =================================================
+                # -------------------------
 
-                elif market_key == "totals":
+                elif key == "totals":
 
-                    point = outcome.get("point")
+                    point = outcome.get(
+                        "point"
+                    )
 
                     if point is None:
                         continue
@@ -290,155 +379,152 @@ def convert_event(event, sport):
                     except Exception:
                         continue
 
-                    item = {
-                        "name": name,
-                        "point": point,
-                        "price": price,
-                    }
+                    if point == 2.5:
 
-                    # Keep highest price for same selection
-                    existing = None
+                        if name == "Over":
 
-                    for x in totals:
-                        if (
-                            x["name"] == name
-                            and x["point"] == point
-                        ):
-                            existing = x
-                            break
+                            totals.setdefault(
+                                "over",
+                                price
+                            )
 
-                    if existing:
-                        if price > existing["price"]:
-                            existing["price"] = price
-                    else:
-                        totals.append(item)
+                        elif name == "Under":
 
-                # =================================================
-                # HANDICAP / SPREADS
-                # =================================================
+                            totals.setdefault(
+                                "under",
+                                price
+                            )
 
-                elif market_key == "spreads":
+                # -------------------------
+                # SPREADS
+                # -------------------------
+
+                elif key == "spreads":
 
                     spreads.append({
+
                         "name": name,
-                        "point": outcome.get("point"),
+
+                        "point":
+                            outcome.get(
+                                "point"
+                            ),
+
                         "price": price,
                     })
 
-    # -----------------------------------------------------
     # Remove duplicate spreads
-    # -----------------------------------------------------
 
     unique_spreads = []
-    seen_spreads = set()
+
+    seen = set()
 
     for item in spreads:
 
         key = (
             item["name"],
             str(item["point"]),
+            item["price"],
         )
 
-        if key in seen_spreads:
-            # Keep highest price
-            for existing in unique_spreads:
-                existing_key = (
-                    existing["name"],
-                    str(existing["point"]),
-                )
+        if key not in seen:
 
-                if existing_key == key:
-                    if item["price"] > existing["price"]:
-                        existing["price"] = item["price"]
-                    break
+            seen.add(key)
 
-            continue
-
-        seen_spreads.add(key)
-        unique_spreads.append(item)
-
-    # =====================================================
-    # BEST BET CANDIDATES
-    # =====================================================
-
-    candidates = []
-
-    # 1X2
-    if h2h.get("home"):
-        candidates.append({
-            "selection": "1",
-            "odd": h2h["home"],
-            "market": "1X2",
-        })
-
-    if h2h.get("draw"):
-        candidates.append({
-            "selection": "X",
-            "odd": h2h["draw"],
-            "market": "1X2",
-        })
-
-    if h2h.get("away"):
-        candidates.append({
-            "selection": "2",
-            "odd": h2h["away"],
-            "market": "1X2",
-        })
-
-    # Totals
-    for item in totals:
-
-        candidates.append({
-            "selection": (
-                f"{item['name']} {item['point']}"
-            ),
-            "odd": item["price"],
-            "market": "Over/Under",
-        })
-
-    # Spreads
-    for item in unique_spreads:
-
-        candidates.append({
-            "selection": (
-                f"{item['name']} {item['point']}"
-            ),
-            "odd": item["price"],
-            "market": "Handicap",
-        })
-
-    # -----------------------------------------------------
-    # Valid candidates
-    # -----------------------------------------------------
-
-    candidates = [
-        x
-        for x in candidates
-        if float(x["odd"]) > 1.01
-    ]
+            unique_spreads.append(
+                item
+            )
 
     # =====================================================
     # BEST BET
     # =====================================================
 
+    candidates = []
+
+    if h2h.get("home"):
+
+        candidates.append(
+            (
+                "1",
+                h2h["home"],
+                "1X2"
+            )
+        )
+
+    if h2h.get("draw"):
+
+        candidates.append(
+            (
+                "X",
+                h2h["draw"],
+                "1X2"
+            )
+        )
+
+    if h2h.get("away"):
+
+        candidates.append(
+            (
+                "2",
+                h2h["away"],
+                "1X2"
+            )
+        )
+
+    if totals.get("over"):
+
+        candidates.append(
+            (
+                "Over 2.5",
+                totals["over"],
+                "Over/Under"
+            )
+        )
+
+    if totals.get("under"):
+
+        candidates.append(
+            (
+                "Under 2.5",
+                totals["under"],
+                "Over/Under"
+            )
+        )
+
+    # Valid odds
+
+    candidates = [
+        x
+        for x in candidates
+        if 1.01 < x[1] <= 10
+    ]
+
+    # NOTE:
+    # Lowest odds is not automatically
+    # "most likely" in a guaranteed sense.
+    # This is simply the lowest available
+    # odds-based suggestion.
+
+    candidates.sort(
+        key=lambda x: x[1]
+    )
+
     best = None
 
     if candidates:
 
-        # Highest available odd.
-        #
-        # NOTE:
-        # This is an odds-based suggestion only.
-        # It does NOT guarantee winning.
-        best_item = max(
-            candidates,
-            key=lambda x: float(x["odd"]),
-        )
+        selection, odd, market = candidates[0]
 
         best = {
-            "selection": best_item["selection"],
-            "odd": float(best_item["odd"]),
-            "market": best_item["market"],
+
+            "selection":
+                selection,
+
+            "odd":
+                odd,
+
+            "market":
+                market,
         }
 
     # =====================================================
@@ -447,113 +533,270 @@ def convert_event(event, sport):
 
     commence = event.get(
         "commence_time",
-        "",
+        ""
     )
 
     time_text = ""
 
     if commence:
+
         try:
+
             dt = datetime.fromisoformat(
                 commence.replace(
                     "Z",
-                    "+00:00",
+                    "+00:00"
                 )
             )
 
-            time_text = dt.strftime(
+            # Convert to Ethiopia local time
+            local_dt = dt.astimezone(
+                timezone(
+                    timedelta(
+                        hours=3
+                    )
+                )
+            )
+
+            time_text = local_dt.strftime(
                 "%H:%M"
             )
 
         except Exception:
-            pass
 
-    # =====================================================
-    # RETURN
-    # =====================================================
+            time_text = ""
 
     return {
-        "id": event.get("id"),
 
-        "sport_key": sport.get(
-            "key",
-            "",
-        ),
+        "id":
+            event.get("id"),
 
-        "league": sport.get(
-            "title",
-            "Football",
-        ),
+        "sport_key":
+            sport.get("key"),
 
-        "home": home_team or "Home",
-        "away": away_team or "Away",
+        "league":
+            sport.get(
+                "title",
+                "Football"
+            ),
 
-        "time": time_text,
-        "commence_time": commence,
+        "home":
+            event.get(
+                "home_team",
+                "Home"
+            ),
 
-        "h2h": h2h,
+        "away":
+            event.get(
+                "away_team",
+                "Away"
+            ),
 
-        "totals": totals,
+        "time":
+            time_text,
 
-        "spreads": unique_spreads,
+        "commence_time":
+            commence,
 
-        "best_bet": best,
+        "h2h":
+            h2h,
+
+        "totals":
+            totals,
+
+        "spreads":
+            unique_spreads,
+
+        "best_bet":
+            best,
     }
 
 
 # =========================================================
-# GET MATCHES
+# GET MATCHES - 8 DAYS
 # =========================================================
 
 def get_matches():
+
     result = []
 
-    sports = soccer_sports()
+    try:
 
-    # Avoid excessive API requests
-    for sport in sports[:30]:
+        sports = soccer_sports()
+
+    except Exception as e:
+
+        print(
+            "[SPORTS ERROR]",
+            e
+        )
+
+        return []
+
+    print(
+        "===================================="
+    )
+
+    print(
+        "[SOCCER SPORTS]",
+        len(sports)
+    )
+
+    print(
+        [x.get("key") for x in sports]
+    )
+
+    print(
+        "===================================="
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    start_time = now
+
+    end_time = (
+        now
+        + timedelta(
+            days=DAYS_AHEAD + 1
+        )
+    )
+
+    start_text = start_time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+    end_text = end_time.strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+    # -----------------------------------------------------
+    # ONE request per soccer league
+    # -----------------------------------------------------
+
+    for sport in sports[:40]:
+
+        sport_key = sport.get(
+            "key"
+        )
+
+        if not sport_key:
+            continue
 
         try:
 
             events = odds_request(
-                f"/sports/{sport['key']}/odds",
+
+                f"/sports/{sport_key}/odds",
+
                 {
-                    "regions": REGIONS,
-                    "markets": MARKETS,
-                    "oddsFormat": "decimal",
-                    "dateFormat": "iso",
+
+                    "regions":
+                        REGIONS,
+
+                    "markets":
+                        MARKETS,
+
+                    "oddsFormat":
+                        "decimal",
+
+                    "dateFormat":
+                        "iso",
+
+                    "commenceTimeFrom":
+                        start_text,
+
+                    "commenceTimeTo":
+                        end_text,
                 },
+            )
+
+            print(
+                "[ODDS]",
+                sport_key,
+                "events:",
+                len(events)
             )
 
             for event in events:
 
                 try:
+
                     converted = convert_event(
                         event,
-                        sport,
+                        sport
                     )
 
-                    result.append(
-                        converted
-                    )
+                    if (
+                        converted.get("h2h")
+                        or converted.get("totals")
+                        or converted.get("spreads")
+                    ):
+
+                        result.append(
+                            converted
+                        )
 
                 except Exception as e:
+
                     print(
                         "[EVENT ERROR]",
-                        e,
+                        e
                     )
 
         except Exception as e:
 
             print(
-                "[SPORT SKIP]",
-                sport.get("key"),
-                e,
+                "[SPORT ERROR]",
+                sport_key,
+                e
             )
+
+    # -----------------------------------------------------
+    # Remove duplicates
+    # -----------------------------------------------------
+
+    unique = {}
+
+    for match in result:
+
+        match_id = str(
+            match.get("id")
+        )
+
+        if match_id:
+
+            unique[
+                match_id
+            ] = match
+
+    result = list(
+        unique.values()
+    )
+
+    # -----------------------------------------------------
+    # Sort by date
+    # -----------------------------------------------------
 
     result.sort(
         key=lambda x:
-        x.get("commence_time") or ""
+        x.get(
+            "commence_time"
+        ) or ""
+    )
+
+    print(
+        "===================================="
+    )
+
+    print(
+        "[TOTAL 7-DAY MATCHES]",
+        len(result)
+    )
+
+    print(
+        "===================================="
     )
 
     return result
@@ -591,65 +834,67 @@ def main_menu():
                 web_app=WebAppInfo(
                     url=WEB_APP_URL
                 ),
-            ),
 
-            InlineKeyboardButton(
-                "🎟️ BET SLIP",
-                web_app=WebAppInfo(
-                    url=WEB_APP_URL
+                InlineKeyboardButton(
+                    "🎟️ BET SLIP",
+                    web_app=WebAppInfo(
+                        url=WEB_APP_URL
+                    ),
                 ),
-            ),
+            )
         ],
 
         [
             InlineKeyboardButton(
                 "👤 PROFILE",
-                callback_data="profile",
+                callback_data="profile"
             ),
 
             InlineKeyboardButton(
                 "💳 BALANCE",
-                callback_data="balance",
+                callback_data="balance"
             ),
         ],
 
         [
             InlineKeyboardButton(
                 "📜 HISTORY",
-                callback_data="history",
+                callback_data="history"
             ),
 
             InlineKeyboardButton(
                 "ℹ️ HOW TO PLAY",
-                callback_data="how",
+                callback_data="how"
             ),
         ],
     ])
 
 
 # =========================================================
-# /START
+# START
 # =========================================================
 
 async def start(
     update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE
 ):
 
     user = update.effective_user
 
     get_user(
         user.id,
-        user.first_name or "User",
+        user.first_name or "User"
     )
 
     await update.message.reply_text(
+
         f"👋 Baga nagaan dhuftan "
         f"*{user.first_name}*!\n\n"
 
         "🎯 *BEST BET*\n"
-        "⚽ Football odds\n"
-        "📊 Multiple markets\n"
+        "⚽ Football\n"
+        "📅 Today → Next 7 Days\n"
+        "📊 Multiple Markets\n"
         "🎟️ Bet Slip\n\n"
 
         "👇 *⚽ FOOTBALL* cuqaasi.",
@@ -661,12 +906,12 @@ async def start(
 
 
 # =========================================================
-# TELEGRAM CALLBACK
+# TELEGRAM BUTTON HANDLER
 # =========================================================
 
 async def button_handler(
     update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE
 ):
 
     q = update.callback_query
@@ -677,12 +922,8 @@ async def button_handler(
 
     u = get_user(
         user.id,
-        user.first_name or "User",
+        user.first_name or "User"
     )
-
-    # -----------------------------------------------------
-    # PROFILE
-    # -----------------------------------------------------
 
     if q.data == "profile":
 
@@ -703,10 +944,6 @@ async def button_handler(
             parse_mode="Markdown",
         )
 
-    # -----------------------------------------------------
-    # BALANCE
-    # -----------------------------------------------------
-
     elif q.data == "balance":
 
         await q.edit_message_text(
@@ -722,10 +959,6 @@ async def button_handler(
 
             parse_mode="Markdown",
         )
-
-    # -----------------------------------------------------
-    # HISTORY
-    # -----------------------------------------------------
 
     elif q.data == "history":
 
@@ -745,21 +978,24 @@ async def button_handler(
             for item in u["history"][-10:]:
 
                 text += (
+
                     f"🕐 {item['time']}\n"
+
                     f"💰 {item['stake']:.2f} | "
+
                     f"📈 {item['odds']:.2f} | "
+
                     f"{item['status']}\n\n"
                 )
 
         await q.edit_message_text(
+
             text,
+
             reply_markup=main_menu(),
+
             parse_mode="Markdown",
         )
-
-    # -----------------------------------------------------
-    # HOW
-    # -----------------------------------------------------
 
     elif q.data == "how":
 
@@ -768,10 +1004,19 @@ async def button_handler(
             "ℹ️ *HOW TO PLAY*\n\n"
 
             "1. ⚽ Football bani\n"
-            "2. Match filadhu\n"
-            "3. Market keessaa selection filadhu\n"
-            "4. Selection magariisa ta'a\n"
-            "5. 🎟️ Bet Slip keessatti argita\n\n"
+
+            "2. 📅 Guyyaa filadhu\n"
+
+            "3. ⚽ Match filadhu\n"
+
+            "4. 📊 Market filadhu\n"
+
+            "5. 🎯 Selection filadhu\n"
+
+            "6. 🎟️ Bet Slip ilaali\n\n"
+
+            "📅 Today irraa kaasee "
+            "guyyaa 7 ol agarsiisa.\n\n"
 
             "🧪 Demo/testing qofa.",
 
@@ -795,8 +1040,8 @@ HTML = r"""
 <meta charset="utf-8">
 
 <meta
-name="viewport"
-content="width=device-width,initial-scale=1"
+ name="viewport"
+ content="width=device-width,initial-scale=1"
 >
 
 <title>BEST BET</title>
@@ -804,245 +1049,261 @@ content="width=device-width,initial-scale=1"
 <style>
 
 *{
-    box-sizing:border-box
+ box-sizing:border-box
 }
 
 body{
-    margin:0;
-    background:#0d1724;
-    color:#fff;
-    font-family:Arial,sans-serif
+ margin:0;
+ background:#0b1420;
+ color:#fff;
+ font-family:Arial,sans-serif;
 }
 
 header{
-    background:#152536;
-    padding:20px 15px;
-    text-align:center
+ background:#142638;
+ padding:18px 14px;
+ text-align:center;
 }
 
 .logo{
-    font-size:31px;
-    font-weight:900;
-    color:#ffd400
+ font-size:31px;
+ font-weight:900;
+ color:#ffd400;
 }
 
 .sub{
-    font-size:13px;
-    color:#9fb0c2;
-    margin-top:5px
+ font-size:12px;
+ color:#9fb0c2;
+ margin-top:5px;
 }
 
 nav{
-    display:grid;
-    grid-template-columns:
-    repeat(4,1fr);
-
-    gap:7px;
-
-    padding:10px;
-
-    background:#111f2e;
-
-    position:sticky;
-    top:0;
-
-    z-index:5
+ display:grid;
+ grid-template-columns:repeat(4,1fr);
+ gap:6px;
+ padding:8px;
+ background:#101e2c;
+ position:sticky;
+ top:0;
+ z-index:10;
 }
 
 nav button{
-    border:0;
-    border-radius:12px;
-    padding:10px 3px;
-
-    background:#233547;
-
-    color:#fff;
-
-    font-weight:800
+ border:0;
+ border-radius:11px;
+ padding:9px 3px;
+ background:#24384b;
+ color:#fff;
+ font-weight:800;
 }
 
 nav button.active{
-    background:#ffd400;
-    color:#111
+ background:#ffd400;
+ color:#111;
 }
 
 main{
-    padding:14px;
-    max-width:900px;
-    margin:auto
+ padding:12px;
+ max-width:950px;
+ margin:auto;
 }
 
 .panel{
-    background:#152536;
-    border-radius:18px;
-    padding:15px
+ background:#142638;
+ border-radius:18px;
+ padding:13px;
+}
+
+.days{
+ display:flex;
+ gap:7px;
+ overflow-x:auto;
+ padding:4px 0 12px;
+}
+
+.days button{
+ flex:0 0 auto;
+ border:0;
+ border-radius:11px;
+ padding:10px 13px;
+ background:#263c50;
+ color:#fff;
+ font-weight:800;
+}
+
+.days button.active{
+ background:#ffd400;
+ color:#111;
+}
+
+.day-title{
+ font-size:20px;
+ font-weight:900;
+ margin:5px 0 12px;
 }
 
 .match{
-    background:#1b2c3d;
-    border-radius:16px;
-    padding:15px;
-    margin:12px 0
+ background:#1a2c3d;
+ border-radius:16px;
+ padding:14px;
+ margin:11px 0;
 }
 
 .teams{
-    font-size:18px;
-    font-weight:800
+ font-size:17px;
+ font-weight:900;
+ line-height:1.4;
 }
 
 .meta{
-    font-size:12px;
-    color:#9fb0c2;
-    margin:8px 0 12px
+ font-size:12px;
+ color:#9fb0c2;
+ margin:7px 0 11px;
 }
 
 .odds{
-    display:grid;
-    grid-template-columns:
-    repeat(3,1fr);
-
-    gap:8px
+ display:grid;
+ grid-template-columns:repeat(3,1fr);
+ gap:7px;
 }
 
 .odd{
-    background:#26394b;
-    padding:13px 7px;
-    border-radius:12px;
-    text-align:center;
-    cursor:pointer;
-    border:2px solid transparent
+ background:#263b4f;
+ padding:12px 5px;
+ border-radius:11px;
+ text-align:center;
+ cursor:pointer;
+ border:2px solid transparent;
 }
 
 .odd b{
-    display:block;
-    font-size:18px;
-    margin-top:4px
+ display:block;
+ font-size:17px;
+ margin-top:3px;
 }
 
 .odd.selected{
-    background:#2ecc71!important;
-    color:#111;
-    border-color:#fff;
-    box-shadow:
-    0 0 12px
-    rgba(46,204,113,.45)
+ background:#2ecc71;
+ color:#111;
+ border-color:#fff;
 }
 
 .odd.selected b{
-    color:#111
+ color:#111;
 }
 
 .market{
-    background:#172a3b;
-    border-radius:14px;
-    margin-top:12px;
-    overflow:hidden
+ background:#172a3b;
+ border-radius:14px;
+ margin-top:12px;
+ overflow:hidden;
 }
 
 .market-title{
-    padding:12px;
-    font-weight:800;
-    background:#203448
+ padding:11px;
+ font-weight:900;
+ background:#20364a;
 }
 
 .market-grid{
-    display:grid;
-    grid-template-columns:
-    repeat(2,1fr);
-
-    gap:8px;
-
-    padding:10px
+ display:grid;
+ grid-template-columns:repeat(2,1fr);
+ gap:8px;
+ padding:9px;
 }
 
 .selection{
-    background:#26394b;
-    border:2px solid transparent;
-    border-radius:11px;
-    padding:11px;
-
-    cursor:pointer;
-
-    text-align:left;
-
-    color:#fff
+ background:#263b4f;
+ border:2px solid transparent;
+ border-radius:11px;
+ padding:11px;
+ cursor:pointer;
+ text-align:left;
+ color:#fff;
 }
 
 .selection.selected{
-    background:#2ecc71;
-    color:#111;
-    border-color:#fff
+ background:#2ecc71;
+ color:#111;
+ border-color:#fff;
 }
 
 .selection span{
-    display:block;
-    font-size:12px;
-    color:#b8c7d3
+ display:block;
+ font-size:12px;
+ color:#b9c8d4;
 }
 
 .selection.selected span{
-    color:#111
+ color:#111;
 }
 
 .selection b{
-    display:block;
-    margin-top:3px
+ display:block;
+ margin-top:4px;
 }
 
 .big{
-    width:100%;
-    border:0;
-    border-radius:13px;
-    padding:14px;
-    margin-top:12px;
-
-    background:#ffd400;
-
-    color:#111;
-
-    font-weight:900
+ width:100%;
+ border:0;
+ border-radius:12px;
+ padding:13px;
+ margin-top:10px;
+ background:#ffd400;
+ color:#111;
+ font-weight:900;
+ cursor:pointer;
 }
 
 .back{
-    background:#26394b;
-    color:#fff
-}
-
-.slip-item{
-    background:#1b2c3d;
-    padding:12px;
-    border-radius:12px;
-    margin:8px 0
-}
-
-.status{
-    color:#9fb0c2;
-    font-size:13px
-}
-
-.error{
-    color:#ff7b7b;
-    white-space:pre-wrap
+ background:#263b4f;
+ color:#fff;
 }
 
 .yellow{
-    color:#ffd400
+ color:#ffd400;
 }
 
-.green{
-    color:#2ecc71
+.status{
+ color:#9fb0c2;
+ font-size:13px;
+}
+
+.error{
+ color:#ff7979;
+ white-space:pre-wrap;
+}
+
+.empty{
+ text-align:center;
+ padding:25px 10px;
+ color:#9fb0c2;
+}
+
+.slip-item{
+ background:#1a2c3d;
+ padding:12px;
+ border-radius:12px;
+ margin:8px 0;
 }
 
 .best-card{
-    border:
-    2px solid #ffd400;
+ border:1px solid #ffd400;
 }
 
 @media(max-width:500px){
 
-    .teams{
-        font-size:16px
-    }
+ .teams{
+   font-size:15px;
+ }
+
+ .odds{
+   gap:5px;
+ }
+
+ .odd{
+   padding:10px 3px;
+ }
 
 }
 
@@ -1059,45 +1320,47 @@ main{
 </div>
 
 <div class="sub">
-Football odds • multiple markets • bet slip
+Football • Today → Next 7 Days • Multiple Markets
 </div>
 
 </header>
 
+
 <nav>
 
 <button
-class="active"
-onclick="tab('today',this)"
+ class="active"
+ onclick="tab('matches',this)"
 >
-📅<br>Today
+📅<br>Matches
 </button>
 
 <button
-onclick="tab('best',this)"
+ onclick="tab('best',this)"
 >
 🎯<br>Best Bet
 </button>
 
 <button
-onclick="tab('live',this)"
+ onclick="tab('live',this)"
 >
 🔴<br>Live
 </button>
 
 <button
-onclick="tab('slip',this)"
+ onclick="tab('slip',this)"
 >
 🎟️<br>Bet Slip
 </button>
 
 </nav>
 
+
 <main>
 
 <section
-id="content"
-class="panel"
+ id="content"
+ class="panel"
 >
 Loading...
 </section>
@@ -1110,988 +1373,1154 @@ Loading...
 let matches=[];
 
 let slip=JSON.parse(
-    localStorage.getItem(
-        "bestbet_slip"
-    ) || "[]"
+ localStorage.getItem("bestbet_slip") || "[]"
 );
 
 
 function esc(x){
 
-    return String(
-        x ?? ""
-    ).replace(
-        /[&<>"']/g,
-        m => ({
-            "&":"&amp;",
-            "<":"&lt;",
-            ">":"&gt;",
-            '"':"&quot;",
-            "'":"&#039;"
-        }[m])
-    );
+ return String(x ?? "")
+ .replace(/[&<>"']/g,m=>({
+
+  "&":"&amp;",
+  "<":"&lt;",
+  ">":"&gt;",
+  '"':"&quot;",
+  "'":"&#039;"
+
+ }[m]));
 
 }
 
 
 function saveSlip(){
 
-    localStorage.setItem(
-        "bestbet_slip",
-        JSON.stringify(slip)
-    );
+ localStorage.setItem(
+  "bestbet_slip",
+  JSON.stringify(slip)
+ );
 
 }
 
 
 async function api(path){
 
-    const r = await fetch(path);
+ const r=await fetch(path);
 
-    const d = await r.json();
+ const d=await r.json();
 
-    if(!r.ok){
+ if(!r.ok){
 
-        throw new Error(
-            d.error ||
-            "Server error"
-        );
+   throw new Error(
+     d.error ||
+     "Server error"
+   );
 
-    }
+ }
 
-    return d;
+ return d;
 
 }
 
 
 function tab(name,btn){
 
-    document
-    .querySelectorAll("nav button")
-    .forEach(
-        x => x.classList.remove("active")
-    );
+ document
+ .querySelectorAll("nav button")
+ .forEach(
+   x=>x.classList.remove("active")
+ );
 
-    btn.classList.add("active");
+ btn.classList.add("active");
 
-    if(name==="today")
-        loadToday();
+ if(name==="matches")
+   loadMatches();
 
-    if(name==="best")
-        loadBest();
+ if(name==="best")
+   loadBest();
 
-    if(name==="live")
-        loadLive();
+ if(name==="live")
+   loadLive();
 
-    if(name==="slip")
-        renderSlip();
-
-}
-
-
-function isSelected(
-    id,
-    betId,
-    selection
-){
-
-    return slip.some(
-        x =>
-        String(x.id) === String(id) &&
-        String(x.betId) === String(betId) &&
-        x.selection === selection
-    );
+ if(name==="slip")
+   renderSlip();
 
 }
 
 
-function loadToday(){
+function dayKey(date){
 
-    const c =
-        document.getElementById(
-            "content"
-        );
+ const d=new Date(date);
 
-    c.innerHTML =
-        '<div class="status">'+
-        '⏳ Loading matches...'+
-        '</div>';
+ return d.toISOString()
+  .slice(0,10);
 
-    api("/api/matches")
-    .then(d => {
+}
 
-        matches =
-            d.matches || [];
 
-        if(!matches.length){
+function dayLabel(date){
 
-            c.innerHTML =
-                "<h2>📅 Football</h2>"+
-                "<div class='status'>"+
-                "No football matches with odds "+
-                "found right now."+
-                "</div>";
+ const d=new Date(date);
 
-            return;
-        }
+ const today=new Date();
 
-        c.innerHTML =
-            "<h2>📅 Football Matches</h2>"+
-            "<div class='status'>"+
-            "Available football odds"+
-            "</div>"+
-            matches.map(
-                renderMatch
-            ).join("");
+ const tomorrow=new Date();
 
-    })
-    .catch(e => {
+ tomorrow.setDate(
+   today.getDate()+1
+ );
 
-        c.innerHTML =
-            "<h2>⚠️ Error</h2>"+
-            "<div class='error'>"+
-            esc(e.message)+
-            "</div>";
+ const key=d.toISOString()
+   .slice(0,10);
 
-    });
+ const todayKey=today
+   .toISOString()
+   .slice(0,10);
+
+ const tomorrowKey=tomorrow
+   .toISOString()
+   .slice(0,10);
+
+ if(key===todayKey)
+   return "TODAY";
+
+ if(key===tomorrowKey)
+   return "TOMORROW";
+
+ return d.toLocaleDateString(
+   undefined,
+   {
+     weekday:"short",
+     day:"numeric",
+     month:"short"
+   }
+ );
+
+}
+
+
+function loadMatches(){
+
+ const c=
+ document.getElementById(
+   "content"
+ );
+
+ c.innerHTML=
+ `
+ <div class="status">
+ ⏳ Loading football matches...
+ </div>
+ `;
+
+ api("/api/matches")
+
+ .then(d=>{
+
+   matches=d.matches || [];
+
+   if(!matches.length){
+
+     c.innerHTML=
+     `
+     <h2>⚽ Football</h2>
+
+     <div class="empty">
+
+     No football matches with
+     available odds found in the
+     next 7 days.
+
+     <br><br>
+
+     <span class="status">
+     ${esc(d.message || "")}
+     </span>
+
+     </div>
+     `;
+
+     return;
+   }
+
+   renderDayTabs();
+
+ })
+
+ .catch(e=>{
+
+   c.innerHTML=
+   `
+   <h2>⚠️ Error</h2>
+
+   <div class="error">
+   ${esc(e.message)}
+   </div>
+   `;
+
+ });
+
+}
+
+
+function renderDayTabs(){
+
+ const c=
+ document.getElementById(
+   "content"
+ );
+
+ const groups={};
+
+ matches.forEach(m=>{
+
+   const key=
+     dayKey(
+       m.commence_time
+     );
+
+   if(!groups[key])
+     groups[key]=[];
+
+   groups[key].push(m);
+
+ });
+
+
+ const keys=
+ Object.keys(groups)
+ .sort();
+
+ if(!keys.length){
+
+   c.innerHTML=
+   `
+   <div class="empty">
+   No matches found.
+   </div>
+   `;
+
+   return;
+ }
+
+
+ let html=
+ `
+ <h2>⚽ Football</h2>
+
+ <div class="status">
+ Today → next 7 days
+ </div>
+
+ <div class="days">
+ `;
+
+
+ keys.forEach(
+   (key,i)=>{
+
+     html+=
+     `
+     <button
+       class="${i===0?'active':''}"
+       onclick="showDay('${key}',this)"
+     >
+       ${esc(
+         dayLabel(
+           key+"T12:00:00"
+         )
+       )}
+       <br>
+       <small>
+       ${groups[key].length}
+       </small>
+     </button>
+     `;
+
+   }
+ );
+
+
+ html+=
+ `
+ </div>
+
+ <div id="dayMatches"></div>
+ `;
+
+
+ c.innerHTML=html;
+
+
+ showDay(
+   keys[0],
+   document.querySelector(
+     ".days button"
+   )
+ );
+
+}
+
+
+function showDay(key,btn){
+
+ document
+ .querySelectorAll(".days button")
+ .forEach(
+   x=>x.classList.remove("active")
+ );
+
+ if(btn)
+   btn.classList.add("active");
+
+
+ const list=
+ matches.filter(
+   m=>dayKey(
+     m.commence_time
+   )===key
+ );
+
+
+ const box=
+ document.getElementById(
+   "dayMatches"
+ );
+
+
+ if(!box)
+   return;
+
+
+ let html=
+ `
+ <div class="day-title">
+ ${esc(
+   dayLabel(
+     key+"T12:00:00"
+   )
+ )}
+ </div>
+ `;
+
+
+ if(!list.length){
+
+   html+=
+   `
+   <div class="empty">
+   No matches.
+   </div>
+   `;
+
+ }else{
+
+   html+=
+   list
+   .map(renderMatch)
+   .join("");
+
+ }
+
+
+ box.innerHTML=html;
 
 }
 
 
 function renderMatch(m){
 
-    const h =
-        m.h2h || {};
+ const h=m.h2h || {};
 
-    return `
+ return `
+ <div class="match">
 
-    <div class="match">
+   <div class="teams">
+     ${esc(m.home)}
+     <span class="status">vs</span>
+     ${esc(m.away)}
+   </div>
 
-        <div class="teams">
+   <div class="meta">
+     🏆 ${esc(m.league)}
+     •
+     🕐 ${esc(m.time)}
+   </div>
 
-            ${esc(m.home)}
+   <div class="odds">
 
-            <span class="status">
-                vs
-            </span>
+     ${oddButton(
+       m,
+       "1",
+       h.home,
+       "home"
+     )}
 
-            ${esc(m.away)}
+     ${oddButton(
+       m,
+       "X",
+       h.draw,
+       "draw"
+     )}
 
-        </div>
+     ${oddButton(
+       m,
+       "2",
+       h.away,
+       "away"
+     )}
 
-        <div class="meta">
+   </div>
 
-            🏆 ${esc(m.league)}
+   <button
+     class="big back"
+     onclick="openMatch('${esc(m.id)}')"
+   >
+     📊 View All Markets
+   </button>
 
-            • 🕐 ${esc(m.time)}
+ </div>
+ `;
 
-        </div>
+}
 
-        <div class="odds">
 
-            ${oddButton(
-                m,
-                "1",
-                h.home
-            )}
+function isSelected(
+ id,
+ betId,
+ selection
+){
 
-            ${oddButton(
-                m,
-                "X",
-                h.draw
-            )}
-
-            ${oddButton(
-                m,
-                "2",
-                h.away
-            )}
-
-        </div>
-
-        <button
-            class="big back"
-            onclick="openMatch(
-                '${esc(m.id)}'
-            )"
-        >
-            📊 View all betting markets
-        </button>
-
-    </div>
-
-    `;
+ return slip.some(
+   x=>
+   String(x.id)===String(id)
+   &&
+   String(x.betId)===String(betId)
+   &&
+   x.selection===selection
+ );
 
 }
 
 
 function oddButton(
-    m,
-    label,
-    odd
+ m,
+ label,
+ odd
 ){
 
-    if(!odd){
+ if(!odd){
 
-        return `
-        <div class="odd">
-            <span>${label}</span>
-            <b>-</b>
-        </div>
-        `;
+   return `
+   <div class="odd">
+     ${label}
+     <b>-</b>
+   </div>
+   `;
 
-    }
+ }
 
-    const selected =
-        isSelected(
-            m.id,
-            "h2h",
-            label
-        );
 
-    const bet = {
-        id:m.id,
-        home:m.home,
-        away:m.away,
-        league:m.league,
-        market:"1X2",
-        selection:label,
-        odd:Number(odd),
-        betId:"h2h"
-    };
+ const selected=
+   isSelected(
+     m.id,
+     "h2h",
+     label
+   );
 
-    return `
 
-    <div
-        class="odd
-        ${selected ? "selected" : ""}"
+ return `
+ <div
+   class="odd ${
+     selected
+       ? "selected"
+       : ""
+   }"
 
-        onclick='selectBet(
-            ${JSON.stringify(bet)}
-        )'
-    >
+   onclick='selectBet(${JSON.stringify({
 
-        ${label}
+     id:m.id,
 
-        <b>
-            ${Number(odd).toFixed(2)}
-        </b>
+     home:m.home,
 
-    </div>
+     away:m.away,
 
-    `;
+     league:m.league,
+
+     market:"1X2",
+
+     selection:label,
+
+     odd:Number(odd),
+
+     betId:"h2h"
+
+   })})'
+ >
+
+   ${label}
+
+   <b>
+   ${Number(odd).toFixed(2)}
+   </b>
+
+ </div>
+ `;
 
 }
 
 
 function selectBet(bet){
 
-    if(
-        !bet.odd ||
-        Number(bet.odd) <= 1
-    ){
+ if(
+   !bet.odd ||
+   Number(bet.odd)<=1
+ ){
 
-        alert(
-            "Odd is not available."
-        );
+   alert(
+     "Odd is not available."
+   );
 
-        return;
-    }
+   return;
+ }
 
-    // One selection per fixture
-    // and market.
 
-    slip = slip.filter(
-        x => !(
-            String(x.id) ===
-            String(bet.id) &&
+ // Same match + same market
+ // = replace previous selection
 
-            String(x.betId) ===
-            String(bet.betId)
-        )
-    );
+ slip=slip.filter(
+   x=>!(
+     String(x.id)===String(bet.id)
+     &&
+     String(x.betId)===String(bet.betId)
+   )
+ );
 
-    slip.push(bet);
 
-    saveSlip();
+ slip.push(bet);
 
-    openMatch(
-        String(bet.id)
-    );
+ saveSlip();
+
+ openMatch(
+   String(bet.id)
+ );
 
 }
 
 
 function marketButton(
-    m,
-    market,
-    selection,
-    odd,
-    betId
+ m,
+ market,
+ selection,
+ odd,
+ betId
 ){
 
-    const selected =
-        isSelected(
-            m.id,
-            betId,
-            selection
-        );
+ const selected=
+   isSelected(
+     m.id,
+     betId,
+     selection
+   );
 
-    const bet = {
-        id:m.id,
-        home:m.home,
-        away:m.away,
-        league:m.league,
-        market:market,
-        selection:selection,
-        odd:Number(odd),
-        betId:String(betId)
-    };
 
-    return `
+ return `
+ <button
 
-    <button
-        class="selection
-        ${selected ? "selected" : ""}"
+   class="selection ${
+     selected
+       ? "selected"
+       : ""
+   }"
 
-        onclick='selectBet(
-            ${JSON.stringify(bet)}
-        )'
-    >
+   onclick='selectBet(${JSON.stringify({
 
-        <span>
-            ${esc(selection)}
-        </span>
+     id:m.id,
 
-        <b>
-            @ ${Number(odd).toFixed(2)}
-        </b>
+     home:m.home,
 
-    </button>
+     away:m.away,
 
-    `;
+     league:m.league,
+
+     market:market,
+
+     selection:selection,
+
+     odd:Number(odd),
+
+     betId:String(betId)
+
+   })})'
+ >
+
+   <span>
+   ${esc(selection)}
+   </span>
+
+   <b>
+   @ ${Number(odd).toFixed(2)}
+   </b>
+
+ </button>
+ `;
 
 }
 
 
 function openMatch(id){
 
-    const c =
-        document.getElementById(
-            "content"
-        );
+ const c=
+ document.getElementById(
+   "content"
+ );
 
-    c.innerHTML =
-        "<div class='status'>"+
-        "⏳ Loading markets..."+
-        "</div>";
+ c.innerHTML=
+ `
+ <div class="status">
+ ⏳ Loading markets...
+ </div>
+ `;
 
-    api(
-        "/api/match/" +
-        encodeURIComponent(id)
-    )
-    .then(d => {
 
-        const m =
-            d.match;
+ api(
+   "/api/match/"
+   +
+   encodeURIComponent(id)
+ )
 
-        const markets =
-            d.markets || [];
+ .then(d=>{
 
-        let html = `
+   const m=d.match;
 
-        <button
-            class="big back"
-            onclick="loadToday()"
-        >
-            ⬅️ Matches
-        </button>
+   const markets=
+     d.markets || [];
 
-        <h2>
-            ⚽ ${esc(m.home)}
-            vs
-            ${esc(m.away)}
-        </h2>
 
-        <div class="meta">
+   let html=
+   `
 
-            🏆 ${esc(m.league)}
-            • 🕐 ${esc(m.time)}
+   <button
+     class="big back"
+     onclick="loadMatches()"
+   >
+     ⬅️ Back to Matches
+   </button>
 
-        </div>
+   <h2>
+   ⚽ ${esc(m.home)}
+   vs
+   ${esc(m.away)}
+   </h2>
 
-        `;
+   <div class="meta">
+   🏆 ${esc(m.league)}
+   •
+   🕐 ${esc(m.time)}
+   </div>
+   `;
 
 
-        // =================================================
-        // BEST BET
-        // =================================================
+   // Best Bet
 
-        if(d.best_bet){
+   if(d.best_bet){
 
-            html += `
+     html+=
+     `
+     <div class="market best-card">
 
-            <div
-                class="market best-card"
-            >
+       <div class="market-title">
+       🎯 Best Bet
+       </div>
 
-                <div
-                    class="market-title"
-                >
-                    🎯 Best Available Odd
-                </div>
+       <div style="padding:12px">
 
-                <div
-                    style="padding:14px"
-                >
+       <div class="yellow">
+       <b>
+       ${esc(
+         d.best_bet.selection
+       )}
+       </b>
 
-                    <div
-                        class="yellow"
-                    >
+       @
 
-                        <b>
-                            ${esc(
-                                d.best_bet.selection
-                            )}
-                        </b>
+       ${Number(
+         d.best_bet.odd
+       ).toFixed(2)}
 
-                        @
+       </div>
 
-                        ${Number(
-                            d.best_bet.odd
-                        ).toFixed(2)}
+       </div>
 
-                    </div>
+     </div>
+     `;
 
-                    <div class="status">
+   }
 
-                        Market:
-                        ${esc(
-                            d.best_bet.market
-                        )}
 
-                    </div>
+   if(!markets.length){
 
-                </div>
+     html+=
+     `
+     <div class="market">
 
-            </div>
+       <div class="market-title">
+       ⚠️ Odds
+       </div>
 
-            `;
+       <div
+         style="padding:12px"
+         class="error"
+       >
+       ${esc(
+         d.odds_error ||
+         "No markets available."
+       )}
+       </div>
 
-        }
+     </div>
+     `;
 
+   }
 
-        // =================================================
-        // ALL MARKETS
-        // =================================================
 
-        if(!markets.length){
+   markets.forEach(
+     market=>{
 
-            html += `
+       html+=
+       `
+       <div class="market">
 
-            <div class="market">
+         <div class="market-title">
+         ${esc(
+           market.name
+         )}
+         </div>
 
-                <div
-                    class="market-title"
-                >
-                    ⚠️ Odds
-                </div>
+         <div class="market-grid">
+       `;
 
-                <div
-                    style="padding:12px"
-                    class="error"
-                >
-                    ${
-                        esc(
-                            d.odds_error ||
-                            "No betting markets available."
-                        )
-                    }
-                </div>
 
-            </div>
+       (
+         market.selections || []
+       ).forEach(
+         s=>{
 
-            `;
+           html+=marketButton(
 
-        }
+             m,
 
+             market.name,
 
-        markets.forEach(
-            market => {
+             s.value,
 
-                html += `
+             s.odd,
 
-                <div class="market">
+             market.id
 
-                    <div
-                        class="market-title"
-                    >
-                        ${esc(
-                            market.name
-                        )}
-                    </div>
+           );
 
-                    <div
-                        class="market-grid"
-                    >
+         }
+       );
 
-                `;
 
-                (
-                    market.selections ||
-                    []
-                ).forEach(
-                    s => {
+       html+=
+       `
+         </div>
+       </div>
+       `;
 
-                        html +=
-                            marketButton(
-                                m,
-                                market.name,
-                                s.value,
-                                s.odd,
-                                market.id
-                            );
+     }
+   );
 
-                    }
-                );
 
-                html += `
+   html+=
+   `
+   <button
+     class="big"
+     onclick="renderSlip()"
+   >
+     🎟️ Bet Slip
+     (${slip.length})
+   </button>
+   `;
 
-                    </div>
 
-                </div>
+   c.innerHTML=html;
 
-                `;
+ })
 
-            }
-        );
+ .catch(e=>{
 
+   c.innerHTML=
+   `
+   <h2>⚠️ Error</h2>
 
-        html += `
+   <div class="error">
+   ${esc(e.message)}
+   </div>
+   `;
 
-        <button
-            class="big"
-            onclick="renderSlip()"
-        >
-
-            🎟️ Bet Slip
-            (${slip.length})
-
-        </button>
-
-        `;
-
-        c.innerHTML = html;
-
-    })
-    .catch(e => {
-
-        c.innerHTML =
-            "<h2>⚠️ Error</h2>"+
-            "<div class='error'>"+
-            esc(e.message)+
-            "</div>";
-
-    });
+ });
 
 }
 
 
 function loadBest(){
 
-    const c =
-        document.getElementById(
-            "content"
-        );
+ const c=
+ document.getElementById(
+   "content"
+ );
 
-    c.innerHTML =
-        "<div class='status'>"+
-        "⏳ Finding available bets..."+
-        "</div>";
-
-    api("/api/matches")
-    .then(d => {
-
-        const list =
-            d.matches || [];
-
-        if(!list.length){
-
-            c.innerHTML = `
-
-            <h2>🎯 Best Bet</h2>
-
-            <div class="status">
-
-                No football matches
-                with available odds
-                right now.
-
-            </div>
-
-            <button
-                class="big"
-                onclick="loadToday()"
-            >
-                ⚽ View Football
-            </button>
-
-            `;
-
-            return;
-        }
+ c.innerHTML=
+ `
+ <div class="status">
+ ⏳ Finding best bets...
+ </div>
+ `;
 
 
-        // Matches that have a calculated
-        // best available odd.
+ api("/api/matches")
 
-        const bestList =
-            list.filter(
-                x => x.best_bet
-            );
+ .then(d=>{
 
-
-        if(!bestList.length){
-
-            c.innerHTML = `
-
-            <h2>🎯 Best Bet</h2>
-
-            <div class="status">
-
-                Best automatic selection
-                is unavailable, but you can
-                open any match and choose
-                from all available markets.
-
-            </div>
-
-            <button
-                class="big"
-                onclick="loadToday()"
-            >
-                ⚽ View All Matches
-            </button>
-
-            `;
-
-            return;
-        }
+   const list=
+     (d.matches || [])
+     .filter(
+       x=>x.best_bet
+     );
 
 
-        c.innerHTML =
-            "<h2>🎯 Best Bet</h2>"+
+   if(!list.length){
 
-            "<div class='status'>"+
-            "Available odds-based suggestions"+
-            "</div>"+
+     c.innerHTML=
+     `
+     <h2>🎯 Best Bet</h2>
 
-            bestList
-            .slice(0,20)
-            .map(
-                m => `
+     <div class="empty">
 
-                <div class="match best-card">
+     No Best Bet available
+     in the current 7-day
+     odds data.
 
-                    <div class="teams">
+     </div>
+     `;
 
-                        ${esc(m.home)}
-                        vs
-                        ${esc(m.away)}
+     return;
+   }
 
-                    </div>
 
-                    <div class="meta">
+   let html=
+   `
+   <h2>🎯 Best Bet</h2>
 
-                        ${esc(m.league)}
-                        •
-                        ${esc(m.time)}
+   <div class="status">
+   Odds-based suggestion.
+   Not a guarantee.
+   </div>
+   `;
 
-                    </div>
 
-                    <div class="yellow">
+   list.forEach(
+     m=>{
 
-                        🎯
+       html+=
+       `
+       <div class="match best-card">
 
-                        <b>
-                            ${esc(
-                                m.best_bet.selection
-                            )}
-                        </b>
+         <div class="teams">
+         ${esc(m.home)}
+         vs
+         ${esc(m.away)}
+         </div>
 
-                        @
+         <div class="meta">
+         ${esc(m.league)}
+         •
+         ${esc(m.time)}
+         </div>
 
-                        ${Number(
-                            m.best_bet.odd
-                        ).toFixed(2)}
+         <div class="yellow">
+         🎯
+         <b>
+         ${esc(
+           m.best_bet.selection
+         )}
+         </b>
 
-                    </div>
+         @
 
-                    <div class="status">
+         ${Number(
+           m.best_bet.odd
+         ).toFixed(2)}
+         </div>
 
-                        ${esc(
-                            m.best_bet.market
-                        )}
+         <button
+           class="big"
+           onclick="openMatch('${esc(m.id)}')"
+         >
+         📊 Open Markets
+         </button>
 
-                    </div>
+       </div>
+       `;
 
-                    <button
-                        class="big"
-                        onclick="openMatch(
-                            '${esc(m.id)}'
-                        )"
-                    >
-                        📊 Open Markets
-                    </button>
+     }
+   );
 
-                </div>
 
-                `
-            )
-            .join("");
+   c.innerHTML=html;
 
-    })
-    .catch(e => {
+ })
 
-        c.innerHTML =
-            "<h2>⚠️ Error</h2>"+
-            "<div class='error'>"+
-            esc(e.message)+
-            "</div>";
+ .catch(e=>{
 
-    });
+   c.innerHTML=
+   `
+   <h2>⚠️ Error</h2>
+
+   <div class="error">
+   ${esc(e.message)}
+   </div>
+   `;
+
+ });
 
 }
 
 
 function loadLive(){
 
-    const c =
-        document.getElementById(
-            "content"
-        );
+ const c=
+ document.getElementById(
+   "content"
+ );
 
-    c.innerHTML =
-        "<div class='status'>"+
-        "⏳ Loading live..."+
-        "</div>";
+ c.innerHTML=
+ `
+ <div class="status">
+ ⏳ Loading live matches...
+ </div>
+ `;
 
-    api("/api/live")
-    .then(d => {
 
-        const list =
-            d.matches || [];
+ api("/api/live")
 
-        if(!list.length){
+ .then(d=>{
 
-            c.innerHTML =
-                "<h2>🔴 Live</h2>"+
-                "<div class='status'>"+
-                "No live matches now."+
-                "</div>";
+   const list=
+     d.matches || [];
 
-            return;
-        }
 
-        c.innerHTML =
-            "<h2>🔴 Live</h2>"+
+   if(!list.length){
 
-            list.map(
-                x => `
+     c.innerHTML=
+     `
+     <h2>🔴 Live</h2>
 
-                <div class="match">
+     <div class="empty">
+     No live matches now.
+     </div>
+     `;
 
-                    <div class="teams">
+     return;
+   }
 
-                        ${esc(x.home)}
 
-                        ${x.home_score ?? 0}
+   c.innerHTML=
+   `
+   <h2>🔴 Live</h2>
 
-                        -
+   ${
+     list.map(
+       x=>`
 
-                        ${x.away_score ?? 0}
+       <div class="match">
 
-                        ${esc(x.away)}
+         <div class="teams">
 
-                    </div>
+         ${esc(x.home)}
 
-                    <div class="meta">
+         ${x.home_score ?? 0}
 
-                        🔴 LIVE
+         -
 
-                    </div>
+         ${x.away_score ?? 0}
 
-                </div>
+         ${esc(x.away)}
 
-                `
-            )
-            .join("");
+         </div>
 
-    })
-    .catch(e => {
+         <div class="meta">
+         🔴 LIVE
+         </div>
 
-        c.innerHTML =
-            "<h2>🔴 Live</h2>"+
-            "<div class='error'>"+
-            esc(e.message)+
-            "</div>";
+       </div>
 
-    });
+       `
+     ).join("")
+   }
+
+   `;
+
+ })
+
+ .catch(e=>{
+
+   c.innerHTML=
+   `
+   <h2>🔴 Live</h2>
+
+   <div class="error">
+   ${esc(e.message)}
+   </div>
+   `;
+
+ });
 
 }
 
 
 function renderSlip(){
 
-    const c =
-        document.getElementById(
-            "content"
-        );
-
-    if(!slip.length){
-
-        c.innerHTML =
-            "<h2>🎟️ Bet Slip</h2>"+
-            "<div class='status'>"+
-            "Your Bet Slip is empty."+
-            "</div>";
-
-        return;
-    }
+ const c=
+ document.getElementById(
+   "content"
+ );
 
 
-    let total = 1;
+ if(!slip.length){
 
-    let html =
-        "<h2>🎟️ Bet Slip</h2>";
+   c.innerHTML=
+   `
+   <h2>🎟️ Bet Slip</h2>
 
+   <div class="empty">
+   Your Bet Slip is empty.
+   </div>
+   `;
 
-    slip.forEach(
-        (x,i) => {
-
-            total *= Number(
-                x.odd
-            );
-
-            html += `
-
-            <div class="slip-item">
-
-                <b>
-                    ${i+1}.
-                    ${esc(x.home)}
-                    vs
-                    ${esc(x.away)}
-                </b>
-
-                <div class="meta">
-
-                    ${esc(
-                        x.league || ""
-                    )}
-
-                </div>
-
-                <div>
-
-                    📊
-                    ${esc(x.market)}
-
-                </div>
-
-                <div class="yellow">
-
-                    🎯
-                    ${esc(
-                        x.selection
-                    )}
-
-                    @
-
-                    ${Number(
-                        x.odd
-                    ).toFixed(2)}
-
-                </div>
-
-                <button
-                    class="big back"
-                    onclick="removeBet(${i})"
-                >
-
-                    🗑 Remove
-
-                </button>
-
-            </div>
-
-            `;
-
-        }
-    );
+   return;
+ }
 
 
-    html += `
+ let total=1;
 
-        <div class="market">
-
-            <div
-                class="market-title"
-            >
-
-                📈 Total Odds:
-                ${total.toFixed(2)}
-
-            </div>
-
-        </div>
-
-        <button
-            class="big"
-            onclick="clearSlip()"
-        >
-
-            🗑 Clear Bet Slip
-
-        </button>
-
-    `;
+ let html=
+ `
+ <h2>🎟️ Bet Slip</h2>
+ `;
 
 
-    c.innerHTML = html;
+ slip.forEach(
+   (x,i)=>{
+
+     total*=Number(
+       x.odd
+     );
+
+
+     html+=
+     `
+     <div class="slip-item">
+
+       <b>
+       ${i+1}.
+       ${esc(x.home)}
+       vs
+       ${esc(x.away)}
+       </b>
+
+       <div class="meta">
+       ${esc(
+         x.league || ""
+       )}
+       </div>
+
+       <div>
+       📊 ${esc(x.market)}
+       </div>
+
+       <div class="yellow">
+       🎯
+       ${esc(x.selection)}
+       @
+       ${Number(x.odd).toFixed(2)}
+       </div>
+
+       <button
+         class="big back"
+         onclick="removeBet(${i})"
+       >
+       🗑 Remove
+       </button>
+
+     </div>
+     `;
+
+   }
+ );
+
+
+ html+=
+ `
+ <div class="market">
+
+   <div class="market-title">
+
+   📈 Total Odds:
+   ${total.toFixed(2)}
+
+   </div>
+
+ </div>
+
+ <button
+   class="big"
+   onclick="clearSlip()"
+ >
+ 🗑 Clear Bet Slip
+ </button>
+ `;
+
+
+ c.innerHTML=html;
 
 }
 
 
 function removeBet(i){
 
-    slip.splice(i,1);
+ slip.splice(
+   i,
+   1
+ );
 
-    saveSlip();
+ saveSlip();
 
-    renderSlip();
+ renderSlip();
 
 }
 
 
 function clearSlip(){
 
-    slip = [];
+ slip=[];
 
-    saveSlip();
+ saveSlip();
 
-    renderSlip();
+ renderSlip();
 
 }
 
 
-// Initial page
-loadToday();
+// Start
+loadMatches();
 
 </script>
 
 </body>
-
 </html>
 """
 
@@ -2102,6 +2531,7 @@ loadToday();
 
 @web_app.route("/")
 def index():
+
     return render_template_string(
         HTML
     )
@@ -2112,31 +2542,33 @@ def health():
 
     return jsonify({
 
-        "status": "online",
+        "status":
+            "online",
 
-        "bot": "Best Bet",
+        "bot":
+            "Best Bet",
 
-        "api": "The Odds API",
+        "api":
+            "The Odds API",
 
         "api_key_configured":
             bool(ODDS_API_KEY),
 
+        "days":
+            DAYS_AHEAD,
+
         "web_app":
             WEB_APP_URL,
-
-        "regions":
-            REGIONS,
-
-        "markets":
-            MARKETS,
     })
 
 
 # =========================================================
-# API MATCHES
+# MATCHES API
 # =========================================================
 
-@web_app.route("/api/matches")
+@web_app.route(
+    "/api/matches"
+)
 def api_matches():
 
     try:
@@ -2145,29 +2577,53 @@ def api_matches():
 
         return jsonify({
 
-            "success": True,
+            "success":
+                True,
 
-            "matches": matches,
+            "count":
+                len(matches),
 
-            "count": len(matches),
+            "matches":
+                matches,
 
+            "message":
+                (
+                    "Football odds loaded "
+                    "for today and the next "
+                    "7 days."
+                    if matches
+                    else
+                    "No football matches with "
+                    "available odds found in "
+                    "the next 7 days."
+                ),
         })
 
     except Exception as e:
 
+        print(
+            "[API MATCHES ERROR]",
+            e
+        )
+
         return jsonify({
 
-            "success": False,
+            "success":
+                False,
 
-            "error": str(e),
+            "count":
+                0,
 
-            "matches": [],
+            "matches":
+                [],
 
+            "error":
+                str(e),
         }), 500
 
 
 # =========================================================
-# API SINGLE MATCH
+# SINGLE MATCH
 # =========================================================
 
 @web_app.route(
@@ -2180,38 +2636,50 @@ def api_match(match_id):
         matches = get_matches()
 
         match = next(
+
             (
                 x
                 for x in matches
-                if str(x["id"]) ==
-                   str(match_id)
+                if str(
+                    x["id"]
+                )
+                == str(match_id)
             ),
+
             None,
         )
 
         if not match:
 
             return jsonify({
+
                 "error":
                     "Match hin argamne."
+
             }), 404
 
 
-        # -------------------------------------------------
-        # Re-query current odds
-        # -------------------------------------------------
+        # Current odds for selected match
 
         events = odds_request(
 
             f"/sports/"
-            f"{match['sport_key']}"
-            f"/odds",
+            f"{match['sport_key']}/odds",
 
             {
-                "regions": REGIONS,
-                "markets": MARKETS,
-                "oddsFormat": "decimal",
-                "dateFormat": "iso",
+
+                "regions":
+                    REGIONS,
+
+                "markets":
+                    MARKETS,
+
+                "oddsFormat":
+                    "decimal",
+
+                "dateFormat":
+                    "iso",
+
             },
         )
 
@@ -2223,7 +2691,8 @@ def api_match(match_id):
                 for x in events
                 if str(
                     x.get("id")
-                ) == str(match_id)
+                )
+                == str(match_id)
             ),
 
             None,
@@ -2234,11 +2703,11 @@ def api_match(match_id):
 
             return jsonify({
 
-                "success": True,
+                "match":
+                    match,
 
-                "match": match,
-
-                "markets": [],
+                "markets":
+                    [],
 
                 "best_bet":
                     match.get(
@@ -2256,6 +2725,7 @@ def api_match(match_id):
             event,
 
             {
+
                 "key":
                     match["sport_key"],
 
@@ -2266,7 +2736,7 @@ def api_match(match_id):
         )
 
 
-        markets = []
+        markets=[]
 
 
         # =================================================
@@ -2275,61 +2745,67 @@ def api_match(match_id):
 
         if converted["h2h"]:
 
-            selections = []
+            selections=[]
 
-            if converted["h2h"].get(
-                "home"
-            ):
+
+            if converted[
+                "h2h"
+            ].get("home"):
 
                 selections.append({
 
-                    "value": "1",
+                    "value":
+                        "1",
 
                     "odd":
-                        converted["h2h"][
-                            "home"
-                        ],
+                        converted[
+                            "h2h"
+                        ]["home"],
 
                 })
 
 
-            if converted["h2h"].get(
-                "draw"
-            ):
+            if converted[
+                "h2h"
+            ].get("draw"):
 
                 selections.append({
 
-                    "value": "X",
+                    "value":
+                        "X",
 
                     "odd":
-                        converted["h2h"][
-                            "draw"
-                        ],
+                        converted[
+                            "h2h"
+                        ]["draw"],
 
                 })
 
 
-            if converted["h2h"].get(
-                "away"
-            ):
+            if converted[
+                "h2h"
+            ].get("away"):
 
                 selections.append({
 
-                    "value": "2",
+                    "value":
+                        "2",
 
                     "odd":
-                        converted["h2h"][
-                            "away"
-                        ],
+                        converted[
+                            "h2h"
+                        ]["away"],
 
                 })
 
 
             markets.append({
 
-                "id": "h2h",
+                "id":
+                    "h2h",
 
-                "name": "🎯 1X2",
+                "name":
+                    "🎯 1X2",
 
                 "selections":
                     selections,
@@ -2338,23 +2814,44 @@ def api_match(match_id):
 
 
         # =================================================
-        # TOTALS
+        # OVER / UNDER
         # =================================================
 
         if converted["totals"]:
 
-            selections = []
+            selections=[]
 
-            for item in converted["totals"]:
+
+            if converted[
+                "totals"
+            ].get("over"):
 
                 selections.append({
 
                     "value":
-                        f"{item['name']} "
-                        f"{item['point']}",
+                        "Over 2.5",
 
                     "odd":
-                        item["price"],
+                        converted[
+                            "totals"
+                        ]["over"],
+
+                })
+
+
+            if converted[
+                "totals"
+            ].get("under"):
+
+                selections.append({
+
+                    "value":
+                        "Under 2.5",
+
+                    "odd":
+                        converted[
+                            "totals"
+                        ]["under"],
 
                 })
 
@@ -2363,7 +2860,8 @@ def api_match(match_id):
 
                 markets.append({
 
-                    "id": "totals",
+                    "id":
+                        "totals",
 
                     "name":
                         "⚽ Over / Under",
@@ -2380,7 +2878,8 @@ def api_match(match_id):
 
         if converted["spreads"]:
 
-            selections = []
+            selections=[]
+
 
             for item in converted[
                 "spreads"
@@ -2389,8 +2888,10 @@ def api_match(match_id):
                 selections.append({
 
                     "value":
-                        f"{item['name']} "
-                        f"{item['point']}",
+                        (
+                            f"{item['name']} "
+                            f"{item['point']}"
+                        ),
 
                     "odd":
                         item["price"],
@@ -2402,7 +2903,8 @@ def api_match(match_id):
 
                 markets.append({
 
-                    "id": "spreads",
+                    "id":
+                        "spreads",
 
                     "name":
                         "📊 Handicap",
@@ -2415,11 +2917,14 @@ def api_match(match_id):
 
         return jsonify({
 
-            "success": True,
+            "success":
+                True,
 
-            "match": match,
+            "match":
+                match,
 
-            "markets": markets,
+            "markets":
+                markets,
 
             "best_bet":
                 converted.get(
@@ -2431,13 +2936,21 @@ def api_match(match_id):
 
     except Exception as e:
 
+        print(
+            "[MATCH ERROR]",
+            e
+        )
+
         return jsonify({
 
-            "success": False,
+            "success":
+                False,
 
-            "error": str(e),
+            "error":
+                str(e),
 
-            "markets": [],
+            "markets":
+                [],
 
         }), 500
 
@@ -2446,26 +2959,35 @@ def api_match(match_id):
 # LIVE
 # =========================================================
 
-@web_app.route("/api/live")
+@web_app.route(
+    "/api/live"
+)
 def api_live():
 
     try:
 
-        result = []
+        result=[]
 
-        for sport in soccer_sports()[:15]:
+        sports=soccer_sports()
+
+
+        for sport in sports[:20]:
 
             try:
 
-                scores = odds_request(
+                scores=odds_request(
 
                     f"/sports/"
-                    f"{sport['key']}"
-                    f"/scores",
+                    f"{sport['key']}/scores",
 
                     {
-                        "daysFrom": 1,
-                        "dateFormat": "iso",
+
+                        "daysFrom":
+                            1,
+
+                        "dateFormat":
+                            "iso",
+
                     },
 
                 )
@@ -2474,7 +2996,8 @@ def api_live():
 
                 print(
                     "[LIVE SKIP]",
-                    e,
+                    sport.get("key"),
+                    e
                 )
 
                 continue
@@ -2489,16 +3012,20 @@ def api_live():
                     continue
 
 
-                score_map = {}
+                score_map={}
+
 
                 for score in (
                     event.get(
                         "scores"
-                    ) or []
+                    )
+                    or []
                 ):
 
                     score_map[
-                        score.get("name")
+                        score.get(
+                            "name"
+                        )
                     ] = score.get(
                         "score"
                     )
@@ -2507,10 +3034,14 @@ def api_live():
                 result.append({
 
                     "id":
-                        event.get("id"),
+                        event.get(
+                            "id"
+                        ),
 
                     "league":
-                        sport.get("title"),
+                        sport.get(
+                            "title"
+                        ),
 
                     "home":
                         event.get(
@@ -2536,16 +3067,19 @@ def api_live():
                             )
                         ),
 
-                    "minute": "",
+                    "minute":
+                        "",
 
                 })
 
 
         return jsonify({
 
-            "success": True,
+            "success":
+                True,
 
-            "matches": result,
+            "matches":
+                result,
 
         })
 
@@ -2554,17 +3088,20 @@ def api_live():
 
         return jsonify({
 
-            "success": False,
+            "success":
+                False,
 
-            "error": str(e),
+            "error":
+                str(e),
 
-            "matches": [],
+            "matches":
+                [],
 
         }), 500
 
 
 # =========================================================
-# FLASK
+# FLASK THREAD
 # =========================================================
 
 def run_web():
@@ -2578,7 +3115,6 @@ def run_web():
         debug=False,
 
         use_reloader=False,
-
     )
 
 
@@ -2616,7 +3152,9 @@ def main():
 
         Application.builder()
 
-        .token(BOT_TOKEN)
+        .token(
+            BOT_TOKEN
+        )
 
         .build()
 
@@ -2627,7 +3165,7 @@ def main():
 
         CommandHandler(
             "start",
-            start,
+            start
         )
 
     )
@@ -2661,13 +3199,8 @@ def main():
     )
 
     print(
-        "REGIONS:",
-        REGIONS
-    )
-
-    print(
-        "MARKETS:",
-        MARKETS
+        "DAYS:",
+        DAYS_AHEAD
     )
 
     print(
@@ -2676,14 +3209,12 @@ def main():
 
 
     application.run_polling(
+
         allowed_updates=
-        Update.ALL_TYPES
+            Update.ALL_TYPES
+
     )
 
-
-# =========================================================
-# START
-# =========================================================
 
 if __name__ == "__main__":
 
