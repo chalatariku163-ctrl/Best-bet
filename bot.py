@@ -35,7 +35,17 @@ PORT = int(os.getenv("PORT", "10000"))
 
 ODDS_BASE = "https://api.the-odds-api.com/v4"
 
-REGIONS = os.getenv("ODDS_REGIONS", "eu").strip()
+REGIONS = os.getenv("ODDS_REGIONS", "eu,uk").strip()
+
+# If the configured region has no bookmaker coverage for a league,
+# try these regions one-by-one before giving up. This avoids silently
+# returning an empty 7-day list just because one region has no soccer odds.
+REGION_FALLBACKS = ["eu", "uk", "us", "au"]
+
+# Maximum number of soccer leagues to inspect. The /sports endpoint
+# returns the currently covered/in-season sports, so do not rely on a
+# hard-coded list of league names.
+MAX_SOCCER_SPORTS = int(os.getenv("MAX_SOCCER_SPORTS", "100"))
 
 # IMPORTANT:
 # h2h is used for the main 7-day match list because it normally
@@ -45,8 +55,6 @@ LIST_MARKETS = "h2h"
 DETAIL_MARKETS = "h2h,totals,spreads"
 
 DAYS_AHEAD = 7
-MAX_SOCCER_SPORTS = 40
-
 web_app = Flask(__name__)
 USERS = {}
 
@@ -374,42 +382,24 @@ def convert_event(event, sport):
 # GET MATCHES - TODAY + NEXT 7 DAYS
 # =========================================================
 
-def get_matches():
+def _region_list():
+    """Return configured regions first, followed by safe fallbacks."""
+    raw = [x.strip().lower() for x in REGIONS.split(",") if x.strip()]
     result = []
+    for region in raw + REGION_FALLBACKS:
+        if region and region not in result:
+            result.append(region)
+    return result
 
-    try:
-        sports = soccer_sports()
-    except Exception as e:
-        print("[SPORTS ERROR]", e)
-        return []
 
-    print("====================================")
-    print("[SOCCER SPORTS]", len(sports))
-    print(
-        [x.get("key") for x in sports]
-    )
-    print("====================================")
+def _get_soccer_odds_for_sport(sport_key, start_text, end_text):
+    """Fetch soccer odds, trying configured bookmaker regions if needed."""
+    last_error = None
 
-    now = datetime.now(timezone.utc)
-    end_time = now + timedelta(days=DAYS_AHEAD + 1)
-
-    start_text = now.strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-
-    end_text = end_time.strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-
-    for sport in sports[:MAX_SOCCER_SPORTS]:
-        sport_key = sport.get("key")
-
-        if not sport_key:
-            continue
-
+    for region in _region_list():
         try:
             params = {
-                "regions": REGIONS,
+                "regions": region,
                 "markets": LIST_MARKETS,
                 "oddsFormat": "decimal",
                 "dateFormat": "iso",
@@ -422,77 +412,99 @@ def get_matches():
                 params,
             )
 
-            print(
-                "[ODDS]",
-                sport_key,
-                "events:",
-                len(events),
-            )
+            if events:
+                print(
+                    "[ODDS REGION]",
+                    sport_key,
+                    region,
+                    "events:",
+                    len(events),
+                )
+                return events, region
 
-            for event in events:
-                try:
-                    commence = event.get(
-                        "commence_time"
-                    )
-
-                    if not commence:
-                        continue
-
-                    dt = datetime.fromisoformat(
-                        commence.replace(
-                            "Z",
-                            "+00:00"
-                        )
-                    )
-
-                    if dt < now or dt > end_time:
-                        continue
-
-                    converted = convert_event(
-                        event,
-                        sport,
-                    )
-
-                    # Only events with actual h2h odds.
-                    if converted.get("h2h"):
-                        result.append(converted)
-
-                except Exception as e:
-                    print(
-                        "[EVENT ERROR]",
-                        e,
-                    )
+            print("[NO ODDS]", sport_key, "region:", region)
 
         except Exception as e:
-            print(
-                "[SPORT ERROR]",
-                sport_key,
-                e,
-            )
+            last_error = e
+            print("[REGION ERROR]", sport_key, region, e)
 
-    # Remove duplicate event IDs.
-    unique = {}
+    if last_error:
+        print("[ALL REGIONS FAILED]", sport_key, last_error)
 
-    for match in result:
-        match_id = str(
-            match.get("id") or ""
+    return [], None
+
+
+def get_matches():
+    result = []
+    errors = []
+
+    try:
+        sports = soccer_sports()
+    except Exception as e:
+        print("[SPORTS ERROR]", e)
+        return []
+
+    print("====================================")
+    print("[SOCCER SPORTS]", len(sports))
+    print([x.get("key") for x in sports])
+    print("[REGIONS]", _region_list())
+    print("====================================")
+
+    now = datetime.now(timezone.utc)
+    # Exactly the next 7 x 24 hours, not 8 days.
+    end_time = now + timedelta(days=DAYS_AHEAD)
+
+    start_text = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    end_text = end_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    for sport in sports[:MAX_SOCCER_SPORTS]:
+        sport_key = sport.get("key")
+        if not sport_key:
+            continue
+
+        events, used_region = _get_soccer_odds_for_sport(
+            sport_key,
+            start_text,
+            end_text,
         )
 
+        for event in events:
+            try:
+                commence = event.get("commence_time")
+                if not commence:
+                    continue
+
+                dt = datetime.fromisoformat(
+                    commence.replace("Z", "+00:00")
+                )
+
+                if dt < now or dt > end_time:
+                    continue
+
+                converted = convert_event(event, sport)
+                converted["odds_region"] = used_region or REGIONS
+
+                # Keep the event only when at least one bookmaker supplied
+                # a real h2h selection. Do not invent odds.
+                if converted.get("h2h"):
+                    result.append(converted)
+
+            except Exception as e:
+                print("[EVENT ERROR]", e)
+
+    # Remove duplicate event IDs. The same event can appear through more
+    # than one soccer league/region response.
+    unique = {}
+    for match in result:
+        match_id = str(match.get("id") or "")
         if match_id:
             unique[match_id] = match
 
     result = list(unique.values())
-
-    result.sort(
-        key=lambda x:
-        x.get("commence_time") or ""
-    )
+    result.sort(key=lambda x: x.get("commence_time") or "")
 
     print("====================================")
-    print(
-        "[TOTAL 7-DAY MATCHES]",
-        len(result),
-    )
+    print("[TOTAL 7-DAY MATCHES]", len(result))
     print("====================================")
 
     return result
@@ -1623,6 +1635,7 @@ def health():
         "api_key_configured": bool(ODDS_API_KEY),
         "list_markets": LIST_MARKETS,
         "detail_markets": DETAIL_MARKETS,
+        "regions": _region_list(),
         "days": DAYS_AHEAD,
         "web_app": WEB_APP_URL,
     })
@@ -1646,9 +1659,10 @@ def api_matches():
                 "the next 7 days."
                 if matches
                 else
-                "No football matches with available odds "
-                "found in the next 7 days. Check ODDS_API_KEY, "
-                "ODDS_REGIONS and The Odds API soccer coverage."
+                "No football matches with available odds found in "
+                "the next 7 days. Regions tried: "
+                f"{', '.join(_region_list())}. "
+                "Check ODDS_API_KEY, API plan/quota and current soccer coverage."
             ),
         })
 
@@ -1689,15 +1703,24 @@ def api_match(match_id):
         # IMPORTANT:
         # The list uses h2h only for wider coverage.
         # Once one match is selected, request extra markets.
-        events = odds_request(
-            f"/sports/{match['sport_key']}/odds",
-            {
-                "regions": REGIONS,
-                "markets": DETAIL_MARKETS,
-                "oddsFormat": "decimal",
-                "dateFormat": "iso",
-            },
-        )
+        events = []
+        detail_error = None
+        for region in _region_list():
+            try:
+                events = odds_request(
+                    f"/sports/{match['sport_key']}/odds",
+                    {
+                        "regions": region,
+                        "markets": DETAIL_MARKETS,
+                        "oddsFormat": "decimal",
+                        "dateFormat": "iso",
+                    },
+                )
+                if events:
+                    break
+            except Exception as e:
+                detail_error = e
+                print("[DETAIL REGION ERROR]", region, e)
 
         event = next(
             (
