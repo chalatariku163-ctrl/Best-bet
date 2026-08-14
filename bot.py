@@ -1,5 +1,4 @@
 import os
-import threading
 import time
 from datetime import datetime, timezone, timedelta
 
@@ -48,27 +47,34 @@ MAX_SOCCER_SPORTS = int(
     os.getenv("MAX_SOCCER_SPORTS", "50")
 )
 
-# Main match list markets
 LIST_MARKETS = os.getenv(
     "LIST_MARKETS",
     "h2h,totals,spreads,btts",
 ).strip()
 
-# Detailed match markets
 DETAIL_MARKETS = os.getenv(
     "DETAIL_MARKETS",
     "h2h,totals,spreads,btts",
 ).strip()
 
-# Today + next 6 days = 7 days total
 DAYS_AHEAD = 7
 
-# Cache prevents excessive Odds API requests
 CACHE_SECONDS = int(
     os.getenv("CACHE_SECONDS", "60")
 )
 
-web_app = Flask(__name__)
+
+# =========================================================
+# FLASK APP
+# IMPORTANT: Render uses gunicorn bot:app
+# =========================================================
+
+app = Flask(__name__)
+
+
+# =========================================================
+# MEMORY DATA
+# =========================================================
 
 USERS = {}
 
@@ -184,10 +190,11 @@ def betslip_text(user_id):
 
 
 # =========================================================
-# ODDS API REQUEST
+# ODDS API
 # =========================================================
 
 def odds_request(path, params=None):
+
     if not ODDS_API_KEY:
         raise RuntimeError(
             "ODDS_API_KEY hin jiru. "
@@ -211,13 +218,15 @@ def odds_request(path, params=None):
     )
 
     if response.status_code != 200:
+
         try:
             body = response.json()
         except Exception:
             body = response.text[:1000]
 
         raise RuntimeError(
-            f"Odds API error {response.status_code}: {body}"
+            f"Odds API error "
+            f"{response.status_code}: {body}"
         )
 
     try:
@@ -233,11 +242,13 @@ def odds_request(path, params=None):
 # =========================================================
 
 def soccer_sports():
+
     sports = odds_request("/sports")
 
     result = []
 
     for sport in sports:
+
         key = str(
             sport.get("key", "")
         ).strip()
@@ -252,10 +263,11 @@ def soccer_sports():
 
 
 # =========================================================
-# REGION LIST
+# REGIONS
 # =========================================================
 
 def region_list():
+
     raw = [
         x.strip().lower()
         for x in REGIONS.split(",")
@@ -265,6 +277,7 @@ def region_list():
     result = []
 
     for region in raw + REGION_FALLBACKS:
+
         if region and region not in result:
             result.append(region)
 
@@ -276,6 +289,7 @@ def region_list():
 # =========================================================
 
 def safe_float(value):
+
     try:
         return float(value)
     except Exception:
@@ -287,65 +301,101 @@ def safe_float(value):
 # =========================================================
 
 def convert_event(event, sport):
+
     h2h = {}
     totals = {}
     btts = {}
     spreads = []
 
-    bookmakers = event.get("bookmakers") or []
+    bookmakers = event.get(
+        "bookmakers"
+    ) or []
 
     for bookmaker in bookmakers:
 
-        markets = bookmaker.get("markets") or []
+        markets = bookmaker.get(
+            "markets"
+        ) or []
 
         for market in markets:
 
-            market_key = market.get("key")
+            market_key = market.get(
+                "key"
+            )
 
-            outcomes = market.get("outcomes") or []
+            outcomes = market.get(
+                "outcomes"
+            ) or []
 
             for outcome in outcomes:
 
                 name = str(
-                    outcome.get("name", "")
+                    outcome.get(
+                        "name",
+                        ""
+                    )
                 ).strip()
 
                 price = safe_float(
                     outcome.get("price")
                 )
 
-                if price is None or price <= 1:
+                if (
+                    price is None
+                    or price <= 1
+                ):
                     continue
 
-                # -----------------------------
                 # 1X2
-                # -----------------------------
-
                 if market_key == "h2h":
 
-                    if name == event.get("home_team"):
-                        old = h2h.get("home")
-                        if old is None or price > old:
+                    if name == event.get(
+                        "home_team"
+                    ):
+
+                        old = h2h.get(
+                            "home"
+                        )
+
+                        if (
+                            old is None
+                            or price > old
+                        ):
                             h2h["home"] = price
 
-                    elif name == event.get("away_team"):
-                        old = h2h.get("away")
-                        if old is None or price > old:
+                    elif name == event.get(
+                        "away_team"
+                    ):
+
+                        old = h2h.get(
+                            "away"
+                        )
+
+                        if (
+                            old is None
+                            or price > old
+                        ):
                             h2h["away"] = price
 
                     elif name.lower() == "draw":
-                        old = h2h.get("draw")
-                        if old is None or price > old:
+
+                        old = h2h.get(
+                            "draw"
+                        )
+
+                        if (
+                            old is None
+                            or price > old
+                        ):
                             h2h["draw"] = price
 
-                # -----------------------------
                 # TOTALS
-                # -----------------------------
-
                 elif market_key == "totals":
 
                     point = safe_float(
-                        outcome.get("point")
+                        outcome.get(
+                            "point"
+                        )
                     )
 
                     if point is None:
@@ -354,19 +404,34 @@ def convert_event(event, sport):
                     if point == 2.5:
 
                         if name.lower() == "over":
-                            old = totals.get("over")
-                            if old is None or price > old:
-                                totals["over"] = price
+
+                            old = totals.get(
+                                "over"
+                            )
+
+                            if (
+                                old is None
+                                or price > old
+                            ):
+                                totals[
+                                    "over"
+                                ] = price
 
                         elif name.lower() == "under":
-                            old = totals.get("under")
-                            if old is None or price > old:
-                                totals["under"] = price
 
-                # -----------------------------
+                            old = totals.get(
+                                "under"
+                            )
+
+                            if (
+                                old is None
+                                or price > old
+                            ):
+                                totals[
+                                    "under"
+                                ] = price
+
                 # BTTS
-                # -----------------------------
-
                 elif market_key in (
                     "btts",
                     "both_teams_to_score",
@@ -376,33 +441,46 @@ def convert_event(event, sport):
                         "yes",
                         "btts yes",
                     ):
-                        old = btts.get("yes")
-                        if old is None or price > old:
+
+                        old = btts.get(
+                            "yes"
+                        )
+
+                        if (
+                            old is None
+                            or price > old
+                        ):
                             btts["yes"] = price
 
                     elif name.lower() in (
                         "no",
                         "btts no",
                     ):
-                        old = btts.get("no")
-                        if old is None or price > old:
+
+                        old = btts.get(
+                            "no"
+                        )
+
+                        if (
+                            old is None
+                            or price > old
+                        ):
                             btts["no"] = price
 
-                # -----------------------------
-                # SPREAD / HANDICAP
-                # -----------------------------
-
+                # SPREADS
                 elif market_key == "spreads":
 
                     spreads.append({
                         "name": name,
-                        "point": outcome.get("point"),
+                        "point": outcome.get(
+                            "point"
+                        ),
                         "price": price,
                     })
 
-    # Remove duplicate spread selections
-    unique_spreads = []
+    # Remove duplicate spreads
 
+    unique_spreads = []
     seen_spreads = set()
 
     for item in spreads:
@@ -414,12 +492,15 @@ def convert_event(event, sport):
         )
 
         if key not in seen_spreads:
+
             seen_spreads.add(key)
+
             unique_spreads.append(item)
 
-    # Sort highest odds first for display diversity
     unique_spreads.sort(
-        key=lambda x: float(x["price"]),
+        key=lambda x: float(
+            x["price"]
+        ),
         reverse=True,
     )
 
@@ -430,70 +511,79 @@ def convert_event(event, sport):
     candidates = []
 
     if h2h.get("home"):
-        candidates.append((
-            "1",
-            h2h["home"],
-            "1X2",
-        ))
+        candidates.append(
+            ("1", h2h["home"], "1X2")
+        )
 
     if h2h.get("draw"):
-        candidates.append((
-            "X",
-            h2h["draw"],
-            "1X2",
-        ))
+        candidates.append(
+            ("X", h2h["draw"], "1X2")
+        )
 
     if h2h.get("away"):
-        candidates.append((
-            "2",
-            h2h["away"],
-            "1X2",
-        ))
+        candidates.append(
+            ("2", h2h["away"], "1X2")
+        )
 
     if totals.get("over"):
-        candidates.append((
-            "Over 2.5",
-            totals["over"],
-            "Over/Under",
-        ))
+        candidates.append(
+            (
+                "Over 2.5",
+                totals["over"],
+                "Over/Under",
+            )
+        )
 
     if totals.get("under"):
-        candidates.append((
-            "Under 2.5",
-            totals["under"],
-            "Over/Under",
-        ))
+        candidates.append(
+            (
+                "Under 2.5",
+                totals["under"],
+                "Over/Under",
+            )
+        )
 
     if btts.get("yes"):
-        candidates.append((
-            "BTTS Yes",
-            btts["yes"],
-            "BTTS",
-        ))
+        candidates.append(
+            (
+                "BTTS Yes",
+                btts["yes"],
+                "BTTS",
+            )
+        )
 
     if btts.get("no"):
-        candidates.append((
-            "BTTS No",
-            btts["no"],
-            "BTTS",
-        ))
+        candidates.append(
+            (
+                "BTTS No",
+                btts["no"],
+                "BTTS",
+            )
+        )
 
     candidates = [
         x
         for x in candidates
-        if 1.01 < float(x[1]) <= 20
+        if (
+            1.01
+            < float(x[1])
+            <= 20
+        )
     ]
 
-    # Lowest odds = market's strongest implied selection.
     candidates.sort(
-        key=lambda x: float(x[1])
+        key=lambda x: float(
+            x[1]
+        )
     )
 
     best = None
 
     if candidates:
 
-        selection, odd, market = candidates[0]
+        selection, odd, market = (
+            candidates[0]
+        )
 
         best = {
             "selection": selection,
@@ -502,7 +592,7 @@ def convert_event(event, sport):
         }
 
     # =====================================================
-    # LOCAL TIME
+    # LOCAL TIME UTC+3
     # =====================================================
 
     commence = event.get(
@@ -534,6 +624,7 @@ def convert_event(event, sport):
             )
 
         except Exception:
+
             time_text = ""
 
     return {
@@ -562,7 +653,7 @@ def convert_event(event, sport):
 
 
 # =========================================================
-# GET ODDS FOR ONE SPORT
+# ODDS FOR ONE SPORT
 # =========================================================
 
 def get_soccer_odds_for_sport(
@@ -570,6 +661,7 @@ def get_soccer_odds_for_sport(
     start_text,
     end_text,
 ):
+
     last_error = None
 
     for region in region_list():
@@ -622,6 +714,7 @@ def get_soccer_odds_for_sport(
             )
 
     if last_error:
+
         print(
             "[ALL REGIONS FAILED]",
             sport_key,
@@ -639,19 +732,21 @@ def get_matches(force=False):
 
     now_timestamp = time.time()
 
-    # Cache
     if (
         not force
         and MATCH_CACHE["matches"]
-        and now_timestamp
-        - MATCH_CACHE["time"]
-        < CACHE_SECONDS
+        and (
+            now_timestamp
+            - MATCH_CACHE["time"]
+            < CACHE_SECONDS
+        )
     ):
         return MATCH_CACHE["matches"]
 
     result = []
 
     try:
+
         sports = soccer_sports()
 
     except Exception as e:
@@ -674,9 +769,10 @@ def get_matches(force=False):
     )
     print("====================================")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(
+        timezone.utc
+    )
 
-    # Today + next 6 days
     end_time = now + timedelta(
         days=DAYS_AHEAD
     )
@@ -703,7 +799,9 @@ def get_matches(force=False):
         :MAX_SOCCER_SPORTS
     ]:
 
-        sport_key = sport.get("key")
+        sport_key = sport.get(
+            "key"
+        )
 
         if not sport_key:
             continue
@@ -752,13 +850,19 @@ def get_matches(force=False):
                     or REGIONS
                 )
 
-                # Require at least one usable market
                 if (
                     converted.get("h2h")
-                    or converted.get("totals")
-                    or converted.get("btts")
-                    or converted.get("spreads")
+                    or converted.get(
+                        "totals"
+                    )
+                    or converted.get(
+                        "btts"
+                    )
+                    or converted.get(
+                        "spreads"
+                    )
                 ):
+
                     result.append(
                         converted
                     )
@@ -770,9 +874,7 @@ def get_matches(force=False):
                     repr(e),
                 )
 
-    # =====================================================
-    # REMOVE DUPLICATES
-    # =====================================================
+    # Remove duplicates
 
     unique = {}
 
@@ -790,16 +892,11 @@ def get_matches(force=False):
     )
 
     result.sort(
-        key=lambda x:
-        x.get(
+        key=lambda x: x.get(
             "commence_time",
             "",
         )
     )
-
-    # =====================================================
-    # CACHE
-    # =====================================================
 
     MATCH_CACHE["time"] = time.time()
     MATCH_CACHE["matches"] = result
@@ -1025,7 +1122,7 @@ async def button_handler(
 # WEB ROUTES
 # =========================================================
 
-@web_app.route("/", methods=["GET"])
+@app.route("/", methods=["GET"])
 def index():
 
     return render_template(
@@ -1037,7 +1134,7 @@ def index():
 # HEALTH
 # =========================================================
 
-@web_app.route(
+@app.route(
     "/health",
     methods=["GET"],
 )
@@ -1068,7 +1165,7 @@ def health():
 # API TEST
 # =========================================================
 
-@web_app.route(
+@app.route(
     "/api/test",
     methods=["GET"],
 )
@@ -1086,7 +1183,7 @@ def api_test():
 # MATCHES API
 # =========================================================
 
-@web_app.route(
+@app.route(
     "/api/matches",
     methods=["GET"],
 )
@@ -1144,7 +1241,7 @@ def api_matches():
 # SINGLE MATCH DETAILS
 # =========================================================
 
-@web_app.route(
+@app.route(
     "/api/match/<match_id>",
     methods=["GET"],
 )
@@ -1262,9 +1359,7 @@ def api_match(match_id):
 
         markets = []
 
-        # =================================================
         # 1X2
-        # =================================================
 
         if converted["h2h"]:
 
@@ -1315,9 +1410,7 @@ def api_match(match_id):
                         selections,
                 })
 
-        # =================================================
         # TOTALS
-        # =================================================
 
         if converted["totals"]:
 
@@ -1359,9 +1452,7 @@ def api_match(match_id):
                         selections,
                 })
 
-        # =================================================
         # BTTS
-        # =================================================
 
         if converted["btts"]:
 
@@ -1403,9 +1494,7 @@ def api_match(match_id):
                         selections,
                 })
 
-        # =================================================
         # HANDICAP
-        # =================================================
 
         if converted["spreads"]:
 
@@ -1470,7 +1559,7 @@ def api_match(match_id):
 # LIVE
 # =========================================================
 
-@web_app.route(
+@app.route(
     "/api/live",
     methods=["GET"],
 )
@@ -1585,7 +1674,7 @@ def api_live():
 # FLASK ERROR HANDLERS
 # =========================================================
 
-@web_app.errorhandler(404)
+@app.errorhandler(404)
 def handle_404(error):
 
     if request.path.startswith(
@@ -1605,7 +1694,7 @@ def handle_404(error):
     ), 404
 
 
-@web_app.errorhandler(500)
+@app.errorhandler(500)
 def handle_500(error):
 
     if request.path.startswith(
@@ -1625,21 +1714,7 @@ def handle_500(error):
 
 
 # =========================================================
-# FLASK THREAD
-# =========================================================
-
-def run_web():
-
-    web_app.run(
-        host="0.0.0.0",
-        port=PORT,
-        debug=False,
-        use_reloader=False,
-    )
-
-
-# =========================================================
-# MAIN
+# TELEGRAM BOT
 # =========================================================
 
 def main():
@@ -1656,11 +1731,6 @@ def main():
             "WARNING: ODDS_API_KEY "
             "hin jiru."
         )
-
-    threading.Thread(
-        target=run_web,
-        daemon=True,
-    ).start()
 
     application = (
         Application.builder()
@@ -1718,6 +1788,10 @@ def main():
         allowed_updates=Update.ALL_TYPES
     )
 
+
+# =========================================================
+# START BOT
+# =========================================================
 
 if __name__ == "__main__":
     main()
