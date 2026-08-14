@@ -16,36 +16,27 @@ body{padding-bottom:92px}
 .login{color:#72ad20;font-weight:800}
 .register{background:#65a914;color:white;border:0;border-radius:14px;padding:12px 18px;font-weight:800}
 .search{font-size:31px;background:none;border:0;color:#e5e7eb}
-
 .sports{height:108px;background:#182738;display:flex;overflow-x:auto;border-bottom:1px solid #243649}
 .sport{min-width:105px;border:0;background:transparent;color:#8f9baa;padding:13px 8px 8px;font-weight:600;font-size:15px}
 .sport.active{color:#fff;border-bottom:4px solid #79b52b}
 .sport .ico{font-size:33px;display:block;margin-bottom:6px}
-.sport.active .ico{color:#fff}
-
 .tabs{display:flex;gap:30px;padding:22px 18px 15px;background:#152232;overflow-x:auto;white-space:nowrap}
 .tab{font-size:19px;font-weight:800;color:#b6bec8;border:0;background:none;padding:0}
 .tab.active{color:#fff}
-
 .filters{display:flex;gap:10px;padding:0 14px 16px;background:#152232;overflow-x:auto}
 .filter{background:#243546;border:0;color:#fff;border-radius:22px;padding:11px 16px;font-weight:800;white-space:nowrap}
 .filter .down{font-size:11px;margin-left:7px}
-
 .banner{margin:0 14px 15px;height:105px;border-radius:4px;overflow:hidden;background:linear-gradient(110deg,#d8ed16,#74bc19);color:#132333;display:flex;align-items:center;padding:13px 20px;font-weight:900}
 .banner .big{font-size:20px;line-height:1.05}
 .banner .small{font-size:12px;margin-top:8px}
 .banner .ball{margin-left:auto;font-size:55px}
-
 .status{margin:0 14px 10px;padding:8px 0;color:#79b52b;font-size:13px}
 .status.error{color:#ff7a7a}
-
 .content{background:#152232;min-height:500px;padding-bottom:110px}
 .tablehead{display:grid;grid-template-columns:1fr 66px 66px 66px;gap:8px;padding:8px 14px;color:#b8c0c9;font-size:15px;font-weight:800}
 .tablehead div:not(:first-child){text-align:center}
-
 .day-title{padding:12px 14px;background:#101b29;color:#fff;font-weight:900;font-size:17px}
 .day-title small{color:#7e8a97;font-weight:600;margin-left:8px}
-
 .match{padding:9px 14px 15px;border-bottom:1px solid #263646}
 .league-row{display:flex;align-items:center;color:#9ba5b0;font-size:13px;gap:7px;margin-bottom:8px}
 .league-row .time{margin-left:auto;color:#b9c1ca}
@@ -54,23 +45,21 @@ body{padding-bottom:92px}
 .team-names div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .odd{border:0;background:#223343;color:#fff;border-radius:24px;min-height:54px;font-size:16px;font-weight:900}
 .odd:active{transform:scale(.96)}
+.odd:disabled{opacity:.45}
 .market-link{text-align:right;color:#72b51d;font-size:14px;font-weight:800;padding-top:8px;cursor:pointer}
-
 .loading{text-align:center;padding:70px 15px;color:#bfc7cf;font-size:18px}
 .spinner{width:42px;height:42px;border:5px solid #334454;border-top-color:#fff;border-radius:50%;margin:0 auto 15px;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .empty{text-align:center;padding:60px 20px;color:#9ca7b2}
 .error{margin:20px 14px;background:#3a2025;border:1px solid #7f3038;border-radius:12px;padding:16px;color:#ffd4d7}
-
+.error button{margin-top:10px}
 .betslipbar{position:fixed;left:0;right:0;bottom:0;height:68px;background:#ffd500;color:#111;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-weight:800}
-.betslipbar .odds{font-size:16px}
-.betslipbar .payout{font-size:16px}
+.betslipbar .odds,.betslipbar .payout{font-size:16px}
 .bottomnav{position:fixed;left:0;right:0;bottom:68px;height:82px;background:#152232;z-index:99;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #2a3b4c}
 .navitem{border:0;background:none;color:#aab3bd;font-size:12px;font-weight:700}
 .navitem .ni{display:block;font-size:25px;margin-bottom:5px}
 .navitem.active{color:#72b51d}
 .navbadge{position:absolute;background:#ffd500;color:#111;width:54px;height:54px;border-radius:50%;left:50%;transform:translateX(-50%);top:14px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;border:4px solid #152232}
-
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;z-index:300}
 .modal.show{display:flex}
 .modalbox{background:#f4f5f7;color:#172333;width:100%;max-height:88vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px}
@@ -84,7 +73,6 @@ body{padding-bottom:92px}
 .selection b{display:block;margin-top:5px}
 .slipitem{background:#fff;border-radius:12px;padding:12px;margin-bottom:9px}
 .remove{border:0;background:#fee2e2;color:#991b1b;border-radius:8px;padding:7px 10px;margin-top:8px}
-
 @media(max-width:420px){
  .brand{font-size:24px}.login{display:none}.register{padding:10px 12px}
  .teams-row,.tablehead{grid-template-columns:1fr 59px 59px 59px}
@@ -97,34 +85,34 @@ body{padding-bottom:92px}
 <body>
 
 <header class="topbar">
-  <button class="menu">☰</button>
+  <button class="menu" type="button">☰</button>
   <div class="brand">BEST BET<span>.com</span></div>
   <div class="login">Login</div>
-  <button class="register">Register</button>
-  <button class="search">⌕</button>
+  <button class="register" type="button">Register</button>
+  <button class="search" type="button">⌕</button>
 </header>
 
 <div class="sports">
-  <button class="sport active"><span class="ico">⚽</span>Soccer</button>
-  <button class="sport"><span class="ico">🏆</span>Leagues</button>
-  <button class="sport"><span class="ico">💠</span>Virtuals</button>
-  <button class="sport"><span class="ico">✈</span>Aviator</button>
-  <button class="sport"><span class="ico">🎮</span>Games</button>
-  <button class="sport"><span class="ico">•••</span>More</button>
+  <button class="sport active" type="button"><span class="ico">⚽</span>Soccer</button>
+  <button class="sport" type="button"><span class="ico">🏆</span>Leagues</button>
+  <button class="sport" type="button"><span class="ico">💠</span>Virtuals</button>
+  <button class="sport" type="button"><span class="ico">✈</span>Aviator</button>
+  <button class="sport" type="button"><span class="ico">🎮</span>Games</button>
+  <button class="sport" type="button"><span class="ico">•••</span>More</button>
 </div>
 
 <div class="tabs">
-  <button class="tab active">Highlights</button>
-  <button class="tab">Upcoming</button>
-  <button class="tab">Countries</button>
-  <button class="tab">Zoom Soccer</button>
+  <button class="tab active" type="button">Highlights</button>
+  <button class="tab" type="button">Upcoming</button>
+  <button class="tab" type="button">Countries</button>
+  <button class="tab" type="button">Zoom Soccer</button>
 </div>
 
 <div class="filters">
-  <button class="filter">⚙ Filters <span class="down">▼</span></button>
-  <button id="todayBtn" class="filter">Today <span class="down">▼</span></button>
-  <button class="filter">Highlights <span class="down">▼</span></button>
-  <button class="filter">1×2 <span class="down">▼</span></button>
+  <button class="filter" type="button">⚙ Filters <span class="down">▼</span></button>
+  <button id="todayBtn" class="filter" type="button">All Days <span class="down">▼</span></button>
+  <button id="refreshBtn" class="filter" type="button">🔄 Refresh</button>
+  <button class="filter" type="button">1×2 <span class="down">▼</span></button>
 </div>
 
 <div class="banner">
@@ -135,7 +123,7 @@ body{padding-bottom:92px}
   <div class="ball">⚽</div>
 </div>
 
-<div id="status" class="status">System: loading...</div>
+<div id="status" class="status">System: checking API...</div>
 
 <main class="content">
   <div class="tablehead">
@@ -147,11 +135,11 @@ body{padding-bottom:92px}
 </main>
 
 <div class="bottomnav">
-  <button class="navitem active"><span class="ni">⌂</span>Home</button>
-  <button class="navitem"><span class="ni">▷</span>Live</button>
+  <button class="navitem active" type="button"><span class="ni">⌂</span>Home</button>
+  <button class="navitem" type="button" onclick="loadLive()"><span class="ni">▷</span>Live</button>
   <div class="navbadge" id="navCount">0</div>
-  <button class="navitem"><span class="ni">▤</span>My Bets</button>
-  <button class="navitem"><span class="ni">♙</span>Profile</button>
+  <button class="navitem" type="button" onclick="openSlip()"><span class="ni">▤</span>My Bets</button>
+  <button class="navitem" type="button"><span class="ni">♙</span>Profile</button>
 </div>
 
 <div class="betslipbar" onclick="openSlip()">
@@ -162,147 +150,551 @@ body{padding-bottom:92px}
 
 <div id="matchModal" class="modal" onclick="outsideMatch(event)">
   <div class="modalbox">
-    <div class="modalhead"><div id="modalTitle" class="modaltitle">Match</div><button class="close" onclick="closeMatch()">✕</button></div>
+    <div class="modalhead">
+      <div id="modalTitle" class="modaltitle">Match</div>
+      <button class="close" type="button" onclick="closeMatch()">✕</button>
+    </div>
     <div id="modalContent">Loading...</div>
   </div>
 </div>
 
 <div id="slipModal" class="modal" onclick="outsideSlip(event)">
   <div class="modalbox">
-    <div class="modalhead"><div class="modaltitle">🎟️ BET SLIP</div><button class="close" onclick="closeSlip()">✕</button></div>
+    <div class="modalhead">
+      <div class="modaltitle">🎟️ BET SLIP</div>
+      <button class="close" type="button" onclick="closeSlip()">✕</button>
+    </div>
     <div id="slipContent"></div>
   </div>
 </div>
 
 <script>
-let matches=[];
-let selectedDate="all";
-let betslip=[];
-const area=document.getElementById("matchesArea");
-const statusEl=document.getElementById("status");
+"use strict";
 
-function esc(v){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
-function js(v){return String(v??"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"\\r")}
-async function fetchJSON(url,timeout=90000){
- const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
- try{
-  const r=await fetch(url,{cache:"no-store",headers:{Accept:"application/json"},signal:c.signal});
-  const text=await r.text(); let d;
-  try{d=JSON.parse(text)}catch(e){throw new Error("API JSON osoo hin taane HTML/text deebise. HTTP "+r.status)}
-  if(!r.ok)throw new Error(d.error||d.message||("HTTP "+r.status));
-  return d;
- }finally{clearTimeout(t)}
+let matches = [];
+let selectedDate = "all";
+let betslip = [];
+
+const area = document.getElementById("matchesArea");
+const statusEl = document.getElementById("status");
+const refreshBtn = document.getElementById("refreshBtn");
+const todayBtn = document.getElementById("todayBtn");
+
+function esc(v) {
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
 }
-function setStatus(t,error=false){statusEl.textContent="System: "+t;statusEl.className="status"+(error?" error":"")}
-function dateKey(m){
- if(!m?.commence_time)return "";
- const d=new Date(m.commence_time);
- return new Intl.DateTimeFormat("en-CA",{timeZone:"Africa/Addis_Ababa",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)
+
+function js(v) {
+  return String(v ?? "")
+    .replace(/\\/g,"\\\\")
+    .replace(/'/g,"\\'")
+    .replace(/\n/g,"\\n")
+    .replace(/\r/g,"\\r");
 }
-function fullDate(k){
- if(!k)return "";
- return new Date(k+"T12:00:00").toLocaleDateString("en-US",{weekday:"long",day:"2-digit",month:"long"})
+
+async function fetchJSON(url, timeout = 30000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: { "Accept": "application/json" },
+      signal: controller.signal
+    });
+
+    const text = await response.text();
+    let data;
+
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(
+        "Server JSON osoo hin taane deebise. HTTP " + response.status
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || data.message || ("HTTP " + response.status)
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(
+        "Server yeroo dheeraa fudhate. Refresh irra deebi'ii yaali."
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
-function shortDate(k){
- return new Date(k+"T12:00:00").toLocaleDateString("en-US",{weekday:"short",day:"2-digit",month:"short"})
+
+function setStatus(text, error = false) {
+  statusEl.textContent = "System: " + text;
+  statusEl.className = "status" + (error ? " error" : "");
 }
-function marketCount(m){
- let n=0;
- if(m.h2h&&Object.keys(m.h2h).length)n++;
- if(m.totals&&Object.keys(m.totals).length)n++;
- if(m.btts&&Object.keys(m.btts).length)n++;
- if(Array.isArray(m.spreads)&&m.spreads.length)n++;
- return Math.max(n,1);
+
+function dateKey(match) {
+  if (!match || !match.commence_time) return "";
+
+  const date = new Date(match.commence_time);
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Addis_Ababa",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
 }
-function render(){
- let list=matches.filter(m=>selectedDate==="all"||dateKey(m)===selectedDate);
- if(!list.length){area.innerHTML='<div class="empty">⚽ Guyyaa kanaaf match hin jiru.</div>';return}
- const groups={};
- list.forEach(m=>(groups[dateKey(m)]??=[]).push(m));
- let out="";
- Object.keys(groups).sort().forEach(d=>{
-  if(selectedDate==="all")out+=`<div class="day-title">📅 ${esc(fullDate(d))}<small>${groups[d].length} matches</small></div>`;
-  groups[d].forEach(m=>out+=card(m));
- });
- area.innerHTML=out;
+
+function fullDate(key) {
+  if (!key) return "";
+
+  return new Date(key + "T12:00:00").toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      day: "2-digit",
+      month: "long"
+    }
+  );
 }
-function oddButton(label,odd,id,sel,market){
- if(!Number.isFinite(Number(odd)))return "";
- return `<button class="odd" onclick="addBet('${js(id)}','${js(sel)}','${js(market)}',${Number(odd)})">${Number(odd).toFixed(2)}</button>`;
+
+function marketCount(match) {
+  let n = 0;
+
+  if (match.h2h && Object.keys(match.h2h).length) n++;
+  if (match.totals && Object.keys(match.totals).length) n++;
+  if (match.btts && Object.keys(match.btts).length) n++;
+  if (Array.isArray(match.spreads) && match.spreads.length) n++;
+
+  return Math.max(n, 1);
 }
-function card(m){
- const h=m.h2h||{};
- let one= h.home?oddButton("1",h.home,m.id,"1","1X2"):"<button class='odd' disabled>—</button>";
- let x= h.draw?oddButton("X",h.draw,m.id,"X","1X2"):"<button class='odd' disabled>—</button>";
- let two=h.away?oddButton("2",h.away,m.id,"2","1X2"):"<button class='odd' disabled>—</button>";
- return `<article class="match">
-  <div class="league-row"><span>⚽ ${esc(m.league||"Football")}</span><span class="time">${esc(m.time||"")}</span></div>
-  <div class="teams-row">
-   <div class="team-names"><div>${esc(m.home)}</div><div>${esc(m.away)}</div></div>
-   ${one}${x}${two}
-  </div>
-  <div class="market-link" onclick="openMatch('${js(m.id)}')">+${marketCount(m)} Markets</div>
- </article>`
+
+function oddButton(odd, id, selection, market) {
+  if (!Number.isFinite(Number(odd))) {
+    return "<button class='odd' disabled>—</button>";
+  }
+
+  return `
+    <button
+      class="odd"
+      type="button"
+      onclick="addBet('${js(id)}','${js(selection)}','${js(market)}',${Number(odd)})"
+    >${Number(odd).toFixed(2)}</button>
+  `;
 }
-function renderDateButtons(){}
-async function load(){
- area.innerHTML='<div class="loading"><div class="spinner"></div>⚽ Matches loading...</div>';
- setStatus("loading football matches...");
- try{
-  const d=await fetchJSON("/api/matches");
-  if(!d.success)throw new Error(d.error||d.message||"API error");
-  matches=Array.isArray(d.matches)?d.matches:[];
-  if(!matches.length){setStatus("No football odds found",true);area.innerHTML='<div class="empty">⚽ Matchoota odds qaban hin argamne.<br><br>ODDS_API_KEY fi API quota ilaali.</div>';return}
-  setStatus("Online • "+matches.length+" football matches");
-  render();
- }catch(e){console.error(e);setStatus("API error",true);area.innerHTML=`<div class="error"><b>⚠️ Matches loading failed</b><br><br>${esc(e.message)}<br><br><button class="filter" onclick="load()">🔄 Try Again</button></div>`}
+
+function card(match) {
+  const h = match.h2h || {};
+
+  const one = h.home
+    ? oddButton(h.home, match.id, "1", "1X2")
+    : "<button class='odd' disabled>—</button>";
+
+  const draw = h.draw
+    ? oddButton(h.draw, match.id, "X", "1X2")
+    : "<button class='odd' disabled>—</button>";
+
+  const two = h.away
+    ? oddButton(h.away, match.id, "2", "1X2")
+    : "<button class='odd' disabled>—</button>";
+
+  return `
+    <article class="match">
+      <div class="league-row">
+        <span>⚽ ${esc(match.league || "Football")}</span>
+        <span class="time">${esc(match.time || "")}</span>
+      </div>
+
+      <div class="teams-row">
+        <div class="team-names">
+          <div>${esc(match.home)}</div>
+          <div>${esc(match.away)}</div>
+        </div>
+        ${one}${draw}${two}
+      </div>
+
+      <div class="market-link" onclick="openMatch('${js(match.id)}')">
+        +${marketCount(match)} Markets
+      </div>
+    </article>
+  `;
 }
-async function openMatch(id){
- const m=matches.find(x=>String(x.id)===String(id));if(!m)return;
- document.getElementById("matchModal").classList.add("show");
- document.getElementById("modalTitle").textContent=m.home+" vs "+m.away;
- document.getElementById("modalContent").innerHTML='<div class="loading"><div class="spinner"></div>Markets loading...</div>';
- try{
-  const d=await fetchJSON("/api/match/"+encodeURIComponent(id),60000);
-  let html="";
-  (d.markets||[]).forEach(mk=>{
-   html+=`<div class="market"><div class="marketname">${esc(mk.name)}</div><div class="selectiongrid">`;
-   (mk.selections||[]).forEach(s=>{
-    html+=`<button class="selection" onclick="addBet('${js(m.id)}','${js(s.value)}','${js(mk.name)}',${Number(s.odd)})">${esc(s.value)}<b>${Number(s.odd).toFixed(2)}</b></button>`
-   });
-   html+="</div></div>";
+
+function render() {
+  const list = matches.filter(
+    match => selectedDate === "all" || dateKey(match) === selectedDate
+  );
+
+  if (!list.length) {
+    area.innerHTML =
+      '<div class="empty">⚽ Guyyaa kanaaf match hin jiru.</div>';
+    return;
+  }
+
+  const groups = {};
+
+  list.forEach(match => {
+    const key = dateKey(match);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(match);
   });
-  document.getElementById("modalContent").innerHTML=html||'<div class="empty">Market hin argamne.</div>';
- }catch(e){document.getElementById("modalContent").innerHTML='<div class="error">'+esc(e.message)+'</div>'}
+
+  let html = "";
+
+  Object.keys(groups)
+    .sort()
+    .forEach(day => {
+      html += `
+        <div class="day-title">
+          📅 ${esc(fullDate(day))}
+          <small>${groups[day].length} matches</small>
+        </div>
+      `;
+
+      groups[day].forEach(match => {
+        html += card(match);
+      });
+    });
+
+  area.innerHTML = html;
 }
-function closeMatch(){document.getElementById("matchModal").classList.remove("show")}
-function outsideMatch(e){if(e.target.id==="matchModal")closeMatch()}
-function addBet(id,selection,market,odd){
- const m=matches.find(x=>String(x.id)===String(id));if(!m)return;
- betslip=betslip.filter(x=>String(x.fixture_id)!==String(id));
- betslip.push({fixture_id:id,home:m.home,away:m.away,league:m.league,market,selection,odd:Number(odd)});
- localStorage.setItem("bestbet_betslip",JSON.stringify(betslip));
- updateSlip();closeMatch();openSlip();
+
+async function load(force = false) {
+  if (refreshBtn) refreshBtn.disabled = true;
+
+  area.innerHTML =
+    '<div class="loading"><div class="spinner"></div>⚽ Matches loading...</div>';
+
+  setStatus("loading football matches...");
+
+  try {
+    const url = force ? "/api/matches?refresh=1" : "/api/matches";
+    const data = await fetchJSON(url, 40000);
+
+    if (!data.success) {
+      throw new Error(data.error || data.message || "API error");
+    }
+
+    matches = Array.isArray(data.matches) ? data.matches : [];
+
+    if (!matches.length) {
+      setStatus("No football odds found", true);
+
+      area.innerHTML = `
+        <div class="empty">
+          ⚽ Matchoota odds qaban hin argamne.<br><br>
+          API key, quota fi football coverage ilaali.<br><br>
+          <button class="filter" type="button" onclick="load(true)">
+            🔄 Try Again
+          </button>
+        </div>
+      `;
+
+      return;
+    }
+
+    setStatus(
+      "Online • " + matches.length + " football matches"
+    );
+
+    render();
+
+  } catch (error) {
+    console.error("LOAD ERROR:", error);
+
+    setStatus("API error", true);
+
+    area.innerHTML = `
+      <div class="error">
+        <b>⚠️ Matches loading failed</b><br><br>
+        ${esc(error.message)}
+        <br><br>
+        <button class="filter" type="button" onclick="load(true)">
+          🔄 Try Again
+        </button>
+      </div>
+    `;
+
+  } finally {
+    if (refreshBtn) refreshBtn.disabled = false;
+  }
 }
-function updateSlip(){
- document.getElementById("slipCount").textContent=betslip.length;
- document.getElementById("navCount").textContent=betslip.length;
- let total=1;betslip.forEach(x=>{if(Number(x.odd)>1)total*=Number(x.odd)});
- document.getElementById("slipOdds").textContent=total.toFixed(2);
- document.getElementById("payout").textContent=(total>1?(total*100).toFixed(2):"0.00");
+
+async function openMatch(id) {
+  const match = matches.find(
+    item => String(item.id) === String(id)
+  );
+
+  if (!match) return;
+
+  document.getElementById("matchModal").classList.add("show");
+
+  document.getElementById("modalTitle").textContent =
+    match.home + " vs " + match.away;
+
+  document.getElementById("modalContent").innerHTML =
+    '<div class="loading"><div class="spinner"></div>Markets loading...</div>';
+
+  try {
+    const data = await fetchJSON(
+      "/api/match/" + encodeURIComponent(id),
+      25000
+    );
+
+    let html = "";
+
+    (data.markets || []).forEach(market => {
+      html += `
+        <div class="market">
+          <div class="marketname">${esc(market.name)}</div>
+          <div class="selectiongrid">
+      `;
+
+      (market.selections || []).forEach(selection => {
+        html += `
+          <button
+            class="selection"
+            type="button"
+            onclick="addBet(
+              '${js(match.id)}',
+              '${js(selection.value)}',
+              '${js(market.name)}',
+              ${Number(selection.odd)}
+            )"
+          >
+            ${esc(selection.value)}
+            <b>${Number(selection.odd).toFixed(2)}</b>
+          </button>
+        `;
+      });
+
+      html += "</div></div>";
+    });
+
+    document.getElementById("modalContent").innerHTML =
+      html || '<div class="empty">Market hin argamne.</div>';
+
+  } catch (error) {
+    document.getElementById("modalContent").innerHTML =
+      '<div class="error">' + esc(error.message) + "</div>";
+  }
 }
-function openSlip(){renderSlip();document.getElementById("slipModal").classList.add("show")}
-function closeSlip(){document.getElementById("slipModal").classList.remove("show")}
-function outsideSlip(e){if(e.target.id==="slipModal")closeSlip()}
-function renderSlip(){
- const c=document.getElementById("slipContent");
- if(!betslip.length){c.innerHTML='<div class="empty">🎟️ Bet Slip duwwaa dha.<br><br>Match keessaa odds filadhu.</div>';return}
- c.innerHTML=betslip.map((x,i)=>`<div class="slipitem"><b>⚽ ${esc(x.home)} vs ${esc(x.away)}</b><br><small>${esc(x.league)}</small><br><br>🎯 ${esc(x.selection)} — <b>${Number(x.odd).toFixed(2)}</b><br><button class="remove" onclick="removeBet(${i})">🗑 Remove</button></div>`).join("");
+
+function closeMatch() {
+  document.getElementById("matchModal").classList.remove("show");
 }
-function removeBet(i){betslip.splice(i,1);localStorage.setItem("bestbet_betslip",JSON.stringify(betslip));updateSlip();renderSlip();render()}
-try{betslip=JSON.parse(localStorage.getItem("bestbet_betslip")||"[]")}catch(e){betslip=[]}
-updateSlip();load();
-setInterval(load,120000);
+
+function outsideMatch(event) {
+  if (event.target.id === "matchModal") closeMatch();
+}
+
+function addBet(id, selection, market, odd) {
+  const match = matches.find(
+    item => String(item.id) === String(id)
+  );
+
+  if (!match) return;
+
+  betslip = betslip.filter(
+    item => String(item.fixture_id) !== String(id)
+  );
+
+  betslip.push({
+    fixture_id: id,
+    home: match.home,
+    away: match.away,
+    league: match.league,
+    market: market,
+    selection: selection,
+    odd: Number(odd)
+  });
+
+  localStorage.setItem(
+    "bestbet_betslip",
+    JSON.stringify(betslip)
+  );
+
+  updateSlip();
+  closeMatch();
+  openSlip();
+}
+
+function updateSlip() {
+  document.getElementById("slipCount").textContent =
+    betslip.length;
+
+  document.getElementById("navCount").textContent =
+    betslip.length;
+
+  let total = 1;
+
+  betslip.forEach(item => {
+    const odd = Number(item.odd);
+    if (Number.isFinite(odd) && odd > 1) {
+      total *= odd;
+    }
+  });
+
+  document.getElementById("slipOdds").textContent =
+    total.toFixed(2);
+
+  document.getElementById("payout").textContent =
+    total > 1 ? (total * 100).toFixed(2) : "0.00";
+}
+
+function openSlip() {
+  renderSlip();
+  document.getElementById("slipModal").classList.add("show");
+}
+
+function closeSlip() {
+  document.getElementById("slipModal").classList.remove("show");
+}
+
+function outsideSlip(event) {
+  if (event.target.id === "slipModal") closeSlip();
+}
+
+function renderSlip() {
+  const container = document.getElementById("slipContent");
+
+  if (!betslip.length) {
+    container.innerHTML =
+      '<div class="empty">🎟️ Bet Slip duwwaa dha.<br><br>Match keessaa odds filadhu.</div>';
+    return;
+  }
+
+  container.innerHTML = betslip.map((item, index) => `
+    <div class="slipitem">
+      <b>⚽ ${esc(item.home)} vs ${esc(item.away)}</b>
+      <br>
+      <small>${esc(item.league)}</small>
+      <br><br>
+      🎯 ${esc(item.selection)}
+      —
+      <b>${Number(item.odd).toFixed(2)}</b>
+      <br>
+      <button
+        class="remove"
+        type="button"
+        onclick="removeBet(${index})"
+      >🗑 Remove</button>
+    </div>
+  `).join("");
+}
+
+function removeBet(index) {
+  betslip.splice(index, 1);
+
+  localStorage.setItem(
+    "bestbet_betslip",
+    JSON.stringify(betslip)
+  );
+
+  updateSlip();
+  renderSlip();
+  render();
+}
+
+async function loadLive() {
+  area.innerHTML =
+    '<div class="loading"><div class="spinner"></div>⚽ Live matches loading...</div>';
+
+  setStatus("loading live matches...");
+
+  try {
+    const data = await fetchJSON("/api/live", 30000);
+
+    if (!data.success) {
+      throw new Error(data.error || "Live API error");
+    }
+
+    const live = Array.isArray(data.matches)
+      ? data.matches
+      : [];
+
+    if (!live.length) {
+      area.innerHTML =
+        '<div class="empty">🔴 Yeroo ammaa live match hin argamne.</div>';
+      setStatus("No live matches");
+      return;
+    }
+
+    let html = "";
+
+    live.forEach(match => {
+      html += `
+        <article class="match">
+          <div class="league-row">
+            <span>🔴 ${esc(match.league || "Football")}</span>
+          </div>
+          <div class="team-names">
+            <div>${esc(match.home)} — ${esc(match.home_score ?? "-")}</div>
+            <div>${esc(match.away)} — ${esc(match.away_score ?? "-")}</div>
+          </div>
+        </article>
+      `;
+    });
+
+    area.innerHTML = html;
+    setStatus("Live • " + live.length + " matches");
+
+  } catch (error) {
+    area.innerHTML =
+      '<div class="error">⚠️ ' + esc(error.message) + "</div>";
+    setStatus("Live API error", true);
+  }
+}
+
+if (todayBtn) {
+  todayBtn.addEventListener("click", () => {
+    if (!matches.length) return;
+
+    if (selectedDate === "all") {
+      selectedDate = dateKey(matches[0]) || "all";
+      todayBtn.innerHTML = "First Day ▼";
+    } else {
+      selectedDate = "all";
+      todayBtn.innerHTML = "All Days ▼";
+    }
+
+    render();
+  });
+}
+
+if (refreshBtn) {
+  refreshBtn.addEventListener("click", () => load(true));
+}
+
+try {
+  const saved = JSON.parse(
+    localStorage.getItem("bestbet_betslip") || "[]"
+  );
+
+  if (Array.isArray(saved)) {
+    betslip = saved;
+  }
+} catch {
+  betslip = [];
+}
+
+updateSlip();
+load(false);
+
+// Refresh every 5 minutes instead of every 2 minutes.
+// This reduces API quota usage.
+setInterval(() => load(false), 300000);
 </script>
 </body>
 </html>
