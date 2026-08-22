@@ -2,7 +2,6 @@ import os
 import time
 import threading
 from datetime import datetime, timezone, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 from flask import Flask, jsonify, render_template, request
@@ -13,6 +12,7 @@ from telegram import (
     InlineKeyboardMarkup,
     WebAppInfo,
 )
+
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -26,10 +26,20 @@ from telegram.ext import (
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 
+# ---------------------------------------------------------
+# SPORTMONKS
+# ---------------------------------------------------------
+
 SPORTMONKS_API_TOKEN = os.getenv(
     "SPORTMONKS_API_TOKEN",
     os.getenv("SPORTMONKS_API_KEY", "")
 ).strip()
+
+SPORTMONKS_BASE = "https://api.sportmonks.com/v3/football"
+
+# ---------------------------------------------------------
+# WEB APP
+# ---------------------------------------------------------
 
 WEB_APP_URL = os.getenv(
     "WEB_APP_URL",
@@ -38,9 +48,14 @@ WEB_APP_URL = os.getenv(
 
 PORT = int(os.getenv("PORT", "10000"))
 
-SPORTMONKS_BASE = "https://api.sportmonks.com/v3/football"
+# ---------------------------------------------------------
+# DATE / CACHE
+# ---------------------------------------------------------
 
-DAYS_AHEAD = max(1, int(os.getenv("DAYS_AHEAD", "7")))
+DAYS_AHEAD = max(
+    1,
+    int(os.getenv("DAYS_AHEAD", "7"))
+)
 
 API_TIMEOUT = max(
     5,
@@ -49,53 +64,140 @@ API_TIMEOUT = max(
 
 CACHE_SECONDS = max(
     30,
-    int(os.getenv("CACHE_SECONDS", "120"))
+    int(os.getenv("CACHE_SECONDS", "60"))
 )
 
 INITIAL_WAIT_SECONDS = max(
     0,
-    int(os.getenv("INITIAL_WAIT_SECONDS", "20"))
+    int(os.getenv("INITIAL_WAIT_SECONDS", "15"))
 )
 
 MAX_FIXTURE_PAGES = max(
     1,
-    int(os.getenv("MAX_FIXTURE_PAGES", "20"))
+    int(os.getenv("MAX_FIXTURE_PAGES", "10"))
 )
 
-# Direct odds endpoint fallback.
-# 1 = enabled
 DETAIL_REFRESH_ODDS = (
     os.getenv("DETAIL_REFRESH_ODDS", "1").strip() == "1"
 )
 
-# Maximum number of direct fixture-odds requests
-# during one refresh.
-MAX_ODDS_DETAIL_REQUESTS = max(
-    0,
-    int(os.getenv("MAX_ODDS_DETAIL_REQUESTS", "80"))
-)
+# =========================================================
+# MAJOR FOOTBALL LEAGUES
+# =========================================================
+#
+# SportMonks league IDs
+#
+# Premier League       = 8
+# Bundesliga            = 82
+# Serie A               = 384
+# LaLiga                = 564
+# Ligue 1               = 301
+# Champions League      = 2
+# Europa League         = 3
+#
+# =========================================================
 
-ODDS_WORKERS = max(
-    1,
-    int(os.getenv("ODDS_WORKERS", "8"))
-)
+MAJOR_LEAGUES = {
+    "8": {
+        "id": 8,
+        "name": "Premier League",
+        "country": "England",
+        "short": "ENG",
+    },
 
-# Optional bookmaker IDs.
-# Leave EMPTY to use ALL available bookmakers.
+    "564": {
+        "id": 564,
+        "name": "LaLiga",
+        "country": "Spain",
+        "short": "ESP",
+    },
+
+    "384": {
+        "id": 384,
+        "name": "Serie A",
+        "country": "Italy",
+        "short": "ITA",
+    },
+
+    "82": {
+        "id": 82,
+        "name": "Bundesliga",
+        "country": "Germany",
+        "short": "GER",
+    },
+
+    "301": {
+        "id": 301,
+        "name": "Ligue 1",
+        "country": "France",
+        "short": "FRA",
+    },
+
+    "2": {
+        "id": 2,
+        "name": "UEFA Champions League",
+        "country": "Europe",
+        "short": "UCL",
+    },
+
+    "3": {
+        "id": 3,
+        "name": "UEFA Europa League",
+        "country": "Europe",
+        "short": "UEL",
+    },
+}
+
+# ---------------------------------------------------------
+# Optional environment league list
+#
+# Example:
+# SPORTMONKS_LEAGUES=8,564,384,82,301,2,3
+#
+# ---------------------------------------------------------
+
+_env_leagues = os.getenv(
+    "SPORTMONKS_LEAGUES",
+    ""
+).strip()
+
+if _env_leagues:
+    requested_ids = [
+        x.strip()
+        for x in _env_leagues.split(",")
+        if x.strip()
+    ]
+
+    SELECTED_LEAGUES = {
+        k: v
+        for k, v in MAJOR_LEAGUES.items()
+        if k in requested_ids
+    }
+
+    if not SELECTED_LEAGUES:
+        SELECTED_LEAGUES = MAJOR_LEAGUES.copy()
+else:
+    SELECTED_LEAGUES = MAJOR_LEAGUES.copy()
+
+
+# ---------------------------------------------------------
+# BOOKMAKERS / MARKETS
+# ---------------------------------------------------------
+
 SPORTMONKS_BOOKMAKERS = [
     x.strip()
     for x in os.getenv(
-        "SPORTMONKS_BOOKMAKERS", ""
+        "SPORTMONKS_BOOKMAKERS",
+        ""
     ).split(",")
     if x.strip()
 ]
 
-# Optional market IDs.
-# Leave EMPTY to use ALL available markets.
 SPORTMONKS_MARKETS = [
     x.strip()
     for x in os.getenv(
-        "SPORTMONKS_MARKETS", ""
+        "SPORTMONKS_MARKETS",
+        ""
     ).split(",")
     if x.strip()
 ]
@@ -105,20 +207,12 @@ ETHIOPIA_TZ = timezone(
 )
 
 # =========================================================
-# FLASK
+# FLASK / DATA
 # =========================================================
 
 app = Flask(__name__)
 
-# =========================================================
-# USERS
-# =========================================================
-
 USERS = {}
-
-# =========================================================
-# CACHE
-# =========================================================
 
 CACHE_LOCK = threading.Lock()
 REFRESH_LOCK = threading.Lock()
@@ -132,21 +226,12 @@ MATCH_CACHE = {
     "refreshing": False,
 }
 
-# =========================================================
-# API STATS
-# =========================================================
-
 API_STATS = {
     "last_status": None,
     "last_error": None,
     "last_request": None,
     "last_refresh": None,
     "last_response_time": None,
-
-    "fixture_count": 0,
-    "fixtures_with_odds": 0,
-    "odds_count": 0,
-    "direct_odds_requests": 0,
 }
 
 # =========================================================
@@ -203,10 +288,7 @@ def betslip_text(user_id):
 
     text = "🎟️ *BET SLIP*\n\n"
 
-    for i, item in enumerate(
-        slips,
-        1
-    ):
+    for i, item in enumerate(slips, 1):
 
         try:
             odd = float(
@@ -236,7 +318,6 @@ def betslip_text(user_id):
         "🧪 Demo/testing qofa."
     )
 
-
 # =========================================================
 # HELPERS
 # =========================================================
@@ -256,29 +337,12 @@ def parse_iso_datetime(value):
 
     try:
 
-        text = str(value).strip()
-
-        text = text.replace(
-            "Z",
-            "+00:00"
-        )
-
-        dt = datetime.fromisoformat(
-            text
-        )
-
-        # SportMonks can return:
-        # 2026-08-22 15:00:00
-        #
-        # If no timezone is included,
-        # treat it as UTC.
-        if dt.tzinfo is None:
-
-            dt = dt.replace(
-                tzinfo=timezone.utc
+        return datetime.fromisoformat(
+            str(value).replace(
+                "Z",
+                "+00:00"
             )
-
-        return dt.astimezone(
+        ).astimezone(
             timezone.utc
         )
 
@@ -355,35 +419,31 @@ def extract_teams(fixture):
         or []
     )
 
-    participants = as_list(
-        participants
-    )
+    if isinstance(participants, dict):
+        participants = as_list(
+            participants
+        )
 
     home = ""
     away = ""
 
     for p in participants:
 
-        if not isinstance(p, dict):
-            continue
-
         meta = p.get("meta") or {}
 
-        location = str(
+        loc = str(
             meta.get("location", "")
         ).lower()
 
         name = participant_name(p)
 
-        if location == "home":
+        if loc == "home":
             home = name
 
-        elif location == "away":
+        elif loc == "away":
             away = name
 
-    # Fallback
     if not home and participants:
-
         home = participant_name(
             participants[0]
         )
@@ -392,7 +452,6 @@ def extract_teams(fixture):
         not away
         and len(participants) > 1
     ):
-
         away = participant_name(
             participants[1]
         )
@@ -410,16 +469,27 @@ def extract_teams(fixture):
     )
 
 
-def extract_league(fixture):
+def extract_league_id(fixture):
 
-    league = fixture.get(
-        "league"
+    league = fixture.get("league")
+
+    if isinstance(league, dict):
+
+        return (
+            league.get("id")
+            or fixture.get("league_id")
+        )
+
+    return fixture.get(
+        "league_id"
     )
 
-    if isinstance(
-        league,
-        dict
-    ):
+
+def extract_league(fixture):
+
+    league = fixture.get("league")
+
+    if isinstance(league, dict):
 
         return (
             league.get("name")
@@ -433,23 +503,33 @@ def extract_league(fixture):
     )
 
 
-def extract_league_id(fixture):
+def get_league_info(league_id, name=""):
 
-    league = fixture.get(
-        "league"
-    )
+    if league_id is not None:
 
-    if isinstance(
-        league,
-        dict
-    ):
+        info = SELECTED_LEAGUES.get(
+            str(league_id)
+        )
 
-        return league.get("id")
+        if info:
+            return info
 
-    return fixture.get(
-        "league_id"
-    )
+    lower = str(name).lower()
 
+    for info in SELECTED_LEAGUES.values():
+
+        if (
+            info["name"].lower()
+            == lower
+        ):
+            return info
+
+    return {
+        "id": league_id,
+        "name": name or "Football",
+        "country": "",
+        "short": "",
+    }
 
 # =========================================================
 # SPORTMONKS REQUEST
@@ -464,8 +544,8 @@ def sportmonks_request(
 
         raise RuntimeError(
             "SPORTMONKS_API_TOKEN hin jiru. "
-            "Render > Environment Variables "
-            "keessatti token galchi."
+            "Render > Environment Variables keessatti "
+            "SportMonks token galchi."
         )
 
     query = dict(
@@ -537,7 +617,7 @@ def sportmonks_request(
 
         body = {
             "raw":
-                response.text[:5000]
+                response.text[:3000]
         }
 
     if response.status_code != 200:
@@ -556,10 +636,7 @@ def sportmonks_request(
             message
         )
 
-    if isinstance(
-        body,
-        dict
-    ):
+    if isinstance(body, dict):
 
         if body.get("error"):
 
@@ -598,22 +675,26 @@ def sportmonks_request(
 
     return body
 
-
 # =========================================================
-# ODDS EXTRACTION
+# ODDS
 # =========================================================
 
 def extract_odds_from_fixture(
     fixture
 ):
 
-    raw = fixture.get(
-        "odds"
-    )
+    raw = fixture.get("odds")
 
-    odds = as_list(
-        raw
-    )
+    odds = as_list(raw)
+
+    if (
+        not odds
+        and isinstance(raw, dict)
+    ):
+
+        odds = raw.get(
+            "data"
+        ) or []
 
     return [
         x
@@ -627,11 +708,6 @@ def normalize_odd(odd):
     value = safe_float(
         odd.get("value")
     )
-
-    if value is None:
-        value = safe_float(
-            odd.get("odd")
-        )
 
     if (
         value is None
@@ -662,7 +738,7 @@ def normalize_odd(odd):
         or odd.get(
             "market_name"
         )
-        or "Market"
+        or ""
     )
 
     bookmaker_id = (
@@ -684,7 +760,10 @@ def normalize_odd(odd):
         or ""
     ).strip()
 
-    # Client-side bookmaker filter.
+    # -----------------------------------------------------
+    # Optional bookmaker filtering
+    # -----------------------------------------------------
+
     if (
         SPORTMONKS_BOOKMAKERS
         and str(bookmaker_id)
@@ -692,7 +771,10 @@ def normalize_odd(odd):
     ):
         return None
 
-    # Client-side market filter.
+    # -----------------------------------------------------
+    # Optional market filtering
+    # -----------------------------------------------------
+
     if (
         SPORTMONKS_MARKETS
         and str(market_id)
@@ -701,7 +783,6 @@ def normalize_odd(odd):
         return None
 
     return {
-
         "id":
             odd.get("id"),
 
@@ -715,13 +796,15 @@ def normalize_odd(odd):
             market_name,
 
         "market_description":
-            odd.get(
-                "market_description"
-            )
-            or market.get(
-                "description"
-            )
-            or "",
+            (
+                odd.get(
+                    "market_description"
+                )
+                or market.get(
+                    "description"
+                )
+                or ""
+            ),
 
         "bookmaker_id":
             bookmaker_id,
@@ -751,27 +834,9 @@ def normalize_odd(odd):
                 )
             ),
 
-        "total":
-            odd.get(
-                "total"
-            ),
-
-        "handicap":
-            odd.get(
-                "handicap"
-            ),
-
-        "participants":
-            odd.get(
-                "participants"
-            ),
-
         "last_update":
             (
                 odd.get(
-                    "latest_bookmaker_update"
-                )
-                or odd.get(
                     "last_update"
                 )
                 or odd.get(
@@ -781,9 +846,7 @@ def normalize_odd(odd):
     }
 
 
-def normalized_odds(
-    fixture
-):
+def normalized_odds(fixture):
 
     result = []
 
@@ -796,16 +859,10 @@ def normalized_odds(
         )
 
         if item:
-            result.append(
-                item
-            )
+            result.append(item)
 
     return result
 
-
-# =========================================================
-# MARKET DETECTION
-# =========================================================
 
 def market_key(odd):
 
@@ -823,21 +880,15 @@ def market_key(odd):
         )
     ).lower()
 
-    text = text.replace(
-        "_",
-        " "
-    )
-
     if (
         "both teams" in text
         or "btts" in text
-        or "both to score" in text
+        or "both_to_score" in text
     ):
         return "btts"
 
     if (
         "over/under" in text
-        or "over under" in text
         or "total" in text
         or "goals" in text
     ):
@@ -852,18 +903,37 @@ def market_key(odd):
 
     if (
         "match winner" in text
-        or "fulltime result" in text
-        or "fulltime" in text
         or "1x2" in text
+        or "fulltime result" in text
+        or text.strip()
+        in (
+            "match winner",
+            "1x2",
+            "fulltime result",
+        )
+    ):
+        return "h2h"
+
+    # SportMonks markets can sometimes
+    # have generic names. Try labels.
+    label = str(
+        odd.get("label")
+        or odd.get("name")
+        or ""
+    ).lower()
+
+    if label in (
+        "home",
+        "draw",
+        "away",
+        "1",
+        "x",
+        "2",
     ):
         return "h2h"
 
     return "other"
 
-
-# =========================================================
-# H2H
-# =========================================================
 
 def choose_best_h2h(
     odds,
@@ -888,29 +958,31 @@ def choose_best_h2h(
 
         if (
             label == home
+            or low == str(
+                home
+            ).lower()
             or low == "home"
             or low == "1"
         ):
-
             key = "home"
 
         elif (
             label == away
+            or low == str(
+                away
+            ).lower()
             or low == "away"
             or low == "2"
         ):
-
             key = "away"
 
         elif low in (
             "draw",
-            "x"
+            "x",
         ):
-
             key = "draw"
 
         else:
-
             continue
 
         if (
@@ -918,15 +990,10 @@ def choose_best_h2h(
             or odd["odd"]
             > result[key]["odd"]
         ):
-
             result[key] = odd
 
     return result
 
-
-# =========================================================
-# TOTALS
-# =========================================================
 
 def choose_main_totals(
     odds
@@ -945,36 +1012,29 @@ def choose_main_totals(
             or ""
         ).lower()
 
-        if "over" in label:
-
-            key = "over"
-
-        elif "under" in label:
-
-            key = "under"
-
-        else:
-
-            continue
+        key = (
+            "over"
+            if "over" in label
+            else
+            "under"
+            if "under" in label
+            else None
+        )
 
         if (
-            key not in result
-            or odd["odd"]
-            > result[key]["odd"]
+            key
+            and (
+                key not in result
+                or odd["odd"]
+                > result[key]["odd"]
+            )
         ):
-
             result[key] = odd
 
     return result
 
 
-# =========================================================
-# BTTS
-# =========================================================
-
-def choose_btts(
-    odds
-):
+def choose_btts(odds):
 
     result = {}
 
@@ -987,40 +1047,35 @@ def choose_btts(
             odd.get("label")
             or odd.get("name")
             or ""
-        ).lower().strip()
+        ).lower()
 
-        if label in (
-            "yes",
-            "btts yes"
-        ):
-
-            key = "yes"
-
-        elif label in (
-            "no",
-            "btts no"
-        ):
-
-            key = "no"
-
-        else:
-
-            continue
+        key = (
+            "yes"
+            if label in (
+                "yes",
+                "btts yes",
+            )
+            else
+            "no"
+            if label in (
+                "no",
+                "btts no",
+            )
+            else None
+        )
 
         if (
-            key not in result
-            or odd["odd"]
-            > result[key]["odd"]
+            key
+            and (
+                key not in result
+                or odd["odd"]
+                > result[key]["odd"]
+            )
         ):
-
             result[key] = odd
 
     return result
 
-
-# =========================================================
-# BEST BET
-# =========================================================
 
 def calculate_best_bet(
     odds,
@@ -1085,20 +1140,9 @@ def calculate_best_bet(
 
             x = totals[key]
 
-            line = (
-                x.get("total")
-                or ""
-            )
-
-            selection_text = (
-                f"{selection} {line}"
-                if line
-                else selection
-            )
-
             candidates.append({
                 "selection":
-                    selection_text,
+                    selection,
 
                 "odd":
                     x["odd"],
@@ -1178,21 +1222,18 @@ def calculate_best_bet(
     if not candidates:
         return None
 
-    # Lowest odd = strongest implied probability.
     return min(
         candidates,
         key=lambda x:
             float(x["odd"])
     )
 
-
 # =========================================================
 # FIXTURE CONVERSION
 # =========================================================
 
 def convert_fixture(
-    fixture,
-    external_odds=None
+    fixture
 ):
 
     fixture_id = fixture.get(
@@ -1203,12 +1244,17 @@ def convert_fixture(
         fixture
     )
 
-    league = extract_league(
+    league_id = extract_league_id(
         fixture
     )
 
-    league_id = extract_league_id(
+    league_name = extract_league(
         fixture
+    )
+
+    league_info = get_league_info(
+        league_id,
+        league_name
     )
 
     commence = (
@@ -1233,23 +1279,6 @@ def convert_fixture(
     odds = normalized_odds(
         fixture
     )
-
-    # Direct odds endpoint can override
-    # incomplete fixture include.
-    if external_odds is not None:
-
-        odds = []
-
-        for raw in external_odds:
-
-            item = normalize_odd(
-                raw
-            )
-
-            if item:
-                odds.append(
-                    item
-                )
 
     h2h = choose_best_h2h(
         odds,
@@ -1276,11 +1305,25 @@ def convert_fixture(
         "sport_key":
             "football",
 
-        "league":
-            league,
-
         "league_id":
-            league_id,
+            league_info.get(
+                "id"
+            ),
+
+        "league":
+            league_info.get(
+                "name"
+            ),
+
+        "country":
+            league_info.get(
+                "country"
+            ),
+
+        "league_short":
+            league_info.get(
+                "short"
+            ),
 
         "home":
             home,
@@ -1296,55 +1339,59 @@ def convert_fixture(
         "commence_time":
             commence,
 
-        "has_odds":
-            bool(
-                fixture.get(
-                    "has_odds"
-                )
-            ),
-
         "h2h": {
-
             "home":
-                h2h["home"]["odd"]
-                if h2h.get("home")
-                else None,
+                (
+                    h2h["home"]["odd"]
+                    if h2h.get("home")
+                    else None
+                ),
 
             "draw":
-                h2h["draw"]["odd"]
-                if h2h.get("draw")
-                else None,
+                (
+                    h2h["draw"]["odd"]
+                    if h2h.get("draw")
+                    else None
+                ),
 
             "away":
-                h2h["away"]["odd"]
-                if h2h.get("away")
-                else None,
+                (
+                    h2h["away"]["odd"]
+                    if h2h.get("away")
+                    else None
+                ),
         },
 
         "totals": {
-
             "over":
-                totals["over"]["odd"]
-                if totals.get("over")
-                else None,
+                (
+                    totals["over"]["odd"]
+                    if totals.get("over")
+                    else None
+                ),
 
             "under":
-                totals["under"]["odd"]
-                if totals.get("under")
-                else None,
+                (
+                    totals["under"]["odd"]
+                    if totals.get("under")
+                    else None
+                ),
         },
 
         "btts": {
-
             "yes":
-                btts["yes"]["odd"]
-                if btts.get("yes")
-                else None,
+                (
+                    btts["yes"]["odd"]
+                    if btts.get("yes")
+                    else None
+                ),
 
             "no":
-                btts["no"]["odd"]
-                if btts.get("no")
-                else None,
+                (
+                    btts["no"]["odd"]
+                    if btts.get("no")
+                    else None
+                ),
         },
 
         "spreads": [
@@ -1354,9 +1401,7 @@ def convert_fixture(
                     o.get("label"),
 
                 "point":
-                    o.get(
-                        "handicap"
-                    ),
+                    o.get("label"),
 
                 "price":
                     o.get("odd"),
@@ -1373,6 +1418,7 @@ def convert_fixture(
             }
 
             for o in odds
+
             if market_key(o)
             == "spreads"
         ],
@@ -1394,149 +1440,141 @@ def convert_fixture(
             fixture.get(
                 "state"
             ),
-
-        "starting_at_timestamp":
-            fixture.get(
-                "starting_at_timestamp"
-            ),
     }
 
-
 # =========================================================
-# FIXTURE REQUEST
+# FIXTURE API
 # =========================================================
 
 def fetch_fixture_page(
     start_date,
     end_date,
-    page=1
+    page=1,
+    league_id=None
 ):
 
     params = {
 
         "include":
-            "participants;league;state;odds;odds.market;odds.bookmaker",
+            "participants;league;state;odds",
 
         "page":
             page,
-
-        "per_page":
-            50,
-
-        "order":
-            "asc",
     }
 
-    # IMPORTANT:
-    # We DO NOT send bookmakers/markets
-    # as invalid top-level parameters.
-    #
-    # We fetch broad coverage and filter
-    # odds locally.
-    #
-    # SportMonks documents bookmakers/markets
-    # as filters on odds. The local filter here
-    # is safer when environment variables are empty.
+    # -----------------------------------------------------
+    # IMPORTANT
+    # Ask SportMonks for one league at a time.
+    # -----------------------------------------------------
+
+    if league_id is not None:
+
+        params["filters"] = (
+            f"fixtureLeagues:{league_id}"
+        )
+
+    if SPORTMONKS_BOOKMAKERS:
+
+        params["bookmakers"] = ",".join(
+            SPORTMONKS_BOOKMAKERS
+        )
+
+    if SPORTMONKS_MARKETS:
+
+        params["markets"] = ",".join(
+            SPORTMONKS_MARKETS
+        )
+
     return sportmonks_request(
-        f"/fixtures/between/{start_date}/{end_date}",
-        params
+        f"/fixtures/between/"
+        f"{start_date}/"
+        f"{end_date}",
+        params,
     )
 
-
 # =========================================================
-# DIRECT PRE-MATCH ODDS
+# FETCH ONE LEAGUE
 # =========================================================
 
-def fetch_fixture_odds(
-    fixture_id
+def fetch_one_league(
+    league_id,
+    league_info,
+    start_date,
+    end_date
 ):
-
-    try:
-
-        body = sportmonks_request(
-            f"/odds/pre-match/fixtures/{fixture_id}",
-            {
-                "include":
-                    "bookmaker;market"
-            }
-        )
-
-        return as_list(
-            body
-        )
-
-    except Exception as exc:
-
-        print(
-            "[ODDS DETAIL ERROR]",
-            fixture_id,
-            repr(exc)
-        )
-
-        return []
-
-
-# =========================================================
-# FETCH ALL MATCHES
-# =========================================================
-
-def fetch_matches_from_api():
-
-    now = datetime.now(
-        timezone.utc
-    )
-
-    # Use Ethiopia date for UI.
-    local_now = now.astimezone(
-        ETHIOPIA_TZ
-    )
-
-    local_end = (
-        local_now
-        + timedelta(
-            days=DAYS_AHEAD - 1
-        )
-    )
-
-    start_date = (
-        local_now.strftime(
-            "%Y-%m-%d"
-        )
-    )
-
-    end_date = (
-        local_end.strftime(
-            "%Y-%m-%d"
-        )
-    )
-
-    print(
-        "[SPORTMONKS DATE]",
-        start_date,
-        "->",
-        end_date
-    )
 
     fixtures = []
 
     page = 1
 
-    while page <= MAX_FIXTURE_PAGES:
+    print(
+        "[LEAGUE START]",
+        league_info["name"],
+        league_id
+    )
 
-        body = fetch_fixture_page(
-            start_date,
-            end_date,
-            page
-        )
+    while (
+        page
+        <= MAX_FIXTURE_PAGES
+    ):
+
+        try:
+
+            body = fetch_fixture_page(
+                start_date,
+                end_date,
+                page,
+                league_id
+            )
+
+        except Exception as exc:
+
+            print(
+                "[LEAGUE ERROR]",
+                league_info["name"],
+                repr(exc)
+            )
+
+            # ------------------------------------------------
+            # FALLBACK:
+            # If league filter is rejected by the API,
+            # fetch the date range without the filter.
+            # Then local filtering will be done below.
+            # ------------------------------------------------
+
+            try:
+
+                print(
+                    "[LEAGUE FALLBACK]",
+                    league_info["name"]
+                )
+
+                body = fetch_fixture_page(
+                    start_date,
+                    end_date,
+                    page,
+                    None
+                )
+
+            except Exception as fallback_exc:
+
+                print(
+                    "[FALLBACK ERROR]",
+                    league_info["name"],
+                    repr(fallback_exc)
+                )
+
+                break
 
         data = as_list(
             body
         )
 
         print(
-            "[FIXTURE PAGE]",
+            "[LEAGUE PAGE]",
+            league_info["name"],
             page,
-            "COUNT:",
+            "fixtures:",
             len(data)
         )
 
@@ -1564,11 +1602,12 @@ def fetch_matches_from_api():
         ):
             break
 
-        has_more = pagination.get(
-            "has_more"
-        )
-
-        if has_more is False:
+        if (
+            pagination.get(
+                "has_more"
+            )
+            is False
+        ):
             break
 
         next_page = pagination.get(
@@ -1588,15 +1627,135 @@ def fetch_matches_from_api():
 
             page += 1
 
-    # =====================================================
-    # FILTER VALID UPCOMING FIXTURES
-    # =====================================================
+    return fixtures
 
-    valid = []
+# =========================================================
+# FETCH ALL MAJOR LEAGUES
+# =========================================================
 
-    for fixture in fixtures:
+def fetch_matches_from_api():
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    end_time = (
+        now
+        + timedelta(
+            days=DAYS_AHEAD
+        )
+    )
+
+    start_date = date_text_utc(
+        now
+    )
+
+    end_date = date_text_utc(
+        end_time
+    )
+
+    print("=" * 65)
+
+    print(
+        "SPORTMONKS MAJOR LEAGUES"
+    )
+
+    print(
+        "DATE:",
+        start_date,
+        "->",
+        end_date
+    )
+
+    print(
+        "DAYS:",
+        DAYS_AHEAD
+    )
+
+    print(
+        "LEAGUES:",
+        ", ".join(
+            x["name"]
+            for x in SELECTED_LEAGUES.values()
+        )
+    )
+
+    print("=" * 65)
+
+    all_fixtures = []
+
+    errors = []
+
+    # -----------------------------------------------------
+    # League by league
+    # -----------------------------------------------------
+
+    for league_id, league_info in (
+        SELECTED_LEAGUES.items()
+    ):
 
         try:
+
+            fixtures = fetch_one_league(
+                league_id,
+                league_info,
+                start_date,
+                end_date
+            )
+
+            all_fixtures.extend(
+                fixtures
+            )
+
+        except Exception as exc:
+
+            error_text = (
+                f"{league_info['name']}: "
+                f"{exc}"
+            )
+
+            print(
+                "[LEAGUE FAILED]",
+                error_text
+            )
+
+            errors.append(
+                error_text
+            )
+
+    # -----------------------------------------------------
+    # Convert + date + league verification
+    # -----------------------------------------------------
+
+    result = []
+
+    for fixture in all_fixtures:
+
+        try:
+
+            fixture_league_id = (
+                extract_league_id(
+                    fixture
+                )
+            )
+
+            # ----------------------------------------------
+            # Only selected leagues
+            # ----------------------------------------------
+
+            if (
+                fixture_league_id is not None
+                and
+                str(
+                    fixture_league_id
+                )
+                not in SELECTED_LEAGUES
+            ):
+                continue
+
+            # ----------------------------------------------
+            # Date
+            # ----------------------------------------------
 
             commence = (
                 fixture.get(
@@ -1630,201 +1789,123 @@ def fetch_matches_from_api():
             if not dt:
                 continue
 
-            if dt < now:
-                continue
-
-            # End inclusive.
             if (
-                dt
-                > now
-                + timedelta(
-                    days=DAYS_AHEAD
-                )
+                dt < now
+                or dt > end_time
             ):
                 continue
 
-            valid.append(
+            # ----------------------------------------------
+            # If API did not give league ID,
+            # use league name when possible.
+            # ----------------------------------------------
+
+            league_name = extract_league(
                 fixture
             )
 
-        except Exception as exc:
-
-            print(
-                "[FIXTURE FILTER ERROR]",
-                repr(exc)
+            league_info = get_league_info(
+                fixture_league_id,
+                league_name
             )
 
-    # =====================================================
-    # UNIQUE
-    # =====================================================
+            # ----------------------------------------------
+            # Protect against unknown league
+            # ----------------------------------------------
 
-    unique = {}
-
-    for fixture in valid:
-
-        fixture_id = fixture.get(
-            "id"
-        )
-
-        if fixture_id is not None:
-
-            unique[
-                str(fixture_id)
-            ] = fixture
-
-    fixtures = list(
-        unique.values()
-    )
-
-    API_STATS[
-        "fixture_count"
-    ] = len(fixtures)
-
-    # =====================================================
-    # CONVERT INITIAL FIXTURES
-    # =====================================================
-
-    result = []
-
-    for fixture in fixtures:
-
-        try:
+            if (
+                fixture_league_id is not None
+                and
+                str(
+                    fixture_league_id
+                )
+                not in SELECTED_LEAGUES
+            ):
+                continue
 
             match = convert_fixture(
                 fixture
+            )
+
+            match[
+                "league_id"
+            ] = (
+                fixture_league_id
+                or league_info.get("id")
+            )
+
+            match[
+                "league"
+            ] = (
+                league_info.get(
+                    "name"
+                )
+                or league_name
+            )
+
+            match[
+                "country"
+            ] = league_info.get(
+                "country",
+                ""
+            )
+
+            match[
+                "league_short"
+            ] = league_info.get(
+                "short",
+                ""
             )
 
             result.append(
                 match
             )
 
+            print(
+                "[MATCH]",
+                match["league"],
+                "|",
+                match["home"],
+                "vs",
+                match["away"],
+                "|",
+                match["time"],
+                "| ODDS:",
+                match["odds_count"]
+            )
+
         except Exception as exc:
 
             print(
-                "[CONVERT ERROR]",
+                "[FIXTURE ERROR]",
                 repr(exc)
             )
 
-    # =====================================================
-    # DIRECT ODDS FALLBACK
-    #
-    # If fixture include does not contain odds,
-    # use official pre-match odds endpoint.
-    # =====================================================
+    # -----------------------------------------------------
+    # Remove duplicates
+    # -----------------------------------------------------
 
-    missing_odds = [
-        m
-        for m in result
-        if (
-            m.get("id") is not None
-            and m.get("odds_count", 0) == 0
-            and (
-                m.get("has_odds")
-                or True
-            )
-        )
-    ]
+    unique = {}
 
-    if (
-        DETAIL_REFRESH_ODDS
-        and MAX_ODDS_DETAIL_REQUESTS > 0
-        and missing_odds
-    ):
+    for match in result:
 
-        targets = missing_odds[
-            :MAX_ODDS_DETAIL_REQUESTS
-        ]
-
-        print(
-            "[DIRECT ODDS FALLBACK]",
-            len(targets)
+        match_id = match.get(
+            "id"
         )
 
-        odds_map = {}
+        if match_id is not None:
 
-        with ThreadPoolExecutor(
-            max_workers=ODDS_WORKERS
-        ) as executor:
+            unique[
+                str(match_id)
+            ] = match
 
-            futures = {
-                executor.submit(
-                    fetch_fixture_odds,
-                    m["id"]
-                ):
-                    m["id"]
+    result = list(
+        unique.values()
+    )
 
-                for m in targets
-            }
-
-            for future in as_completed(
-                futures
-            ):
-
-                fixture_id = futures[
-                    future
-                ]
-
-                try:
-
-                    odds_map[
-                        str(fixture_id)
-                    ] = future.result()
-
-                except Exception as exc:
-
-                    print(
-                        "[ODDS FUTURE ERROR]",
-                        fixture_id,
-                        repr(exc)
-                    )
-
-        API_STATS[
-            "direct_odds_requests"
-        ] += len(targets)
-
-        # Rebuild matches with external odds.
-        rebuilt = []
-
-        for m in result:
-
-            fixture_id = m.get(
-                "id"
-            )
-
-            if str(fixture_id) in odds_map:
-
-                # Find original fixture.
-                original = next(
-                    (
-                        f
-                        for f in fixtures
-                        if str(
-                            f.get("id")
-                        )
-                        ==
-                        str(fixture_id)
-                    ),
-                    None
-                )
-
-                if original:
-
-                    m = convert_fixture(
-                        original,
-                        odds_map[
-                            str(fixture_id)
-                        ]
-                    )
-
-            rebuilt.append(
-                m
-            )
-
-        result = rebuilt
-
-    # =====================================================
-    # SORT
-    # =====================================================
+    # -----------------------------------------------------
+    # Sort by date/time
+    # -----------------------------------------------------
 
     result.sort(
         key=lambda x:
@@ -1834,48 +1915,53 @@ def fetch_matches_from_api():
             or ""
     )
 
-    API_STATS[
-        "fixtures_with_odds"
-    ] = sum(
-        1
-        for x in result
-        if x.get(
-            "odds_count",
-            0
-        ) > 0
-    )
+    # -----------------------------------------------------
+    # Statistics
+    # -----------------------------------------------------
 
-    API_STATS[
-        "odds_count"
-    ] = sum(
-        x.get(
-            "odds_count",
-            0
-        )
-        for x in result
-    )
+    print("=" * 65)
 
     print(
-        "[TOTAL FIXTURES]",
+        "[TOTAL MATCHES]",
         len(result)
     )
 
     print(
-        "[FIXTURES WITH ODDS]",
-        API_STATS[
-            "fixtures_with_odds"
-        ]
-    )
-
-    print(
         "[TOTAL ODDS]",
-        API_STATS[
-            "odds_count"
-        ]
+        sum(
+            x.get(
+                "odds_count",
+                0
+            )
+            for x in result
+        )
     )
 
-    return result, []
+    for league_id, info in (
+        SELECTED_LEAGUES.items()
+    ):
 
+        count = sum(
+            1
+            for x in result
+            if str(
+                x.get(
+                    "league_id"
+                )
+            )
+            == str(league_id)
+        )
+
+        print(
+            "[LEAGUE]",
+            info["name"],
+            ":",
+            count
+        )
+
+    print("=" * 65)
+
+    return result, errors
 
 # =========================================================
 # CACHE
@@ -2014,8 +2100,10 @@ def get_matches(
         < CACHE_SECONDS
     )
 
-    if not force and fresh:
-
+    if (
+        not force
+        and fresh
+    ):
         return matches
 
     if not refreshing:
@@ -2026,8 +2114,7 @@ def get_matches(
 
     if (
         not matches
-        and
-        INITIAL_WAIT_SECONDS > 0
+        and INITIAL_WAIT_SECONDS > 0
     ):
 
         INITIAL_CACHE_EVENT.wait(
@@ -2044,9 +2131,8 @@ def get_matches(
 
     return matches
 
-
 # =========================================================
-# TELEGRAM MENU
+# TELEGRAM
 # =========================================================
 
 def main_menu():
@@ -2072,6 +2158,7 @@ def main_menu():
         ],
 
         [
+
             InlineKeyboardButton(
                 "🎯 BEST BET",
                 web_app=WebAppInfo(
@@ -2085,9 +2172,11 @@ def main_menu():
                     url=WEB_APP_URL
                 )
             ),
+
         ],
 
         [
+
             InlineKeyboardButton(
                 "👤 PROFILE",
                 callback_data="profile"
@@ -2097,9 +2186,11 @@ def main_menu():
                 "💳 BALANCE",
                 callback_data="balance"
             ),
+
         ],
 
         [
+
             InlineKeyboardButton(
                 "📜 HISTORY",
                 callback_data="history"
@@ -2109,7 +2200,9 @@ def main_menu():
                 "ℹ️ HOW TO PLAY",
                 callback_data="how"
             ),
+
         ],
+
     ])
 
 
@@ -2131,13 +2224,21 @@ async def start(
         f"*{user.first_name}*!\n\n"
 
         "🎯 *BEST BET*\n"
+
         "⚽ Football\n"
-        "🏆 Major Leagues\n"
+
+        "🏆 Premier League\n"
+        "🇪🇸 LaLiga\n"
+        "🇮🇹 Serie A\n"
+        "🇩🇪 Bundesliga\n"
+        "🇫🇷 Ligue 1\n"
+        "🏆 Champions League\n\n"
+
         "📅 Today → Next 7 Days\n"
-        "📊 SportMonks Real Odds\n"
+        "📊 SportMonks Odds\n"
         "🎟️ Bet Slip\n\n"
 
-        "👇 *⚽ FOOTBALL* cuqaasi.",
+        "👇 *PLAY BEST BET* cuqaasi.",
 
         reply_markup=main_menu(),
 
@@ -2164,17 +2265,27 @@ async def button_handler(
     if query.data == "profile":
 
         text = (
+
             "👤 *PROFILE*\n\n"
+
             f"Name: *{u['name']}*\n"
-            f"Balance: *{u['balance']:.2f}*\n"
-            f"Bet Slip: *{len(u['betslip'])}*"
+
+            f"Balance: "
+            f"*{u['balance']:.2f}*\n"
+
+            f"Bet Slip: "
+            f"*{len(u['betslip'])}*"
+
         )
 
     elif query.data == "balance":
 
         text = (
             "💳 *BALANCE*\n\n"
-            f"Balance: *{u['balance']:.2f}*\n\n"
+
+            f"Balance: "
+            f"*{u['balance']:.2f}*\n\n"
+
             "🧪 Demo system qofa."
         )
 
@@ -2198,6 +2309,7 @@ async def button_handler(
             ][-10:]:
 
                 text += (
+
                     f"🕐 "
                     f"{item.get('time','')}\n"
 
@@ -2208,37 +2320,48 @@ async def button_handler(
                     f"{item.get('odds',0):.2f} | "
 
                     f"{item.get('status','')}\n\n"
+
                 )
 
     else:
 
         text = (
+
             "ℹ️ *HOW TO PLAY*\n\n"
 
             "1. ⚽ Football bani\n"
-            "2. 📅 Guyyaa filadhu\n"
-            "3. ⚽ Match filadhu\n"
-            "4. 📊 Market filadhu\n"
-            "5. 🎯 Selection filadhu\n"
-            "6. 🎟️ Bet Slip ilaali\n\n"
 
-            "🏆 Premier League, LaLiga, "
-            "Serie A, Bundesliga, Ligue 1 "
-            "fi liigota biroo subscription "
-            "kee keessatti jiran agarsiisa.\n\n"
+            "2. 📅 Guyyaa filadhu\n"
+
+            "3. 🏆 League filadhu\n"
+
+            "4. ⚽ Match filadhu\n"
+
+            "5. 📊 Market filadhu\n"
+
+            "6. 🎯 Selection filadhu\n"
+
+            "7. 🎟️ Bet Slip ilaali\n\n"
+
+            "📅 Today → Next 7 Days\n"
+
+            "📊 SportMonks irraa odds\n"
 
             "🧪 Demo/testing qofa."
+
         )
 
     await query.edit_message_text(
+
         text,
+
         reply_markup=main_menu(),
+
         parse_mode="Markdown",
     )
 
-
 # =========================================================
-# FLASK ROUTES
+# FLASK
 # =========================================================
 
 @app.route(
@@ -2278,6 +2401,26 @@ def health():
             "error"
         ]
 
+    league_counts = {}
+
+    for match in MATCH_CACHE[
+        "matches"
+    ]:
+
+        name = (
+            match.get(
+                "league"
+            )
+            or "Unknown"
+        )
+
+        league_counts[name] = (
+            league_counts.get(
+                name,
+                0
+            ) + 1
+        )
+
     return jsonify({
 
         "status":
@@ -2287,7 +2430,7 @@ def health():
             "Best Bet",
 
         "api":
-            "SportMonks Football API",
+            "Sportmonks Football API",
 
         "api_key_configured":
             bool(
@@ -2300,6 +2443,11 @@ def health():
         "days":
             DAYS_AHEAD,
 
+        "selected_leagues":
+            list(
+                SELECTED_LEAGUES.values()
+            ),
+
         "markets":
             SPORTMONKS_MARKETS
             or "ALL_AVAILABLE",
@@ -2310,6 +2458,9 @@ def health():
 
         "matches_cached":
             count,
+
+        "league_counts":
+            league_counts,
 
         "cache_age_seconds":
             (
@@ -2343,31 +2494,8 @@ def health():
                 "last_refresh"
             ],
 
-        "fixture_count":
-            API_STATS[
-                "fixture_count"
-            ],
-
-        "fixtures_with_odds":
-            API_STATS[
-                "fixtures_with_odds"
-            ],
-
-        "odds_count":
-            API_STATS[
-                "odds_count"
-            ],
-
-        "direct_odds_requests":
-            API_STATS[
-                "direct_odds_requests"
-            ],
     })
 
-
-# =========================================================
-# DEBUG API
-# =========================================================
 
 @app.route(
     "/api/test",
@@ -2384,11 +2512,16 @@ def api_test():
             "BEST BET API is working.",
 
         "api":
-            "SportMonks",
+            "Sportmonks",
 
         "api_key_configured":
             bool(
                 SPORTMONKS_API_TOKEN
+            ),
+
+        "leagues":
+            list(
+                SELECTED_LEAGUES.values()
             ),
 
         "time":
@@ -2412,55 +2545,84 @@ def odds_test():
             timezone.utc
         )
 
-        body = fetch_fixture_page(
-            date_text_utc(now),
-            date_text_utc(
-                now + timedelta(days=1)
-            ),
-            1
-        )
-
-        fixtures = as_list(
-            body
+        end = now + timedelta(
+            days=1
         )
 
         samples = []
 
-        for fixture in fixtures[:10]:
+        # ------------------------------------------------
+        # Test every selected league
+        # ------------------------------------------------
 
-            converted = convert_fixture(
-                fixture
-            )
+        for league_id, info in (
+            SELECTED_LEAGUES.items()
+        ):
 
-            samples.append({
+            try:
 
-                "fixture_id":
-                    converted["id"],
+                body = fetch_fixture_page(
+                    date_text_utc(now),
+                    date_text_utc(end),
+                    1,
+                    int(league_id)
+                )
 
-                "home":
-                    converted["home"],
+                fixtures = as_list(
+                    body
+                )
 
-                "away":
-                    converted["away"],
+                for fixture in fixtures[:5]:
 
-                "league":
-                    converted["league"],
+                    match = convert_fixture(
+                        fixture
+                    )
 
-                "has_odds":
-                    converted[
-                        "has_odds"
-                    ],
+                    samples.append({
 
-                "odds_count":
-                    converted[
-                        "odds_count"
-                    ],
+                        "league":
+                            info["name"],
 
-                "sample_odds":
-                    converted[
-                        "odds"
-                    ][:20],
-            })
+                        "league_id":
+                            info["id"],
+
+                        "fixture_id":
+                            match["id"],
+
+                        "home":
+                            match["home"],
+
+                        "away":
+                            match["away"],
+
+                        "time":
+                            match["time"],
+
+                        "odds_count":
+                            match[
+                                "odds_count"
+                            ],
+
+                        "sample_odds":
+                            match[
+                                "odds"
+                            ][:20],
+                    })
+
+            except Exception as exc:
+
+                samples.append({
+
+                    "league":
+                        info["name"],
+
+                    "league_id":
+                        info["id"],
+
+                    "error":
+                        str(exc),
+
+                })
 
         return jsonify({
 
@@ -2468,15 +2630,12 @@ def odds_test():
                 True,
 
             "api":
-                "SportMonks",
+                "Sportmonks",
 
             "api_key_configured":
                 bool(
                     SPORTMONKS_API_TOKEN
                 ),
-
-            "fixture_count":
-                len(fixtures),
 
             "samples":
                 samples,
@@ -2490,6 +2649,7 @@ def odds_test():
                 API_STATS[
                     "last_error"
                 ],
+
         })
 
     except Exception as exc:
@@ -2516,12 +2676,9 @@ def odds_test():
                 API_STATS[
                     "last_error"
                 ],
-        })
 
+        }), 200
 
-# =========================================================
-# MATCHES
-# =========================================================
 
 @app.route(
     "/api/matches",
@@ -2537,11 +2694,50 @@ def api_matches():
         == "1"
     )
 
+    league_filter = (
+        request.args.get(
+            "league",
+            ""
+        ).strip()
+    )
+
     try:
 
         matches = get_matches(
             force
         )
+
+        # ------------------------------------------------
+        # Optional league filter
+        # ------------------------------------------------
+
+        if league_filter:
+
+            filtered = []
+
+            for match in matches:
+
+                if (
+                    str(
+                        match.get(
+                            "league_id"
+                        )
+                    )
+                    == league_filter
+                    or
+                    str(
+                        match.get(
+                            "league"
+                        )
+                    ).lower()
+                    ==
+                    league_filter.lower()
+                ):
+                    filtered.append(
+                        match
+                    )
+
+            matches = filtered
 
         with CACHE_LOCK:
 
@@ -2557,6 +2753,31 @@ def api_matches():
                 "time"
             ]
 
+        # ------------------------------------------------
+        # League summary
+        # ------------------------------------------------
+
+        league_counts = {}
+
+        for match in matches:
+
+            league = (
+                match.get(
+                    "league"
+                )
+                or "Football"
+            )
+
+            league_counts[
+                league
+            ] = (
+                league_counts.get(
+                    league,
+                    0
+                )
+                + 1
+            )
+
         return jsonify({
 
             "success":
@@ -2568,17 +2789,24 @@ def api_matches():
             "matches":
                 matches,
 
+            "leagues":
+                league_counts,
+
             "message":
                 (
                     "Football matches loaded."
                     if matches
                     else
-                    "No fixtures returned by SportMonks."
+                    "Football fixtures hin argamne."
                 ),
 
             "loading":
-                refreshing
-                and not bool(matches),
+                (
+                    refreshing
+                    and not bool(
+                        matches
+                    )
+                ),
 
             "stale":
                 (
@@ -2592,7 +2820,7 @@ def api_matches():
                 ),
 
             "api":
-                "SportMonks",
+                "Sportmonks",
 
             "api_key_configured":
                 bool(
@@ -2607,20 +2835,6 @@ def api_matches():
             "api_error":
                 error,
 
-            "fixture_count":
-                API_STATS[
-                    "fixture_count"
-                ],
-
-            "fixtures_with_odds":
-                API_STATS[
-                    "fixtures_with_odds"
-                ],
-
-            "odds_count":
-                API_STATS[
-                    "odds_count"
-                ],
         })
 
     except Exception as exc:
@@ -2653,11 +2867,11 @@ def api_matches():
                 API_STATS[
                     "last_error"
                 ],
-        })
 
+        }), 200
 
 # =========================================================
-# MATCH DETAIL
+# SINGLE MATCH
 # =========================================================
 
 @app.route(
@@ -2685,21 +2899,28 @@ def api_match(
             None
         )
 
-        converted = None
+        fixture = None
 
-        # Always try the direct fixture endpoint
-        # for a selected match.
+        # ------------------------------------------------
+        # Always try direct detail when enabled
+        # ------------------------------------------------
+
         if DETAIL_REFRESH_ODDS:
 
             body = sportmonks_request(
 
-                f"/fixtures/{match_id}",
+                f"/fixtures/"
+                f"{match_id}",
 
                 {
                     "include":
-                        "participants;league;state;"
-                        "odds;odds.market;odds.bookmaker"
-                }
+                        (
+                            "participants;"
+                            "league;"
+                            "state;"
+                            "odds"
+                        )
+                },
             )
 
             if isinstance(
@@ -2711,37 +2932,17 @@ def api_match(
                     "data"
                 ]
 
-                converted = convert_fixture(
-                    fixture
-                )
+        if fixture:
 
-                # If fixture include has no odds,
-                # use official pre-match endpoint.
-                if (
-                    converted.get(
-                        "odds_count",
-                        0
-                    ) == 0
-                ):
+            converted = convert_fixture(
+                fixture
+            )
 
-                    external_odds = (
-                        fetch_fixture_odds(
-                            match_id
-                        )
-                    )
-
-                    if external_odds:
-
-                        converted = convert_fixture(
-                            fixture,
-                            external_odds
-                        )
-
-        if converted is None:
+        elif match:
 
             converted = match
 
-        if converted is None:
+        else:
 
             return jsonify({
 
@@ -2755,9 +2956,9 @@ def api_match(
                     [],
             })
 
-        # =================================================
-        # GROUP MARKETS
-        # =================================================
+        # ------------------------------------------------
+        # Group odds by market
+        # ------------------------------------------------
 
         grouped = {}
 
@@ -2775,10 +2976,13 @@ def api_match(
                 odd.get(
                     "market"
                 )
-                or odd.get(
+                or
+                odd.get(
                     "market_description"
                 )
-                or "Market",
+                or
+                "Market",
+
             )
 
             grouped.setdefault(
@@ -2799,52 +3003,18 @@ def api_match(
 
             for odd in odds:
 
-                label = (
-                    odd.get(
-                        "label"
-                    )
-                    or odd.get(
-                        "name"
-                    )
-                )
-
-                # Add total / handicap line.
-                if (
-                    odd.get("total")
-                    and
-                    str(
-                        odd.get("market")
-                        or ""
-                    ).lower()
-                    != "match winner"
-                ):
-
-                    label = (
-                        f"{label} "
-                        f"{odd.get('total')}"
-                    )
-
-                if (
-                    odd.get(
-                        "handicap"
-                    ) is not None
-                    and
-                    str(
-                        odd.get("market")
-                        or ""
-                    ).lower()
-                    != "match winner"
-                ):
-
-                    label = (
-                        f"{label} "
-                        f"({odd.get('handicap')})"
-                    )
-
                 selections.append({
 
                     "value":
-                        label,
+                        (
+                            odd.get(
+                                "label"
+                            )
+                            or
+                            odd.get(
+                                "name"
+                            )
+                        ),
 
                     "odd":
                         odd.get(
@@ -2886,7 +3056,9 @@ def api_match(
 
                 key=lambda x:
                     safe_float(
-                        x.get("odd")
+                        x.get(
+                            "odd"
+                        )
                     )
                     or 0,
 
@@ -2907,9 +3079,11 @@ def api_match(
 
                 "selections":
                     selections,
+
             })
 
         markets.sort(
+
             key=lambda x:
                 str(
                     x["name"]
@@ -2941,12 +3115,13 @@ def api_match(
                 ),
 
             "api":
-                "SportMonks",
+                "Sportmonks",
 
             "api_status":
                 API_STATS[
                     "last_status"
                 ],
+
         })
 
     except Exception as exc:
@@ -2966,8 +3141,8 @@ def api_match(
 
             "markets":
                 [],
-        })
 
+        }), 200
 
 # =========================================================
 # LIVE
@@ -2981,13 +3156,19 @@ def api_live():
 
     try:
 
-        # ALL livescores, not "latest updated".
         body = sportmonks_request(
-            "/livescores",
+
+            "/livescores/latest",
+
             {
                 "include":
-                    "participants;league;state;scores"
-            }
+                    (
+                        "participants;"
+                        "league;"
+                        "state;"
+                        "scores"
+                    )
+            },
         )
 
         scores = as_list(
@@ -3006,7 +3187,9 @@ def api_live():
             away_score = None
 
             for score in as_list(
-                event.get("scores")
+                event.get(
+                    "scores"
+                )
             ):
 
                 if not isinstance(
@@ -3028,44 +3211,43 @@ def api_live():
                         value.get(
                             "goals"
                         )
-                        or value.get(
+                        or
+                        value.get(
                             "current"
                         )
                     )
 
-                participant = str(
+                who = str(
+
                     score.get(
                         "participant"
                     )
-                    or score.get(
+                    or
+                    score.get(
                         "participant_id"
                     )
-                    or score.get(
+                    or
+                    score.get(
                         "participant_name"
                     )
                     or ""
+
                 ).lower()
 
-                if (
-                    participant
-                    in (
-                        "home",
-                        str(
-                            home
-                        ).lower()
-                    )
+                if who in (
+                    "home",
+                    str(
+                        home
+                    ).lower()
                 ):
 
                     home_score = value
 
-                elif (
-                    participant
-                    in (
-                        "away",
-                        str(
-                            away
-                        ).lower()
-                    )
+                elif who in (
+                    "away",
+                    str(
+                        away
+                    ).lower()
                 ):
 
                     away_score = value
@@ -3101,6 +3283,7 @@ def api_live():
                     event.get(
                         "state"
                     ),
+
             })
 
         return jsonify({
@@ -3113,6 +3296,7 @@ def api_live():
 
             "matches":
                 result,
+
         })
 
     except Exception as exc:
@@ -3127,8 +3311,8 @@ def api_live():
 
             "matches":
                 [],
-        })
 
+        }), 200
 
 # =========================================================
 # ERRORS
@@ -3147,8 +3331,11 @@ def handle_404(error):
                 False,
 
             "error":
-                f"API endpoint not found: "
-                f"{request.path}",
+                (
+                    "API endpoint not found: "
+                    + request.path
+                ),
+
         }), 404
 
     return (
@@ -3171,13 +3358,13 @@ def handle_500(error):
 
             "error":
                 "Internal server error.",
+
         }), 500
 
     return (
         "<h1>BEST BET</h1>"
         "<p>Internal server error.</p>"
     ), 500
-
 
 # =========================================================
 # TELEGRAM BOT
@@ -3230,6 +3417,7 @@ def run_telegram_bot():
         application.run_polling(
             allowed_updates=
                 Update.ALL_TYPES,
+
             close_loop=False,
         )
 
@@ -3239,7 +3427,6 @@ def run_telegram_bot():
             "[BOT ERROR]",
             repr(exc)
         )
-
 
 # =========================================================
 # CACHE LOOP
@@ -3280,8 +3467,7 @@ def cache_refresh_loop():
 
             if (
                 expired
-                and
-                not refreshing
+                and not refreshing
             ):
 
                 start_refresh_background()
@@ -3295,20 +3481,19 @@ def cache_refresh_loop():
 
         time.sleep(20)
 
-
 # =========================================================
-# MAIN
+# START
 # =========================================================
 
 def main():
 
-    print("=" * 55)
+    print("=" * 65)
 
     print(
-        "       BEST BET - SPORTMONKS V7"
+        "       BEST BET - SPORTMONKS"
     )
 
-    print("=" * 55)
+    print("=" * 65)
 
     print(
         "WEB APP:",
@@ -3340,18 +3525,30 @@ def main():
     )
 
     print(
+        "LEAGUES:"
+    )
+
+    for info in (
+        SELECTED_LEAGUES.values()
+    ):
+
+        print(
+            " ",
+            info["id"],
+            "-",
+            info["name"],
+            "-",
+            info["country"]
+        )
+
+    print(
         "CACHE:",
         CACHE_SECONDS
     )
 
     print(
-        "ODDS DETAIL:",
-        DETAIL_REFRESH_ODDS
-    )
-
-    print(
-        "MAX ODDS DETAIL:",
-        MAX_ODDS_DETAIL_REQUESTS
+        "TIMEOUT:",
+        API_TIMEOUT
     )
 
     print(
@@ -3359,30 +3556,53 @@ def main():
         PORT
     )
 
-    print("=" * 55)
+    print("=" * 65)
 
     threading.Thread(
-        target=cache_refresh_loop,
+
+        target=
+            cache_refresh_loop,
+
         daemon=True,
-        name="cache-refresh-loop",
+
+        name=
+            "cache-refresh-loop",
+
     ).start()
 
     if BOT_TOKEN:
 
         threading.Thread(
-            target=run_telegram_bot,
+
+            target=
+                run_telegram_bot,
+
             daemon=True,
-            name="telegram-bot",
+
+            name=
+                "telegram-bot",
+
         ).start()
 
     app.run(
-        host="0.0.0.0",
-        port=PORT,
-        debug=False,
-        use_reloader=False,
-        threaded=True,
+
+        host=
+            "0.0.0.0",
+
+        port=
+            PORT,
+
+        debug=
+            False,
+
+        use_reloader=
+            False,
+
+        threaded=
+            True,
     )
 
 
 if __name__ == "__main__":
+
     main()
