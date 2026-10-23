@@ -1,191 +1,49 @@
-import os, json, hmac, hashlib, sqlite3, threading, logging, random, urllib.parse, asyncio
-from datetime import datetime, timezone
-from flask import Flask, request, jsonify, send_from_directory
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-
-logging.basicConfig(level=logging.INFO)
-BOT_TOKEN=os.getenv("BOT_TOKEN","").strip()
-WEBAPP_URL=os.getenv("WEBAPP_URL","").strip().rstrip("/")
-ADMIN_ID=int(os.getenv("ADMIN_ID","0") or 0)
-DATABASE_PATH=os.getenv("DATABASE_PATH","casino.db")
-# Fill these later; do not publish private financial details in public source.
-PAYMENT_INFO={
- "Telebirr": os.getenv("PAY_TELEBIRR","Payment details will be announced"),
- "CBE": os.getenv("PAY_CBE","Payment details will be announced"),
- "Awash": os.getenv("PAY_AWASH","Payment details will be announced"),
-}
-BONUS=20
-app=Flask(__name__)
-db_lock=threading.Lock()
-
-def connect():
- c=sqlite3.connect(DATABASE_PATH,timeout=25)
- c.row_factory=sqlite3.Row
- return c
-
-def init_db():
- with connect() as c:
-  c.execute("""CREATE TABLE IF NOT EXISTS users(
-   user_id INTEGER PRIMARY KEY, username TEXT, balance INTEGER NOT NULL DEFAULT 20,
-   bonus_given INTEGER NOT NULL DEFAULT 1)""")
-  c.execute("""CREATE TABLE IF NOT EXISTS history(
-   id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,game TEXT,stake INTEGER,
-   payout INTEGER,result TEXT,created TEXT)""")
-  c.execute("""CREATE TABLE IF NOT EXISTS deposits(
-   id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,username TEXT,method TEXT,
-   amount INTEGER,reference TEXT,status TEXT NOT NULL DEFAULT 'PENDING',
-   created TEXT,reviewed TEXT,reviewed_by INTEGER)""")
-  # Upgrade an existing users table without resetting existing balances.
-  cols={r["name"] for r in c.execute("PRAGMA table_info(users)")}
-  if "bonus_given" not in cols:
-   c.execute("ALTER TABLE users ADD COLUMN bonus_given INTEGER NOT NULL DEFAULT 1")
-  # Repair legacy accounts that have no credits at all: grant the welcome
-  # bonus once. Accounts with a positive balance are left untouched.
-  c.execute("UPDATE users SET balance=?, bonus_given=1 WHERE balance<=0",
-            (BONUS,))
-init_db()
-
-def verify_init_data(raw):
- if not BOT_TOKEN or not raw:return None
- try:
-  pairs=dict(urllib.parse.parse_qsl(raw,keep_blank_values=True))
-  got=pairs.pop("hash",None)
-  if not got:return None
-  check="\n".join(f"{k}={v}" for k,v in sorted(pairs.items()))
-  secret=hmac.new(b"WebAppData",BOT_TOKEN.encode(),hashlib.sha256).digest()
-  want=hmac.new(secret,check.encode(),hashlib.sha256).hexdigest()
-  if not hmac.compare_digest(want,got):return None
-  user=json.loads(pairs["user"])
-  age=datetime.now(timezone.utc).timestamp()-int(pairs["auth_date"])
-  if age<0 or age>86400:return None
-  return user
- except Exception:
-  logging.exception("WebApp authentication failed");return None
-
-def authorized():
- u=verify_init_data(request.headers.get("X-Telegram-Init-Data",""))
- return u if u and u.get("id") else None
-
-def ensure_user(c,u):
- uid=int(u["id"]); name=u.get("username","")
- # New accounts receive the one-time 20 demo-credit bonus.
- c.execute("INSERT OR IGNORE INTO users(user_id,username,balance,bonus_given) VALUES(?,?,?,1)",(uid,name,BONUS))
- c.execute("UPDATE users SET username=? WHERE user_id=?",(name,uid))
- # Legacy zero-balance account recovery; does not affect accounts with credits.
- c.execute("UPDATE users SET balance=?, bonus_given=1 WHERE user_id=? AND balance<=0",
-           (BONUS,uid))
- return c.execute("SELECT * FROM users WHERE user_id=?",(uid,)).fetchone()
-
-@app.get("/")
-def index():return send_from_directory(".","index.html")
-@app.get("/health")
-def health():return jsonify(ok=True,service="Multi Hot Megawin")
-
-@app.get("/api/me")
-def me():
- u=authorized()
- if not u:return jsonify(error="Open this app from its Telegram bot."),401
- with db_lock,connect() as c:
-  row=ensure_user(c,u)
-  hist=c.execute("SELECT game,stake,payout,result,created FROM history WHERE user_id=? ORDER BY id DESC LIMIT 15",(int(u["id"]),)).fetchall()
-  deps=c.execute("SELECT id,method,amount,status,created FROM deposits WHERE user_id=? ORDER BY id DESC LIMIT 10",(int(u["id"]),)).fetchall()
- return jsonify(user={"id":int(u["id"]),"name":u.get("first_name","Player")},
-  balance=row["balance"],bonus=BONUS,history=[dict(x) for x in hist],deposits=[dict(x) for x in deps])
-
-@app.get("/api/payment-methods")
-def payment_methods():
- return jsonify(methods=[{"name":k,"details":v} for k,v in PAYMENT_INFO.items()])
-
-@app.post("/api/deposit")
-def deposit():
- u=authorized()
- if not u:return jsonify(error="Telegram authentication failed."),401
- b=request.get_json(silent=True) or {}
- method=str(b.get("method",""))
- reference=str(b.get("reference","")).strip()[:240]
- try:amount=int(b.get("amount",0))
- except (TypeError,ValueError):return jsonify(error="Amount invalid."),400
- if method not in PAYMENT_INFO:return jsonify(error="Select a payment method."),400
- if amount<1 or amount>100000:return jsonify(error="Amount must be 1–100000."),400
- if len(reference)<4:return jsonify(error="Enter transaction reference or receipt details."),400
- uid=int(u["id"]); now=datetime.now(timezone.utc).isoformat(timespec="seconds")
- with db_lock,connect() as c:
-  ensure_user(c,u)
-  cur=c.execute("INSERT INTO deposits(user_id,username,method,amount,reference,status,created) VALUES(?,?,?,?,?,'PENDING',?)",
-   (uid,u.get("username",""),method,amount,reference,now))
-  did=cur.lastrowid
- # Notify admin via bot event loop handoff; notification failure does not erase request.
- try:
-  asyncio.run_coroutine_threadsafe(notify_admin(did,uid,u.get("username",""),method,amount,reference), bot_loop)
- except Exception:logging.exception("Could not notify admin")
- return jsonify(ok=True,deposit_id=did,status="PENDING",message="Request received. Balance changes only after admin review.")
-
-bot_app=None
-bot_loop=None
-async def notify_admin(did,uid,username,method,amount,reference):
- if not bot_app or not ADMIN_ID:return
- keyboard=InlineKeyboardMarkup([[
-  InlineKeyboardButton("✅ APPROVE",callback_data=f"dep:approve:{did}"),
-  InlineKeyboardButton("❌ REJECT",callback_data=f"dep:reject:{did}")
- ]])
- await bot_app.bot.send_message(ADMIN_ID,
-  f"💳 Deposit request #{did}\nUser: {uid} (@{username or 'none'})\nMethod: {method}\nAmount: {amount} ETB\nReference: {reference}\nStatus: PENDING",
-  reply_markup=keyboard)
-
-async def review_deposit(update:Update,context:ContextTypes.DEFAULT_TYPE):
- q=update.callback_query
- if not q:return
- if not ADMIN_ID or not update.effective_user or update.effective_user.id!=ADMIN_ID:
-  await q.answer("Not authorized.",show_alert=True);return
- try:
-  _,action,did_s=q.data.split(":");did=int(did_s)
- except Exception:
-  await q.answer("Invalid request.");return
- if action not in ("approve","reject"):
-  await q.answer("Invalid action.");return
- now=datetime.now(timezone.utc).isoformat(timespec="seconds")
- with db_lock,connect() as c:
-  row=c.execute("SELECT * FROM deposits WHERE id=?",(did,)).fetchone()
-  if not row:
-   await q.answer("Request not found.",show_alert=True);return
-  if row["status"]!="PENDING":
-   await q.answer("Already reviewed: "+row["status"],show_alert=True);return
-  status="APPROVED" if action=="approve" else "REJECTED"
-  # Transaction is atomic: a request can only be credited once.
-  cur=c.execute("UPDATE deposits SET status=?,reviewed=?,reviewed_by=? WHERE id=? AND status='PENDING'",
-    (status,now,update.effective_user.id,did))
-  if cur.rowcount!=1:
-   await q.answer("Already processed.",show_alert=True);return
-  if action=="approve":
-   c.execute("UPDATE users SET balance=balance+? WHERE user_id=?",(row["amount"],row["user_id"]))
- await q.answer(status)
- try:await q.edit_message_reply_markup(reply_markup=None)
- except Exception:pass
- await q.message.reply_text(f"Deposit #{did}: {status}.")
-
-async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
- if not WEBAPP_URL:
-  await update.effective_message.reply_text("WEBAPP_URL is not configured.");return
- kb=InlineKeyboardMarkup([[InlineKeyboardButton("🎰 OPEN MULTI HOT MEGAWIN",web_app=WebAppInfo(url=WEBAPP_URL))]])
- await update.effective_message.reply_text(
-  "🎰 MULTI HOT MEGAWIN\n\nNew account: one-time 20 demo-credit bonus.\nDeposits are pending until admin reviews them.\nPlease check local laws and age requirements.",
-  reply_markup=kb)
-async def help_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
- await update.effective_message.reply_text("Use /start to open the game.")
-async def run_bot():
- global bot_app,bot_loop
- if not BOT_TOKEN:
-  logging.error("BOT_TOKEN is missing.");return
- bot_loop=asyncio.get_running_loop()
- bot_app=Application.builder().token(BOT_TOKEN).build()
- bot_app.add_handler(CommandHandler("start",start))
- bot_app.add_handler(CommandHandler("help",help_cmd))
- bot_app.add_handler(CallbackQueryHandler(review_deposit,pattern=r"^dep:(approve|reject):\d+$"))
- await bot_app.initialize();await bot_app.start();await bot_app.updater.start_polling()
- logging.info("Telegram polling started.")
- await asyncio.Event().wait()
-
-if __name__=="__main__":
- threading.Thread(target=lambda:asyncio.run(run_bot()),daemon=True).start()
- app.run(host="0.0.0.0",port=int(os.getenv("PORT","10000")))
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Multi Hot Megawin</title>
+<style>
+:root{--gold:#ffcf36;--purple:#24104e}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 45%,#e32909 0,#ad1006 55%,#4c0205 100%);font-family:Arial,sans-serif;color:#fff7c8;min-height:100vh}.game{width:min(100%,460px);margin:auto;padding:8px 8px 14px;overflow:hidden}.top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:7px}.menu{width:36px;height:36px;border:2px solid var(--gold);border-radius:50%;background:#4d0909;color:#ffe9a0;font-size:21px}.logo{font-family:Georgia,serif;font-weight:1000;font-size:clamp(17px,5vw,30px);line-height:1;text-align:center;color:#ffe76b;text-shadow:2px 3px #a32900,0 0 9px #ffb300;letter-spacing:-.8px;flex:1}.fixed{font-size:9px;font-weight:bold;border:1px solid #ffca37;background:#4b0908;padding:5px 8px;border-radius:7px;text-align:center;margin:0 0 5px auto;width:max-content}.wallet{display:flex;gap:6px;margin:5px 0 8px}.wallet button{flex:1;border:1px solid #ffdc49;border-radius:8px;padding:9px 4px;background:#30104c;color:#ffe45a;font-weight:bold}.layout{display:grid;grid-template-columns:62px 1fr;gap:4px}.mult-title{font-size:9px;font-weight:bold;color:#ffe47a;margin:0 0 4px 3px}.multipliers{display:flex;flex-direction:column;gap:4px}.mult{height:clamp(59px,17vw,76px);border:2px solid #9c650c;border-radius:8px;background:linear-gradient(145deg,#4c1b58,#200b39);color:#eac45b;font-size:clamp(21px,6vw,27px);font-weight:900}.mult.active{border-color:#fff16d;color:#fff39a;box-shadow:0 0 8px #ffda00}.board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(3,1fr);border:3px solid #d59a27;border-radius:9px;background:#190a40;overflow:hidden}.cell{min-width:0;height:clamp(55px,16.3vw,78px);display:flex;align-items:center;justify-content:center;font-size:clamp(23px,7vw,37px);background:linear-gradient(145deg,#27105c,#180735);border-right:1px solid #4b3174;border-bottom:1px solid #4b3174;text-shadow:0 3px 4px #000;user-select:none}.cell.win{animation:winpulse .5s ease-in-out infinite alternate;background:#50320c}@keyframes winpulse{to{filter:brightness(1.8);transform:scale(.96)}}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:7px;border:2px solid #b96c12;border-radius:8px;background:linear-gradient(#750e0a,#3b0505);box-shadow:inset 0 0 0 1px #ffca36}.stat{text-align:center;padding:5px 1px;border-right:1px solid #a74d0a;min-width:0}.stat:last-child{border:0}.ico{font-size:17px;color:#ffcf19;line-height:1.1}.amount{font-size:clamp(11px,3.4vw,16px);font-weight:900;color:white;white-space:nowrap}.unit{font-size:8px;font-weight:bold}.label{font-size:clamp(7px,2.1vw,9px);color:#ffdc21;font-weight:900;margin-top:2px}.quick{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:15px auto 9px;width:77%}.hex{aspect-ratio:1/1;clip-path:polygon(50% 0,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:linear-gradient(145deg,#ffe36a,#8d4b08 20%,#ffd83d 35%,#5e2108 40%,#180a4b 44%,#2b0d60 80%,#d99117);padding:4px;border:0;color:#ffce1e;filter:drop-shadow(0 3px 3px #300000);cursor:pointer}.hex-inner{height:100%;clip-path:polygon(50% 0,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:linear-gradient(145deg,#321064,#1b0844);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:900;font-size:clamp(9px,2.7vw,13px)}.hex .symbol{font-size:clamp(23px,7vw,34px);line-height:1}.wager{display:grid;grid-template-columns:38px 1fr 1fr 38px;align-items:center;gap:0;margin:0 5px;position:relative;padding-top:34px}.step{height:57px;background:linear-gradient(#291064,#110638);border:2px solid #b87917;color:#ffd51f;font-size:27px;font-weight:900}.step:first-child{border-radius:10px 0 0 10px}.step:last-child{border-radius:0 10px 10px 0}.betbox{height:61px;background:linear-gradient(#6c1025,#350720);border:2px solid #b47a17;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;color:#ffdf37;font-size:18px;min-width:0}.betbox small{font-size:11px}.spin{position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:2;width:32%;height:104px;max-width:145px;border:0;clip-path:polygon(50% 0,91% 17%,100% 34%,91% 84%,75% 100%,25% 100%,9% 84%,0 34%,9% 17%);background:linear-gradient(135deg,#fff58a,#ffb600 24%,#6f3000 31%,#ffdf3e 37%,#9c2607 41%,#49050c 75%,#ffb900 80%,#fff07a);padding:5px;filter:drop-shadow(0 4px 5px #210000)}.spin-in{height:100%;clip-path:polygon(50% 0,91% 17%,100% 34%,91% 84%,75% 100%,25% 100%,9% 84%,0 34%,9% 17%);border:2px solid #ffe867;background:radial-gradient(ellipse at 50% 0,#ff5d00,#b20908 42%,#3d050d 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff45c;text-shadow:0 3px 3px #710000}.spin-word{font-size:clamp(16px,4.5vw,23px);font-weight:1000}.spin-arrow{font-size:27px}.goodluck{text-align:center;color:#ffda30;font-size:15px;font-weight:1000;letter-spacing:1px;margin:14px 0 0}.note{text-align:center;font-size:9px;color:#ffe5b4;opacity:.85;margin:6px 0}.toast{position:fixed;left:50%;bottom:15px;transform:translateX(-50%);background:#210638;border:2px solid #ffcf36;border-radius:10px;padding:10px 14px;z-index:20;display:none;max-width:90%;text-align:center;font-weight:bold;font-size:13px}.modal{display:none;position:fixed;inset:0;background:#000b;z-index:10;align-items:center;justify-content:center;padding:16px}.panel{width:min(100%,390px);max-height:90vh;overflow:auto;background:#260b39;border:2px solid #ffcf36;border-radius:14px;padding:16px;color:#fff3c0}.panel h2{margin:0 0 12px;color:#ffdb48}.panel label{display:block;margin:10px 0 5px}.panel input,.panel select,.panel textarea{width:100%;padding:11px;border-radius:7px;border:1px solid #d8ad40;background:#fff;color:#171020;font-size:16px}.panel button{padding:10px;border-radius:8px;border:1px solid #ffda43;font-weight:bold;background:#ffcf36;color:#321000;margin:8px 5px 0 0}.small{font-size:12px;overflow-wrap:anywhere}.entry{border-top:1px solid #a77a30;padding:8px 0;font-size:13px}
+@media(max-width:350px){.game{padding:6px 5px 10px}.layout{grid-template-columns:54px 1fr;gap:3px}.mult{height:57px;font-size:20px}.cell{height:clamp(49px,15.8vw,59px);font-size:clamp(21px,6.5vw,27px)}.quick{gap:8px;width:80%;margin-top:12px}.wager{grid-template-columns:32px 1fr 1fr 32px;margin:0 2px;padding-top:28px}.step{height:51px;font-size:24px}.betbox{height:55px;font-size:15px}.betbox small{font-size:9px}.spin{height:90px;width:32%;max-width:120px;padding:4px}.spin-word{font-size:17px}.spin-arrow{font-size:23px}.goodluck{font-size:13px;margin-top:12px}}
+</style></head><body><main class="game">
+<header class="top"><button class="menu" id="menuBtn">☰</button><div class="logo">MULTI HOT MEGAWIN</div></header>
+<div class="fixed">5 LINES FIXED</div>
+<div class="wallet"><button id="depositBtn">＋ DEPOSIT</button><button id="balanceBtn">MY BALANCE</button><button id="historyBtn">HISTORY</button></div>
+<section class="layout"><aside><div class="mult-title">MULTIPLIER</div><div class="multipliers"><button class="mult" data-mul="2">2x</button><button class="mult active" data-mul="5">5x</button><button class="mult" data-mul="1">1x</button></div></aside><div class="board" id="board"></div></section>
+<section class="stats"><div class="stat"><div class="ico">▣</div><div class="amount" id="balance">0.00</div><div class="unit">CREDITS</div><div class="label">BALANCE</div></div><div class="stat"><div class="ico">🏆</div><div class="amount" id="win">0.00</div><div class="unit">CREDITS</div><div class="label">WIN</div></div><div class="stat"><div class="ico">◉</div><div class="amount" id="betStat">5.00</div><div class="unit">CREDITS</div><div class="label">BET</div></div><div class="stat"><div class="ico">♙</div><div class="amount" id="totalWin">0.00</div><div class="unit">CREDITS</div><div class="label">TOTAL WIN</div></div></section>
+<section class="quick"><button class="hex" id="autoBtn"><span class="hex-inner"><span class="symbol">⟳</span><span id="autoText">AUTO</span></span></button><button class="hex" id="multiBtn"><span class="hex-inner"><span class="symbol" id="multiLabel">5x</span><span>MULTIPLIER</span></span></button><button class="hex" id="betBtn"><span class="hex-inner"><span class="symbol">⇩</span><span>BET</span></span></button></section>
+<section class="wager"><button class="step" id="minus">−</button><div class="betbox"><span id="halfBet">2.50</span><small>CREDITS</small></div><div class="betbox"><span id="doubleBet">10.00</span><small>CREDITS</small></div><button class="step" id="plus">+</button><button class="spin" id="spinBtn"><span class="spin-in"><span class="spin-word">SPIN</span><span class="spin-arrow">⟳</span></span></button></section>
+<div class="goodluck">♛ &nbsp; GOOD LUCK! &nbsp; ♛</div><p class="note">Bonus: 20 demo credits once for each new player. Credits are not cash.</p></main>
+<div class="toast" id="toast"></div>
+<div class="modal" id="depositModal"><div class="panel"><h2>Deposit Request</h2><p class="small">Choose a method and follow its instructions. Submit the transaction reference. A request stays pending until an admin reviews it.</p><label>Payment method</label><select id="method"><option>Telebirr</option><option>CBE</option><option>Awash</option></select><p class="small" id="paymentDetails"></p><label>Amount (ETB)</label><input id="amount" type="number" min="1" max="100000" placeholder="Enter amount"><label>Transaction reference / receipt details</label><textarea id="reference" rows="3" placeholder="Enter transaction ID or receipt details"></textarea><button id="submitDeposit">Send request</button><button class="closeModal">Close</button><p class="small">Do not submit PINs, passwords, or OTP codes.</p></div></div>
+<div class="modal" id="infoModal"><div class="panel"><h2 id="infoTitle">Wallet</h2><div id="infoBody"></div><button class="closeModal">Close</button></div></div>
+<script>
+const icons=["🍊","🍋","🍇","🍑","🍒","🍉","🔔","🟨","7️⃣","🎰"],board=document.getElementById("board"),cells=[];
+let balance=0,bet=5,winTotal=0,multiplier=5,busy=false,auto=false,autoTimer=null,initData="";
+for(let i=0;i<15;i++){const d=document.createElement("div");d.className="cell";d.textContent=icons[Math.random()*icons.length|0];board.appendChild(d);cells.push(d)}
+function money(n){return Number(n||0).toFixed(2)}
+function toast(s){const t=document.getElementById("toast");t.textContent=s;t.style.display="block";clearTimeout(t._timer);t._timer=setTimeout(()=>t.style.display="none",3200)}
+async function api(path,method="GET",data){const headers={"Content-Type":"application/json"};if(initData)headers["X-Telegram-Init-Data"]=initData;const res=await fetch(path,{method,headers,...(data?{body:JSON.stringify(data)}:{})});let out={};try{out=await res.json()}catch{}if(!res.ok)throw Error(out.error||"Request failed");return out}
+function refresh(){document.getElementById("balance").textContent=money(balance);document.getElementById("betStat").textContent=money(bet);document.getElementById("halfBet").textContent=money(Math.max(1,bet/2));document.getElementById("doubleBet").textContent=money(bet*2);document.getElementById("totalWin").textContent=money(winTotal)}
+async function loadMe(){try{const d=await api("/api/me");balance=d.balance;refresh();return d}catch(e){toast("Open game from Telegram bot to load your wallet.");throw e}}
+function showModal(id){document.getElementById(id).style.display="flex"}function hideModals(){document.querySelectorAll(".modal").forEach(m=>m.style.display="none")}document.querySelectorAll(".closeModal").forEach(b=>b.onclick=hideModals);document.querySelectorAll(".modal").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)hideModals()}));
+async function paymentInfo(){try{const x=await api("/api/payment-methods");const m=document.getElementById("method").value;document.getElementById("paymentDetails").textContent=x.methods.find(v=>v.name===m)?.details||"Ask support for details."}catch{document.getElementById("paymentDetails").textContent="Payment information is not available."}}
+document.getElementById("method").onchange=paymentInfo;
+document.getElementById("depositBtn").onclick=async()=>{showModal("depositModal");await paymentInfo()};
+document.getElementById("submitDeposit").onclick=async()=>{const method=document.getElementById("method").value,amount=Number(document.getElementById("amount").value),reference=document.getElementById("reference").value.trim();if(!Number.isInteger(amount)||amount<1){toast("Enter a valid whole amount.");return}if(reference.length<4){toast("Enter transaction reference/details.");return}try{const d=await api("/api/deposit","POST",{method,amount,reference});hideModals();toast("Request #"+d.deposit_id+" submitted. Waiting for review.");document.getElementById("amount").value="";document.getElementById("reference").value=""}catch(e){toast(e.message)}};
+document.getElementById("balanceBtn").onclick=async()=>{try{const d=await loadMe();document.getElementById("infoTitle").textContent="My Balance";document.getElementById("infoBody").innerHTML=`<p>Available game credits: <b>${money(d.balance)}</b></p><p class="small">The new-account welcome bonus is 20 credits once only. Bonus is promotional credit, not cash.</p>`;showModal("infoModal")}catch{}};
+document.getElementById("historyBtn").onclick=async()=>{try{const d=await loadMe();document.getElementById("infoTitle").textContent="Deposit History";const box=document.getElementById("infoBody");box.innerHTML="";if(!d.deposits.length)box.textContent="No deposit requests yet.";d.deposits.forEach(r=>{const el=document.createElement("div");el.className="entry";el.textContent=`#${r.id} · ${r.method} · ${r.amount} ETB · ${r.status} · ${r.created}`;box.appendChild(el)});showModal("infoModal")}catch{}};
+function pickIcons(){return Array.from({length:15},()=>icons[Math.random()*icons.length|0])}
+async function spin(){if(busy)return;if(!initData){toast("Open from Telegram to authenticate.");return}if(balance<bet){toast("Insufficient credits. Use a smaller bet.");auto=false;document.getElementById("autoText").textContent="AUTO";return}
+ // This front-end animation remains demo-only; no cash payouts are offered.
+ busy=true;const btn=document.getElementById("spinBtn");btn.disabled=true;cells.forEach(c=>c.classList.remove("win"));balance-=bet;refresh();const result=pickIcons();const ticker=setInterval(()=>cells.forEach(c=>c.textContent=icons[Math.random()*icons.length|0]),75);await new Promise(r=>setTimeout(r,1300));clearInterval(ticker);for(let col=0;col<5;col++){for(let row=0;row<3;row++)cells[row*5+col].textContent=result[row*5+col];await new Promise(r=>setTimeout(r,65))}
+ let win=0;for(let row=0;row<3;row++){const first=result[row*5];let count=1;for(let col=1;col<5;col++){if(result[row*5+col]===first)count++;else break}if(count>=3){win+=bet*multiplier*(count===3?2:count===4?5:12);for(let col=0;col<count;col++)cells[row*5+col].classList.add("win")}}
+ if(win===0&&Math.random()<.13){win=bet*multiplier;const row=Math.random()*3|0;for(let c=0;c<3;c++)cells[row*5+c].classList.add("win")}
+ // Result is only in this browser session, not a redeemable account credit.
+ winTotal+=win;document.getElementById("win").textContent=money(win);refresh();busy=false;btn.disabled=false;toast(win?"Demo result: "+money(win)+" credits":"No win this spin.");if(auto)autoTimer=setTimeout(spin,900)}
+document.getElementById("spinBtn").onclick=spin;document.getElementById("minus").onclick=()=>{bet=Math.max(1,bet-1);refresh()};document.getElementById("plus").onclick=()=>{bet=Math.min(20,bet+1);refresh()};
+document.querySelectorAll(".mult").forEach(b=>b.onclick=()=>{multiplier=+b.dataset.mul;document.querySelectorAll(".mult").forEach(x=>x.classList.toggle("active",x===b));document.getElementById("multiLabel").textContent=multiplier+"x"});
+document.getElementById("multiBtn").onclick=()=>{const vals=[1,2,5];multiplier=vals[(vals.indexOf(multiplier)+1)%vals.length];document.querySelectorAll(".mult").forEach(b=>b.classList.toggle("active",+b.dataset.mul===multiplier));document.getElementById("multiLabel").textContent=multiplier+"x"};
+document.getElementById("autoBtn").onclick=()=>{auto=!auto;document.getElementById("autoText").textContent=auto?"STOP":"AUTO";if(!auto){clearTimeout(autoTimer);toast("Auto stopped")}else{toast("Auto spin started");if(!busy)spin()}};
+document.getElementById("betBtn").onclick=()=>toast("Bet: "+money(bet)+" credits. Use + / −.");
+document.getElementById("menuBtn").onclick=()=>toast("Use Deposit, My Balance, or History above.");
+const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand();initData=tg.initData||""}refresh();loadMe().catch(()=>{});
+</script></body></html>
