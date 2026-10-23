@@ -1,36 +1,719 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BEST BET CASINO</title><script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BEST BET CASINO</title>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+
 <style>
-:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#081426;color:#f4f7ff;font:16px system-ui,sans-serif}
-main{max-width:560px;margin:auto;padding:18px}.brand{text-align:center;font-size:25px;font-weight:900;color:#ffd400;margin:12px 0}
-.pill,.panel{background:#11233b;border:1px solid #243b5b;border-radius:16px;padding:15px;margin:12px 0}
-.balance{font-size:25px;color:#9be15d;font-weight:800}.games{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-button,select,input{font:inherit;border-radius:12px;border:1px solid #385477;padding:12px;background:#182e4c;color:white}
-button{cursor:pointer;font-weight:750}.game{min-height:90px}.game.active{background:#234a39;border-color:#9be15d}
-label{display:block;margin:10px 0 5px;color:#c9d6e9}.primary{width:100%;background:#ffd400;color:#172238;border:0;margin-top:12px}
-#result{font-size:19px;text-align:center;min-height:48px;margin:14px 0;overflow-wrap:anywhere}
-small{color:#b5c5db}.history{font-size:13px;line-height:1.7;overflow-wrap:anywhere}
-</style></head><body><main>
-<div class="brand">🎰 BEST BET CASINO</div>
-<div class="pill">Demo balance<br><span class="balance" id="balance">Loading…</span> <small>points</small></div>
-<div class="panel"><b>Choose a game</b><div class="games" style="margin-top:10px">
-<button class="game active" data-game="slots">🎰<br>Slots</button>
-<button class="game" data-game="blackjack">🃏<br>Blackjack</button>
-<button class="game" data-game="roulette">🎡<br>Roulette</button></div>
-<label for="stake">Stake (1–100 demo points)</label><input id="stake" type="number" min="1" max="100" value="10" style="width:100%">
-<div id="roulettePick" hidden><label>Pick a color</label><select id="pick" style="width:100%"><option value="red">Red</option><option value="black">Black</option><option value="green">Green (0)</option></select></div>
-<button class="primary" id="play">PLAY</button><div id="result"></div>
-<small>Demo game for entertainment. No real money, deposits, or withdrawals.</small></div>
-<div class="panel"><b>Recent game history</b><div id="history" class="history">Loading…</div></div>
-</main><script>
-const tg=window.Telegram?.WebApp; tg?.ready();tg?.expand();
-let selected="slots";
-const headers={"Content-Type":"application/json","X-Telegram-Init-Data":tg?.initData||""};
-const money=n=>Number(n).toLocaleString();
-function setGame(g){selected=g;document.querySelectorAll(".game").forEach(b=>b.classList.toggle("active",b.dataset.game===g));document.querySelector("#roulettePick").hidden=g!=="roulette";document.querySelector("#result").textContent="";}
-document.querySelectorAll(".game").forEach(b=>b.onclick=()=>setGame(b.dataset.game));
-async function refresh(){try{const r=await fetch("/api/me",{headers});const d=await r.json();if(!r.ok)throw Error(d.error);document.querySelector("#balance").textContent=money(d.balance);document.querySelector("#history").innerHTML=d.history.length?d.history.map(x=>`${x.created.slice(0,16).replace("T"," ")} · ${x.game} · stake ${x.stake} · payout ${x.payout}<br>`).join(""):"No games yet";}catch(e){document.querySelector("#balance").textContent="—";document.querySelector("#history").textContent=e.message+" Please open this from your Telegram bot."}}
-document.querySelector("#play").onclick=async()=>{const btn=document.querySelector("#play");const stake=Number(document.querySelector("#stake").value);if(!Number.isInteger(stake)||stake<1||stake>100){document.querySelector("#result").textContent="Enter a stake from 1 to 100.";return}btn.disabled=true;try{const payload={game:selected,stake,pick:document.querySelector("#pick").value};const r=await fetch("/api/play",{method:"POST",headers,body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw Error(d.error);document.querySelector("#result").textContent=`${d.result} · payout ${d.payout} · ${d.net>=0?"+":""}${d.net} points`;tg?.HapticFeedback?.notificationOccurred(d.net>0?"success":"warning");await refresh()}catch(e){document.querySelector("#result").textContent=e.message}finally{btn.disabled=false}};
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #030d21;
+    color: #f4f7ff;
+    font-family: system-ui, Arial, sans-serif;
+}
+
+main {
+    max-width: 760px;
+    margin: auto;
+    padding: 14px;
+}
+
+.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 2px solid #c99624;
+    padding: 8px 2px 15px;
+}
+
+.brand {
+    font-size: clamp(21px, 5vw, 34px);
+    font-weight: 1000;
+    color: #ffd21a;
+}
+
+.bal {
+    border: 1px solid #00d69b;
+    border-radius: 30px;
+    padding: 9px 13px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.panel {
+    background: linear-gradient(135deg, #081b39, #06132b);
+    border: 1px solid #174c80;
+    border-radius: 20px;
+    padding: 16px;
+    margin: 14px 0;
+    box-shadow: 0 8px 22px #0005;
+}
+
+.banner {
+    padding: 18px;
+    background: radial-gradient(ellipse at right, #7b3100, #07172e 65%);
+    border: 1px solid #f5bd18;
+    border-radius: 18px;
+}
+
+.banner strong {
+    display: block;
+    font-size: clamp(25px, 6vw, 40px);
+    color: #ffd31b;
+}
+
+.banner span {
+    color: #d7e2f5;
+}
+
+.games {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.game {
+    min-height: 92px;
+    font-weight: 900;
+    font-size: 18px;
+    background: #0b2344;
+    color: white;
+    border: 2px solid #23609a;
+    border-radius: 16px;
+}
+
+.game.active {
+    border-color: #ffcf16;
+    background: #38220b;
+    box-shadow: 0 0 15px #ffba2955;
+}
+
+label {
+    display: block;
+    color: #b9cce7;
+    margin: 12px 0 6px;
+}
+
+input, select, button {
+    font: inherit;
+    border-radius: 12px;
+    padding: 13px;
+    background: #10294b;
+    border: 1px solid #31567e;
+    color: white;
+}
+
+input, select {
+    width: 100%;
+}
+
+button {
+    cursor: pointer;
+    font-weight: 800;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.primary {
+    width: 100%;
+    background: linear-gradient(#ffe23a, #ffbd00);
+    color: #101a2d;
+    border: 0;
+    margin-top: 12px;
+    font-size: 20px;
+    padding: 16px;
+}
+
+#result {
+    text-align: center;
+    min-height: 40px;
+    font-size: 18px;
+    font-weight: 800;
+    margin: 12px 0;
+    overflow-wrap: anywhere;
+}
+
+.machine {
+    background: linear-gradient(#210a43, #080e2c);
+    border: 4px solid #f7bd26;
+    border-radius: 18px;
+    padding: 10px;
+    box-shadow: inset 0 0 15px #ffca47,
+                0 0 18px #f90a;
+}
+
+.reels {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+}
+
+.reel {
+    display: grid;
+    place-items: center;
+    min-height: 105px;
+    background: linear-gradient(#180c42, #251050);
+    border: 1px solid #9b5bce;
+    border-radius: 10px;
+    font-size: clamp(39px, 11vw, 66px);
+    text-shadow: 0 3px 5px #000;
+}
+
+.reel.spin {
+    animation: blink .12s infinite alternate;
+}
+
+@keyframes blink {
+    from {
+        filter: blur(1px);
+        transform: translateY(-2px);
+    }
+    to {
+        filter: brightness(1.5);
+        transform: translateY(2px);
+    }
+}
+
+.machinefoot {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    margin-top: 10px;
+    padding: 10px;
+    background: #080d29;
+    border-radius: 12px;
+    font-weight: 800;
+}
+
+.controls {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.spinbtn {
+    border-radius: 50%;
+    aspect-ratio: 1;
+    background: radial-gradient(#263c78, #06102a);
+    border: 5px solid #ffd01d;
+    color: #ffd01d;
+    font-size: 20px;
+    box-shadow: 0 0 16px #ffbf30;
+}
+
+.history {
+    font-size: 13px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+    color: #d9e5f8;
+}
+
+.footnote {
+    color: #9eb2ce;
+    font-size: 12px;
+    margin-top: 12px;
+}
+
+@media (min-width: 600px) {
+    .game {
+        min-height: 120px;
+        font-size: 22px;
+    }
+
+    .reel {
+        min-height: 145px;
+    }
+}
+</style>
+</head>
+
+<body>
+<main>
+
+<header class="top">
+    <div class="brand">
+        👑 BEST BET<br>
+        🎰 CASINO
+    </div>
+
+    <div class="bal">
+        🪙 <span id="balance">...</span><br>
+        <small>DEMO POINTS</small>
+    </div>
+</header>
+
+<section class="banner">
+    <span>WELCOME TO</span>
+    <strong>BEST BET CASINO</strong>
+    <span>Play • Win • Enjoy</span>
+</section>
+
+<section class="panel">
+    <b>💰 Demo Balance</b>
+
+    <div style="font-size:28px;color:#ffd21b;font-weight:900">
+        <span id="balance2">...</span>
+        <small>points</small>
+    </div>
+
+    <small>Demo only · No real deposits or withdrawals</small>
+</section>
+
+<section class="panel">
+
+    <h2 style="margin:0 0 12px">
+        🎮 CHOOSE A GAME
+    </h2>
+
+    <div class="games">
+
+        <button class="game active" data-game="slots">
+            🎰 SLOTS<br>
+            <small>Spin & Win</small>
+        </button>
+
+        <button class="game" data-game="blackjack">
+            🃏 BLACKJACK<br>
+            <small>Beat the Dealer</small>
+        </button>
+
+        <button class="game" data-game="roulette">
+            🎡 ROULETTE<br>
+            <small>Try Your Luck</small>
+        </button>
+
+    </div>
+
+    <!-- SLOT MACHINE -->
+
+    <div id="slotview" style="margin-top:15px">
+
+        <div class="machine">
+
+            <div style="text-align:center;color:#ffd229;font-weight:1000;font-size:clamp(19px,5vw,28px);padding:4px">
+                ✨ 777 MEGA SLOTS ✨
+            </div>
+
+            <div class="reels">
+
+                <div class="reel" id="r0">🍒</div>
+                <div class="reel" id="r1">🔔</div>
+                <div class="reel" id="r2">7️⃣</div>
+
+            </div>
+
+            <div class="machinefoot">
+
+                <span>
+                    WIN<br>
+                    <span id="win">0</span>
+                </span>
+
+                <span>
+                    BET<br>
+                    <span id="betdisplay">10</span>
+                </span>
+
+                <span>
+                    LINES<br>
+                    5
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="controls">
+
+            <button id="minus">− BET</button>
+
+            <button class="spinbtn" id="spin">
+                ⟳<br>SPIN
+            </button>
+
+            <button id="plus">+ BET</button>
+
+        </div>
+
+    </div>
+
+    <!-- BET AMOUNT -->
+
+    <label for="stake">
+        Stake (1–100 demo points)
+    </label>
+
+    <input
+        id="stake"
+        type="number"
+        min="1"
+        max="100"
+        value="10"
+    >
+
+    <!-- ROULETTE OPTION -->
+
+    <div id="roulettePick" hidden>
+
+        <label for="pick">
+            Choose roulette color
+        </label>
+
+        <select id="pick">
+            <option value="red">Red</option>
+            <option value="black">Black</option>
+            <option value="green">Green (0)</option>
+        </select>
+
+    </div>
+
+    <button class="primary" id="play">
+        SPIN & PLAY
+    </button>
+
+    <div id="result">
+        Ready to play?
+    </div>
+
+    <div class="footnote">
+        Demo game for entertainment only.
+        Points have no cash value.
+        No real-money gambling.
+    </div>
+
+</section>
+
+<!-- GAME HISTORY -->
+
+<section class="panel">
+
+    <h3 style="margin-top:0">
+        🕒 RECENT GAME HISTORY
+    </h3>
+
+    <div id="history" class="history">
+        Loading...
+    </div>
+
+</section>
+
+</main>
+
+<script>
+const tg = window.Telegram?.WebApp;
+
+tg?.ready();
+tg?.expand();
+
+let selected = "slots";
+let busy = false;
+
+const heads = {
+    "Content-Type": "application/json",
+    "X-Telegram-Init-Data": tg?.initData || ""
+};
+
+const symbols = [
+    "🍒", "🔔", "🍋", "🍇",
+    "🍉", "🍊", "💎", "7️⃣", "⭐"
+];
+
+// GAME SELECTION
+
+function changeGame(game) {
+
+    selected = game;
+
+    document.querySelectorAll(".game").forEach(button => {
+        button.classList.toggle(
+            "active",
+            button.dataset.game === game
+        );
+    });
+
+    document.querySelector("#roulettePick").hidden =
+        game !== "roulette";
+
+    document.querySelector("#slotview").hidden =
+        game !== "slots";
+
+    document.querySelector("#play").textContent =
+        game === "slots"
+            ? "SPIN & PLAY"
+            : "PLAY " + game.toUpperCase();
+
+    document.querySelector("#result").textContent =
+        "Ready to play?";
+}
+
+document.querySelectorAll(".game").forEach(button => {
+    button.onclick = () => changeGame(button.dataset.game);
+});
+
+// BET CONTROLS
+
+function setStake(number) {
+
+    const value = Math.max(
+        1,
+        Math.min(100, number)
+    );
+
+    document.querySelector("#stake").value = value;
+
+    document.querySelector("#betdisplay").textContent = value;
+}
+
+document.querySelector("#stake").oninput = () => {
+    document.querySelector("#betdisplay").textContent =
+        document.querySelector("#stake").value;
+};
+
+document.querySelector("#minus").onclick = () => {
+    setStake(
+        Number(document.querySelector("#stake").value) - 1
+    );
+};
+
+document.querySelector("#plus").onclick = () => {
+    setStake(
+        Number(document.querySelector("#stake").value) + 1
+    );
+};
+
+// BALANCE AND HISTORY
+
+async function refresh() {
+
+    try {
+
+        const response = await fetch("/api/me", {
+            headers: heads
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Please open inside Telegram."
+            );
+        }
+
+        document.querySelector("#balance").textContent =
+            data.balance;
+
+        document.querySelector("#balance2").textContent =
+            data.balance;
+
+        const historyBox = document.querySelector("#history");
+
+        if (data.history && data.history.length) {
+
+            historyBox.textContent = "";
+
+            data.history.forEach(item => {
+
+                const line = document.createElement("div");
+
+                line.textContent =
+                    `${item.created.slice(0,16).replace("T"," ")} · ` +
+                    `${item.game} · stake ${item.stake} · ` +
+                    `payout ${item.payout}`;
+
+                historyBox.appendChild(line);
+
+            });
+
+        } else {
+
+            historyBox.textContent = "No games played yet.";
+
+        }
+
+    } catch (error) {
+
+        document.querySelector("#balance").textContent = "—";
+        document.querySelector("#balance2").textContent = "—";
+
+        document.querySelector("#history").textContent =
+            error.message;
+
+    }
+}
+
+// PLAY GAME
+
+async function playGame() {
+
+    if (busy) return;
+
+    const stake = Number(
+        document.querySelector("#stake").value
+    );
+
+    if (
+        !Number.isInteger(stake) ||
+        stake < 1 ||
+        stake > 100
+    ) {
+
+        document.querySelector("#result").textContent =
+            "Enter stake between 1 and 100.";
+
+        return;
+    }
+
+    busy = true;
+
+    const playButton = document.querySelector("#play");
+    const spinButton = document.querySelector("#spin");
+
+    playButton.disabled = true;
+    spinButton.disabled = true;
+
+    const reels = [
+        document.querySelector("#r0"),
+        document.querySelector("#r1"),
+        document.querySelector("#r2")
+    ];
+
+    let ticker = null;
+
+    if (selected === "slots") {
+
+        reels.forEach(reel => {
+            reel.classList.add("spin");
+        });
+
+        ticker = setInterval(() => {
+
+            reels.forEach(reel => {
+                reel.textContent =
+                    symbols[Math.floor(Math.random() * symbols.length)];
+            });
+
+        }, 90);
+
+    }
+
+    try {
+
+        const response = await fetch("/api/play", {
+
+            method: "POST",
+
+            headers: heads,
+
+            body: JSON.stringify({
+                game: selected,
+                stake: stake,
+                pick: document.querySelector("#pick").value
+            })
+
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.error || "Game failed."
+            );
+        }
+
+        if (ticker) {
+            clearInterval(ticker);
+            ticker = null;
+        }
+
+        if (selected === "slots") {
+
+            reels.forEach(reel => {
+                reel.classList.remove("spin");
+            });
+
+            if (
+                data.symbols &&
+                data.symbols.length === 3
+            ) {
+
+                data.symbols.forEach((symbol, index) => {
+                    reels[index].textContent = symbol;
+                });
+
+            }
+
+            document.querySelector("#win").textContent =
+                data.payout;
+
+        }
+
+        document.querySelector("#result").textContent =
+            `${data.result} · payout ${data.payout} · ` +
+            `${data.net >= 0 ? "+" : ""}${data.net} points`;
+
+        if (tg?.HapticFeedback) {
+
+            tg.HapticFeedback.notificationOccurred(
+                data.net > 0 ? "success" : "warning"
+            );
+
+        }
+
+        await refresh();
+
+    } catch (error) {
+
+        if (ticker) {
+            clearInterval(ticker);
+        }
+
+        reels.forEach(reel => {
+            reel.classList.remove("spin");
+        });
+
+        document.querySelector("#result").textContent =
+            error.message;
+
+    } finally {
+
+        busy = false;
+
+        playButton.disabled = false;
+        spinButton.disabled = false;
+
+    }
+}
+
+// BUTTON ACTIONS
+
+document.querySelector("#play").onclick = playGame;
+
+document.querySelector("#spin").onclick = () => {
+
+    if (busy) return;
+
+    changeGame("slots");
+
+    playGame();
+
+};
+
+// INITIAL LOAD
+
 refresh();
-</script></body></html>
+
+</script>
+</body>
+  </html>
