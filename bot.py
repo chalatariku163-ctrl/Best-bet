@@ -11,7 +11,6 @@ import asyncio
 from datetime import datetime, timezone
 
 from flask import Flask, request, jsonify, send_from_directory
-from werkzeug.utils import secure_filename
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -33,32 +32,27 @@ logging.basicConfig(
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 WEBAPP_URL = os.getenv("WEBAPP_URL", "").strip().rstrip("/")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0") or 0)
-DATABASE_PATH = os.getenv("DATABASE_PATH", "casino.db")
 
-# Payment details:
-# You can override these values with Render environment variables.
+# For Render Persistent Disk, set DATABASE_PATH=/var/data/casino.db
+DATABASE_PATH = os.getenv("DATABASE_PATH", "casino.db")
+RECEIPT_DIR = os.getenv("RECEIPT_DIR", "/var/data/deposit_receipts")
+
 PAYMENT_INFO = {
     "Telebirr": os.getenv(
         "PAY_TELEBIRR",
         "Telebirr\nAccount Name: Chala\nPhone: 0902640434",
     ),
-    "CBE": os.getenv(
-        "PAY_CBE",
-        "Payment details will be announced",
-    ),
-    "Awash": os.getenv(
-        "PAY_AWASH",
-        "Payment details will be announced",
-    ),
+    "CBE": os.getenv("PAY_CBE", "Payment details will be announced"),
+    "Awash": os.getenv("PAY_AWASH", "Payment details will be announced"),
 }
 
 BONUS = 20
 SLOT_ICONS = ["🍊", "🍋", "🍇", "🍑", "🍒", "🍉", "🔔", "🟨", "7️⃣", "🎰"]
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
-db_lock = threading.Lock()
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
 
+db_lock = threading.Lock()
 bot_app = None
 bot_loop = None
 
@@ -66,12 +60,15 @@ bot_loop = None
 def connect():
     c = sqlite3.connect(DATABASE_PATH, timeout=25)
     c.row_factory = sqlite3.Row
-    # Enforce foreign keys if added in future schema updates.
     c.execute("PRAGMA foreign_keys=ON")
     return c
 
 
 def init_db():
+    # Ensure parent directory exists (especially /var/data on Render).
+    parent = os.path.dirname(os.path.abspath(DATABASE_PATH))
+    os.makedirs(parent, exist_ok=True)
+
     with connect() as c:
         c.execute("""
             CREATE TABLE IF NOT EXISTS users(
@@ -108,61 +105,85 @@ def init_db():
             )
         """)
 
-        dep_cols = {r["name"] for r in c.execute("PRAGMA table_info(deposits)")}
+        dep_cols = {
+            r["name"] for r in c.execute("PRAGMA table_info(deposits)")
+        }
         if "receipt_path" not in dep_cols:
             c.execute("ALTER TABLE deposits ADD COLUMN receipt_path TEXT")
 
-        # Add the bonus flag to older databases without resetting balances.
-        cols = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
-        if "bonus_given" not in cols:
+        user_cols = {
+            r["name"] for r in c.execute("PRAGMA table_info(users)")
+        }
+        if "bonus_given" not in user_cols:
             c.execute(
                 "ALTER TABLE users ADD COLUMN bonus_given INTEGER NOT NULL DEFAULT 1"
             )
 
-        # Legacy recovery: only zero/negative accounts get the demo bonus.
-        # Positive balances are not changed.
-        c.execute(
-            "UPDATE users SET balance=?, bonus_given=1 WHERE balance<=0",
-            (BONUS,),
-        )
 
 
 init_db()
 
 
+@app.errorhandler(413)
+def file_too_large(error):
+    return jsonify(
+        ok=False,
+        error="Screenshot baay'ee guddaa dha. Suuraa xiqqeessi."
+    ), 413
+
+
+@app.errorhandler(404)
+def api_not_found(error):
+    if request.path.startswith("/api/"):
+        return jsonify(ok=False, error="API endpoint hin argamne."), 404
+    return error
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    logging.exception("Flask internal server error")
+    return jsonify(ok=False, error="Server error. Render Logs ilaali."), 500
+
+
 def verify_init_data(raw):
-    """Verify Telegram WebApp initData using the bot token."""
+    """Validate Telegram WebApp initData using the bot token."""
     if not BOT_TOKEN or not raw:
         return None
 
     try:
         pairs = dict(urllib.parse.parse_qsl(raw, keep_blank_values=True))
-        got = pairs.pop("hash", None)
-        if not got:
+        got_hash = pairs.pop("hash", None)
+        if not got_hash:
             return None
 
-        check = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
+        check_string = "\n".join(
+            f"{key}={value}" for key, value in sorted(pairs.items())
+        )
         secret = hmac.new(
             b"WebAppData",
-            BOT_TOKEN.encode(),
+            BOT_TOKEN.encode("utf-8"),
             hashlib.sha256,
         ).digest()
-        want = hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()
+        expected = hmac.new(
+            secret,
+            check_string.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
 
-        if not hmac.compare_digest(want, got):
+        if not hmac.compare_digest(expected, got_hash):
             return None
 
         user = json.loads(pairs["user"])
         auth_date = int(pairs["auth_date"])
         age = datetime.now(timezone.utc).timestamp() - auth_date
 
-        # Reject expired or future-dated initData.
+        # Reject future or stale authentication data.
         if age < 0 or age > 86400:
             return None
 
         return user
     except Exception:
-        logging.exception("WebApp authentication failed")
+        logging.exception("Telegram WebApp authentication validation failed")
         return None
 
 
@@ -174,12 +195,11 @@ def authorized():
 
 def ensure_user(c, user):
     uid = int(user["id"])
-    username = user.get("username", "")
+    username = user.get("username", "") or ""
 
-    # New users get the one-time promotional demo credit.
     c.execute(
         """
-        INSERT OR IGNORE INTO users(user_id, username, balance, bonus_given)
+        INSERT OR IGNORE INTO users(user_id,username,balance,bonus_given)
         VALUES(?,?,?,1)
         """,
         (uid, username, BONUS),
@@ -187,15 +207,6 @@ def ensure_user(c, user):
     c.execute(
         "UPDATE users SET username=? WHERE user_id=?",
         (username, uid),
-    )
-
-    # Legacy zero-balance recovery.
-    c.execute(
-        """
-        UPDATE users SET balance=?, bonus_given=1
-        WHERE user_id=? AND balance<=0
-        """,
-        (BONUS, uid),
     )
 
     return c.execute(
@@ -241,10 +252,7 @@ def me():
         ).fetchall()
 
     return jsonify(
-        user={
-            "id": uid,
-            "name": user.get("first_name", "Player"),
-        },
+        user={"id": uid, "name": user.get("first_name", "Player")},
         balance=row["balance"],
         bonus=BONUS,
         history=[dict(x) for x in history_rows],
@@ -272,7 +280,6 @@ def spin_api():
             error="Bet 1–100, multiplier 1x, 2x ykn 5x ta'uu qaba."
         ), 400
 
-    # Server generates symbols and calculates results.
     grid = [random.choice(SLOT_ICONS) for _ in range(15)]
     payout = 0
     wins = []
@@ -291,7 +298,6 @@ def spin_api():
             payout += stake * multiplier * factor
             wins.append({"row": row_index, "count": count})
 
-    # Demo consolation outcome, generated on the server.
     if payout == 0 and random.random() < 0.13:
         payout = stake * multiplier
         wins.append({
@@ -305,8 +311,6 @@ def spin_api():
 
     with db_lock, connect() as c:
         ensure_user(c, user)
-
-        # Conditional debit avoids spending below zero during concurrent calls.
         cur = c.execute(
             """
             UPDATE users SET balance=balance-?
@@ -367,13 +371,16 @@ def deposit():
     user = authorized()
     if not user:
         return jsonify(error="Telegram authentication failed."), 401
+
     body = request.get_json(silent=True) or {}
     method = str(body.get("method", "")).strip()
     reference = str(body.get("reference", "")).strip()[:240]
+
     try:
         amount = int(body.get("amount", 0))
     except (TypeError, ValueError):
         return jsonify(error="Amount invalid."), 400
+
     if method not in PAYMENT_INFO:
         return jsonify(error="Select a payment method."), 400
     if amount < 1 or amount > 100000:
@@ -382,81 +389,188 @@ def deposit():
         return jsonify(error="Enter transaction reference or receipt details."), 400
 
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
     with db_lock, connect() as c:
         ensure_user(c, user)
         cur = c.execute(
-            """INSERT INTO deposits(user_id,username,method,amount,reference,status,created)
-               VALUES(?,?,?,?,?,'PENDING',?)""",
-            (int(user["id"]), user.get("username", ""), method, amount, reference, now),
+            """
+            INSERT INTO deposits(
+                user_id,username,method,amount,reference,status,created
+            ) VALUES(?,?,?,?,?,'PENDING',?)
+            """,
+            (
+                int(user["id"]),
+                user.get("username", "") or "",
+                method,
+                amount,
+                reference,
+                now,
+            ),
         )
-        did = cur.lastrowid
-    return jsonify(ok=True, deposit_id=did, status="WAITING_RECEIPT",
-                   message="Request created. Upload your payment screenshot.")
+        deposit_id = cur.lastrowid
+
+    return jsonify(
+        ok=True,
+        deposit_id=deposit_id,
+        status="WAITING_RECEIPT",
+        message="Request created. Upload your payment screenshot.",
+    )
 
 
 @app.post("/api/deposit/<int:deposit_id>/receipt")
 def upload_deposit_receipt(deposit_id):
     user = authorized()
     if not user:
-        return jsonify(error="Telegram authentication failed."), 401
+        return jsonify(
+            ok=False,
+            error="Telegram authentication failed."
+        ), 401
+
     proof = request.files.get("receipt")
     if not proof or not proof.filename:
-        return jsonify(error="Choose a screenshot image first."), 400
-    accepted = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
-    if proof.mimetype not in accepted:
-        return jsonify(error="Choose JPG, PNG, or WEBP image."), 400
+        return jsonify(
+            ok=False,
+            error="Choose a screenshot image first."
+        ), 400
 
-    receipt_dir = os.getenv("RECEIPT_DIR", "/var/data/deposit_receipts")
-    os.makedirs(receipt_dir, exist_ok=True)
-    path = os.path.join(receipt_dir, f"deposit_{deposit_id}_{int(user['id'])}{accepted[proof.mimetype]}")
-    with db_lock, connect() as c:
-        row = c.execute("SELECT * FROM deposits WHERE id=?", (deposit_id,)).fetchone()
-        if not row or int(row["user_id"]) != int(user["id"]):
-            return jsonify(error="Deposit request not found."), 404
-        if row["status"] != "PENDING":
-            return jsonify(error="Request already reviewed."), 409
-        if row["receipt_path"]:
-            return jsonify(error="Receipt already sent for this request."), 409
-        proof.save(path)
-        if os.path.getsize(path) > 7 * 1024 * 1024:
-            os.remove(path)
-            return jsonify(error="Image exceeds 7 MB."), 413
-        c.execute("UPDATE deposits SET receipt_path=? WHERE id=?", (path, deposit_id))
-        args = (int(row["user_id"]), row["username"] or "", row["method"],
-                int(row["amount"]), row["reference"])
+    accepted = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+    }
+    ext = accepted.get(proof.mimetype)
+    if not ext:
+        return jsonify(
+            ok=False,
+            error="Choose JPG, PNG or WEBP image."
+        ), 400
 
-    if bot_loop and bot_app:
+    uid = int(user["id"])
+    path = None
+
+    try:
+        os.makedirs(RECEIPT_DIR, exist_ok=True)
+
+        with db_lock, connect() as c:
+            row = c.execute(
+                "SELECT * FROM deposits WHERE id=?",
+                (deposit_id,),
+            ).fetchone()
+
+            if not row or int(row["user_id"]) != uid:
+                return jsonify(
+                    ok=False,
+                    error="Deposit request not found."
+                ), 404
+
+            if row["status"] != "PENDING":
+                return jsonify(
+                    ok=False,
+                    error="Request already reviewed."
+                ), 409
+
+            if row["receipt_path"]:
+                return jsonify(
+                    ok=False,
+                    error="Receipt already sent for this request."
+                ), 409
+
+            path = os.path.join(
+                RECEIPT_DIR,
+                f"deposit_{deposit_id}_{uid}{ext}",
+            )
+            proof.save(path)
+
+            size = os.path.getsize(path)
+            if size <= 0:
+                os.remove(path)
+                return jsonify(ok=False, error="Empty screenshot."), 400
+
+            if size > 7 * 1024 * 1024:
+                os.remove(path)
+                return jsonify(
+                    ok=False,
+                    error="Image exceeds 7 MB."
+                ), 413
+
+            cur = c.execute(
+                """
+                UPDATE deposits SET receipt_path=?
+                WHERE id=? AND user_id=?
+                AND status='PENDING' AND receipt_path IS NULL
+                """,
+                (path, deposit_id, uid),
+            )
+            if cur.rowcount != 1:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+                return jsonify(
+                    ok=False,
+                    error="Request changed. Please check deposit history."
+                ), 409
+
+            args = (
+                int(row["user_id"]),
+                row["username"] or "",
+                row["method"],
+                int(row["amount"]),
+                row["reference"],
+            )
+
+        # Receipt is stored. Notify admin if bot is available.
+        if not bot_loop or not bot_app or not ADMIN_ID:
+            logging.error(
+                "Receipt saved but admin/bot unavailable for deposit #%s",
+                deposit_id,
+            )
+            return jsonify(
+                ok=True,
+                deposit_id=deposit_id,
+                status="PENDING_REVIEW",
+                message="Screenshot saved. Admin notification unavailable.",
+            ), 200
+
         try:
-            fut = asyncio.run_coroutine_threadsafe(
-                notify_admin_receipt(deposit_id, *args, path), bot_loop)
-            fut.add_done_callback(lambda f: logging.error("Receipt notice failed: %s", f.exception())
-                                  if f.exception() else None)
+            future = asyncio.run_coroutine_threadsafe(
+                notify_admin_receipt(deposit_id, *args, path),
+                bot_loop,
+            )
+            future.result(timeout=35)
         except Exception:
-            logging.exception("Could not notify admin about receipt")
-    return jsonify(ok=True, deposit_id=deposit_id, status="PENDING_REVIEW",
-                   message="Screenshot received. Await admin review.")
+            logging.exception(
+                "Could not notify admin for deposit #%s",
+                deposit_id,
+            )
+            # Receipt remains saved. Do not make user upload it again.
+            return jsonify(
+                ok=True,
+                deposit_id=deposit_id,
+                status="PENDING_REVIEW",
+                message="Screenshot saved, but admin notification failed. Contact support.",
+            ), 200
+
+        return jsonify(
+            ok=True,
+            deposit_id=deposit_id,
+            status="PENDING_REVIEW",
+            message="Screenshot received. Await admin review.",
+        ), 200
+
+    except Exception:
+        logging.exception("Deposit receipt upload failed: #%s", deposit_id)
+        return jsonify(
+            ok=False,
+            error="Upload failed. Please check Render Logs."
+        ), 500
 
 
-async def notify_admin_receipt(deposit_id, uid, username, method, amount, reference, path):
+async def notify_admin_receipt(
+    deposit_id, uid, username, method, amount, reference, path
+):
     if not bot_app or not ADMIN_ID:
-        logging.warning("Admin is not configured; deposit awaits review.")
-        return
-    markup = InlineKeyboardMarkup([[
-        InlineKeyboardButton("✅ APPROVE", callback_data=f"dep:approve:{deposit_id}"),
-        InlineKeyboardButton("❌ REJECT", callback_data=f"dep:reject:{deposit_id}"),
-    ]])
-    caption = (f"📸 DEPOSIT RECEIPT #{deposit_id}\nUser: {uid} (@{username or 'none'})\n"
-               f"Method: {method}\nAmount: {amount} ETB\nReference: {reference}\n"
-               "Status: PENDING\n\nVerify payment before approving.")
-    with open(path, "rb") as img:
-        await bot_app.bot.send_photo(chat_id=ADMIN_ID, photo=img, caption=caption,
-                                     reply_markup=markup)
-
-
-async def notify_admin(deposit_id, uid, username, method, amount, reference):
-    if not bot_app or not ADMIN_ID:
-        logging.warning("ADMIN_ID is not configured; deposit awaits manual review.")
-        return
+        raise RuntimeError("ADMIN_ID or Telegram bot is not configured.")
 
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton(
@@ -469,19 +583,23 @@ async def notify_admin(deposit_id, uid, username, method, amount, reference):
         ),
     ]])
 
-    await bot_app.bot.send_message(
-        ADMIN_ID,
-        (
-            f"💳 Deposit request #{deposit_id}\n"
-            f"User: {uid} (@{username or 'none'})\n"
-            f"Method: {method}\n"
-            f"Amount: {amount} ETB\n"
-            f"Reference: {reference}\n"
-            f"Status: PENDING\n\n"
-            "Verify the actual payment before approving."
-        ),
-        reply_markup=keyboard,
+    caption = (
+        f"📸 DEPOSIT RECEIPT #{deposit_id}\n"
+        f"User: {uid} (@{username or 'none'})\n"
+        f"Method: {method}\n"
+        f"Amount: {amount} ETB\n"
+        f"Reference: {reference}\n"
+        "Status: PENDING\n\n"
+        "Verify actual payment before approving."
     )
+
+    with open(path, "rb") as image_file:
+        await bot_app.bot.send_photo(
+            chat_id=ADMIN_ID,
+            photo=image_file,
+            caption=caption,
+            reply_markup=keyboard,
+        )
 
 
 async def review_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -509,6 +627,7 @@ async def review_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
     with db_lock, connect() as c:
         row = c.execute(
             "SELECT * FROM deposits WHERE id=?",
@@ -526,9 +645,16 @@ async def review_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
+        # Require screenshot to have been received before approving.
+        if action == "approve" and not row["receipt_path"]:
+            await query.answer(
+                "Receipt is missing. Do not approve.",
+                show_alert=True,
+            )
+            return
+
         status = "APPROVED" if action == "approve" else "REJECTED"
 
-        # Conditional status change ensures one-time processing.
         cur = c.execute(
             """
             UPDATE deposits
@@ -537,6 +663,7 @@ async def review_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """,
             (status, now, update.effective_user.id, deposit_id),
         )
+
         if cur.rowcount != 1:
             await query.answer("Already processed.", show_alert=True)
             return
@@ -547,34 +674,38 @@ async def review_deposit(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 (row["amount"], row["user_id"]),
             )
             if credited.rowcount != 1:
-                # Raise so the transaction rolls back rather than approve
-                # a deposit without crediting the user's wallet.
-                raise RuntimeError("Deposit owner account was not found.")
+                raise RuntimeError(
+                    "Deposit owner account was not found; transaction rolled back."
+                )
 
     await query.answer(status)
+
     try:
         await query.edit_message_reply_markup(reply_markup=None)
     except Exception:
-        pass
+        logging.exception("Could not remove deposit review buttons")
 
-    await query.message.reply_text(f"Deposit #{deposit_id}: {status}.")
-
-    # Tell the customer their request has been reviewed.
     try:
-        if bot_app:
-            await bot_app.bot.send_message(
-                int(row["user_id"]),
-                (
-                    f"Deposit request #{deposit_id}: {status}.\n"
-                    + (
-                        f"{row['amount']} ETB has been credited to your game balance."
-                        if action == "approve"
-                        else "No balance was added."
-                    )
-                ),
-            )
+        await query.message.reply_text(
+            f"Deposit #{deposit_id}: {status}."
+        )
     except Exception:
-        logging.exception("Could not send deposit result to player")
+        logging.exception("Could not post review result")
+
+    try:
+        await bot_app.bot.send_message(
+            int(row["user_id"]),
+            (
+                f"Deposit request #{deposit_id}: {status}.\n"
+                + (
+                    f"{row['amount']} ETB has been credited to your game balance."
+                    if action == "approve"
+                    else "No balance was added."
+                )
+            ),
+        )
+    except Exception:
+        logging.exception("Could not notify player of deposit decision")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -595,8 +726,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         (
             "🎰 MULTI HOT MEGAWIN\n\n"
             "New account: one-time 20 demo-credit bonus.\n"
-            "Deposits remain pending until an admin reviews them.\n"
-            "Demo credits are not cash. Please check local laws and age requirements."
+            "Deposits stay pending until admin review.\n"
+            "Demo credits are not cash. Check local laws and age requirements."
         ),
         reply_markup=keyboard,
     )
@@ -629,6 +760,7 @@ async def run_bot():
 
     await bot_app.initialize()
     await bot_app.start()
+
     if bot_app.updater:
         await bot_app.updater.start_polling()
 
@@ -645,4 +777,5 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.getenv("PORT", "10000")),
+        threaded=True,
     )
