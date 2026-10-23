@@ -1,56 +1,122 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>BEST BET CASINO</title><script src="https://telegram.org/js/telegram-web-app.js"></script>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Multi Hot Megawin</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#030d21;color:#f4f7ff;font:16px system-ui,sans-serif}
-main{max-width:760px;margin:auto;padding:14px}.top{display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:2px solid #c99624;padding:8px 2px 15px}
-.brand{font-size:clamp(21px,5vw,34px);font-weight:1000;color:#ffd21a;text-shadow:0 2px #a34b00}.bal{border:1px solid #00d69b;border-radius:30px;padding:9px 13px;font-weight:800;white-space:nowrap}
-.panel{background:linear-gradient(135deg,#081b39,#06132b);border:1px solid #174c80;border-radius:20px;padding:16px;margin:14px 0;box-shadow:0 8px 22px #0005}
-.banner{padding:18px;background:radial-gradient(ellipse at right,#7b3100,#07172e 65%);border:1px solid #f5bd18;border-radius:18px}.banner strong{display:block;font-size:clamp(25px,6vw,40px);color:#ffd31b}.banner span{color:#d7e2f5}
-.games{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.game{min-height:92px;font-weight:900;font-size:18px;background:#0b2344;color:white;border:2px solid #23609a;border-radius:16px}.game.active{border-color:#ffcf16;background:#38220b;box-shadow:0 0 15px #ffba2955}
-label{display:block;color:#b9cce7;margin:12px 0 6px}input,select,button{font:inherit;border-radius:12px;padding:13px;background:#10294b;border:1px solid #31567e;color:white}input,select{width:100%}button{cursor:pointer;font-weight:800}.primary{width:100%;background:linear-gradient(#ffe23a,#ffbd00);color:#101a2d;border:0;margin-top:12px;font-size:20px;padding:16px}
-#result{text-align:center;min-height:40px;font-size:18px;font-weight:800;margin:12px 0}
-.machine{background:linear-gradient(#210a43,#080e2c);border:4px solid #f7bd26;border-radius:18px;padding:10px;box-shadow:inset 0 0 15px #ffca47,0 0 18px #f90a}
-.reels{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.reel{display:grid;place-items:center;min-height:105px;background:linear-gradient(#180c42,#251050);border:1px solid #9b5bce;border-radius:10px;font-size:clamp(39px,11vw,66px);text-shadow:0 3px 5px #000}
-.reel.spin{animation:blink .12s infinite alternate}@keyframes blink{from{filter:blur(1px);transform:translateY(-2px)}to{filter:brightness(1.5);transform:translateY(2px)}}
-.machinefoot{display:flex;justify-content:space-around;text-align:center;margin-top:10px;padding:10px;background:#080d29;border-radius:12px;font-weight:800}.controls{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:8px;margin-top:12px}.spinbtn{border-radius:50%;aspect-ratio:1;background:radial-gradient(#263c78,#06102a);border:5px solid #ffd01d;color:#ffd01d;font-size:20px;box-shadow:0 0 16px #ffbf30}
-.history{font-size:13px;line-height:1.8;overflow-wrap:anywhere;color:#d9e5f8}.footnote{color:#9eb2ce;font-size:12px;margin-top:12px}
-@media(min-width:600px){.game{min-height:120px;font-size:22px}.reel{min-height:145px}}
-</style></head><body><main>
-<header class="top"><div class="brand">👑 BEST BET<br>🎰 CASINO</div><div class="bal">🪙 <span id="balance">…</span><br><small>DEMO POINTS</small></div></header>
-<section class="banner"><span>WELCOME TO</span><strong>BEST BET CASINO</strong><span>Play • Win • Enjoy</span></section>
-<section class="panel"><b>💰 Demo Balance</b><div style="font-size:28px;color:#ffd21b;font-weight:900"><span id="balance2">…</span> <small>points</small></div><small>Demo only · no real deposits or withdrawals</small></section>
-<section class="panel"><h2 style="margin:0 0 12px">🎮 CHOOSE A GAME</h2><div class="games">
-<button class="game active" data-game="slots">🎰 SLOTS<br><small>Spin & Win</small></button>
-<button class="game" data-game="blackjack">🃏 BLACKJACK<br><small>Beat the Dealer</small></button>
-<button class="game" data-game="roulette">🎡 ROULETTE<br><small>Try Your Luck</small></button>
-</div>
-<div id="slotview" style="margin-top:15px">
-<div class="machine"><div style="text-align:center;color:#ffd229;font-weight:1000;font-size:clamp(19px,5vw,28px);padding:4px">✨ 777 MEGA SLOTS ✨</div>
-<div class="reels"><div class="reel" id="r0">🍒</div><div class="reel" id="r1">🔔</div><div class="reel" id="r2">7️⃣</div></div>
-<div class="machinefoot"><span>WIN<br><span id="win">0</span></span><span>BET<br><span id="betdisplay">10</span></span><span>LINES<br>5</span></div></div>
-<div class="controls"><button id="minus">− BET</button><button class="spinbtn" id="spin">⟳<br>SPIN</button><button id="plus">+ BET</button></div>
-</div>
-<label for="stake">Stake (1–100 demo points)</label><input id="stake" type="number" min="1" max="100" value="10">
-<div id="roulettePick" hidden><label>Choose roulette color</label><select id="pick"><option value="red">Red</option><option value="black">Black</option><option value="green">Green (0)</option></select></div>
-<button class="primary" id="play">PLAY SELECTED GAME</button><div id="result">Ready to play?</div>
-<div class="footnote">Demo game for entertainment only. Points have no cash value. No real-money gambling.</div></section>
-<section class="panel"><h3 style="margin-top:0">🕒 RECENT GAME HISTORY</h3><div id="history" class="history">Loading…</div></section>
-</main><script>
-const tg=window.Telegram?.WebApp;tg?.ready();tg?.expand();
-let selected="slots",busy=false;const heads={"Content-Type":"application/json","X-Telegram-Init-Data":tg?.initData||""};
-const sym=["🍒","🔔","🍋","🍇","🍉","🍊","💎","7️⃣","⭐"];
-function changeGame(g){selected=g;document.querySelectorAll(".game").forEach(b=>b.classList.toggle("active",b.dataset.game===g));document.querySelector("#roulettePick").hidden=g!=="roulette";document.querySelector("#slotview").hidden=g!=="slots";document.querySelector("#play").textContent=g==="slots"?"SPIN & PLAY":"PLAY "+g.toUpperCase();document.querySelector("#result").textContent="Ready to play?"}
-document.querySelectorAll(".game").forEach(b=>b.onclick=()=>changeGame(b.dataset.game));
-function setStake(n){document.querySelector("#stake").value=Math.max(1,Math.min(100,n));document.querySelector("#betdisplay").textContent=document.querySelector("#stake").value}
-document.querySelector("#stake").oninput=()=>document.querySelector("#betdisplay").textContent=document.querySelector("#stake").value;
-document.querySelector("#minus").onclick=()=>setStake(Number(document.querySelector("#stake").value)-1);
-document.querySelector("#plus").onclick=()=>setStake(Number(document.querySelector("#stake").value)+1);
-async function refresh(){try{let r=await fetch("/api/me",{headers:heads}),d=await r.json();if(!r.ok)throw Error(d.error||"Please open inside Telegram.");document.querySelector("#balance").textContent=d.balance;document.querySelector("#balance2").textContent=d.balance;document.querySelector("#history").innerHTML=d.history.length?d.history.map(x=>`${x.created.slice(0,16).replace("T"," ")} · ${x.game} · stake ${x.stake} · payout ${x.payout}`).join("<br>"):"No games played yet."}catch(e){document.querySelector("#balance").textContent="—";document.querySelector("#balance2").textContent="—";document.querySelector("#history").textContent=e.message}}
-async function play(){if(busy)return;let stake=Number(document.querySelector("#stake").value);if(!Number.isInteger(stake)||stake<1||stake>100){document.querySelector("#result").textContent="Enter stake 1–100.";return}
-busy=true;let btn=document.querySelector("#play");btn.disabled=true;document.querySelector("#spin").disabled=true;
-let reels=[0,1,2].map(i=>document.querySelector("#r"+i));if(selected==="slots"){reels.forEach(e=>e.classList.add("spin"));let start=Date.now();let ticker=setInterval(()=>reels.forEach(e=>e.textContent=sym[Math.floor(Math.random()*sym.length)]),90)}
-try{let response=await fetch("/api/play",{method:"POST",headers:heads,body:JSON.stringify({game:selected,stake,pick:document.querySelector("#pick").value})});let d=await response.json();if(!response.ok)throw Error(d.error||"Play failed");if(selected==="slots"){clearInterval(ticker);reels.forEach(e=>e.classList.remove("spin"));if(d.symbols&&d.symbols.length===3)d.symbols.forEach((s,i)=>reels[i].textContent=s);else reels.forEach(e=>e.textContent=sym[Math.floor(Math.random()*sym.length)]);document.querySelector("#win").textContent=d.payout}
-document.querySelector("#result").textContent=`${d.result} · payout ${d.payout} · ${d.net>=0?"+":""}${d.net} points`;tg?.HapticFeedback?.notificationOccurred(d.net>0?"success":"warning");await refresh()}catch(e){if(selected==="slots")reels.forEach(e=>e.classList.remove("spin"));document.querySelector("#result").textContent=e.message}finally{busy=false;btn.disabled=false;document.querySelector("#spin").disabled=false}}
-document.querySelector("#play").onclick=play;document.querySelector("#spin").onclick=()=>{changeGame("slots");play()};refresh();
-</script></body></html>
+:root{--gold:#ffcf36;--gold2:#a95b05;--purple:#24104e;--red:#8c0807}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 45%,#e32909 0,#ad1006 55%,#4c0205 100%);font-family:Arial,Helvetica,sans-serif;color:#fff7c8;min-height:100vh}
+.game{width:min(100%,520px);margin:auto;padding:12px 10px 24px;overflow:hidden}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.menu{width:46px;height:46px;border:2px solid var(--gold);border-radius:50%;background:#4d0909;color:#ffe9a0;font-size:27px;box-shadow:0 0 12px #ffb000}
+.logo{font-family:Georgia,serif;font-weight:1000;font-size:clamp(23px,6vw,38px);line-height:1;text-align:center;color:#ffe76b;text-shadow:2px 3px #a32900,0 0 12px #ffb300,-2px -2px #fff1a4;letter-spacing:-1px;flex:1}
+.fixed{font-size:10px;font-weight:bold;border:1px solid #ffca37;background:#4b0908;padding:8px 10px;border-radius:8px;text-align:center;margin:0 0 7px auto;width:max-content}
+.layout{display:grid;grid-template-columns:78px 1fr;gap:5px}
+.mult-title{font-size:10px;font-weight:bold;color:#ffe47a;margin:0 0 5px 4px}
+.multipliers{display:flex;flex-direction:column;gap:5px}
+.mult{height:91px;border:3px solid #9c650c;border-radius:10px;background:linear-gradient(145deg,#4c1b58,#200b39);box-shadow:inset 0 0 0 2px #59301d,0 2px 4px #450600;color:#eac45b;font-size:31px;font-weight:900;text-shadow:1px 2px #451600;cursor:pointer}
+.mult.active{border-color:#fff16d;box-shadow:0 0 12px #ffda00,inset 0 0 0 2px #f4a51b;color:#fff39a}
+.board{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(3,1fr);gap:0;border:5px solid #d59a27;border-radius:12px;background:#190a40;overflow:hidden;box-shadow:0 0 0 2px #5e2800,inset 0 0 15px #000}
+.cell{min-width:0;height:clamp(86px,24vw,126px);display:flex;align-items:center;justify-content:center;font-size:clamp(32px,9vw,51px);background:linear-gradient(145deg,#27105c,#180735);border-right:1px solid #4b3174;border-bottom:1px solid #4b3174;text-shadow:0 3px 4px #000;user-select:none}
+.cell.win{animation:winpulse .5s ease-in-out infinite alternate;background:#50320c}
+@keyframes winpulse{to{filter:brightness(1.8);transform:scale(.96)}}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);margin-top:10px;border:3px solid #b96c12;border-radius:10px;background:linear-gradient(#750e0a,#3b0505);box-shadow:inset 0 0 0 2px #ffca36}
+.stat{text-align:center;padding:8px 2px;border-right:1px solid #a74d0a;min-width:0}.stat:last-child{border:0}.ico{font-size:22px;color:#ffcf19}.amount{font-size:clamp(14px,3.8vw,20px);font-weight:900;color:white;white-space:nowrap}.unit{font-size:10px;font-weight:bold}.label{font-size:10px;color:#ffdc21;font-weight:900;margin-top:3px}
+.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:26px auto 15px;width:85%}
+.hex{aspect-ratio:1/1;clip-path:polygon(50% 0,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:linear-gradient(145deg,#ffe36a,#8d4b08 20%,#ffd83d 35%,#5e2108 40%,#180a4b 44%,#2b0d60 80%,#d99117);padding:6px;border:0;color:#ffce1e;filter:drop-shadow(0 4px 4px #300000);cursor:pointer}
+.hex-inner{height:100%;clip-path:polygon(50% 0,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);background:linear-gradient(145deg,#321064,#1b0844);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-weight:900;font-size:clamp(11px,3vw,16px);text-shadow:0 2px #541900}
+.hex .symbol{font-size:clamp(27px,8vw,43px);line-height:1}
+.wager{display:grid;grid-template-columns:48px 1fr 1.12fr 48px;align-items:center;gap:0;margin:0 8px;position:relative;padding-top:42px}
+.step{height:78px;background:linear-gradient(#291064,#110638);border:3px solid #b87917;box-shadow:inset 0 0 0 2px #f3c742;color:#ffd51f;font-size:35px;font-weight:900;cursor:pointer}
+.step:first-child{border-radius:14px 0 0 14px}.step:last-child{border-radius:0 14px 14px 0}
+.betbox{height:83px;background:linear-gradient(#6c1025,#350720);border:3px solid #b47a17;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;color:#ffdf37;font-size:23px;text-shadow:0 2px #5c0800}
+.betbox small{font-size:14px;margin-top:2px}
+.spin{position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:2;width:48%;height:192px;max-width:245px;border:0;clip-path:polygon(50% 0,91% 17%,100% 34%,91% 84%,75% 100%,25% 100%,9% 84%,0 34%,9% 17%);background:linear-gradient(135deg,#fff58a,#ffb600 24%,#6f3000 31%,#ffdf3e 37%,#9c2607 41%,#49050c 75%,#ffb900 80%,#fff07a);padding:10px;filter:drop-shadow(0 5px 7px #210000);cursor:pointer}
+.spin-in{height:100%;clip-path:polygon(50% 0,91% 17%,100% 34%,91% 84%,75% 100%,25% 100%,9% 84%,0 34%,9% 17%);border:2px solid #ffe867;background:radial-gradient(ellipse at 50% 0,#ff5d00,#b20908 42%,#3d050d 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff45c;text-shadow:0 3px 3px #710000,0 0 9px #ff9c00}
+.spin-word{font-size:clamp(28px,8vw,43px);font-weight:1000}.spin-arrow{font-size:48px;line-height:1}
+.spin:disabled{opacity:.85;cursor:wait}
+.goodluck{text-align:center;color:#ffda30;font-size:19px;font-weight:1000;letter-spacing:2px;margin:22px 0 0;text-shadow:0 2px #650000}
+.note{text-align:center;font-size:10px;color:#ffe5b4;opacity:.75;margin:9px 0 0}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#210638;border:2px solid #ffcf36;border-radius:12px;padding:12px 18px;z-index:5;display:none;max-width:90%;text-align:center;font-weight:bold;box-shadow:0 5px 20px #000}
+@media(max-width:370px){.layout{grid-template-columns:66px 1fr}.mult{height:79px;font-size:27px}.cell{height:clamp(78px,23vw,100px)}.quick{gap:10px;width:90%}.wager{grid-template-columns:40px 1fr 1fr 40px;margin:0 2px}.step{height:70px}.betbox{font-size:19px}}
+</style>
+</head>
+<body>
+<main class="game">
+  <header class="top"><button class="menu" id="menuBtn" aria-label="Menu">☰</button><div class="logo">MULTI HOT MEGAWIN</div></header>
+  <div class="fixed">5 LINES FIXED</div>
+  <section class="layout">
+    <aside><div class="mult-title">MULTIPLIER</div><div class="multipliers">
+      <button class="mult" data-mul="2">2x</button><button class="mult active" data-mul="5">5x</button><button class="mult" data-mul="1">1x</button>
+    </div></aside>
+    <div class="board" id="board" aria-label="Slot reels"></div>
+  </section>
+  <section class="stats">
+    <div class="stat"><div class="ico">▣</div><div class="amount" id="balance">120.00</div><div class="unit">ETB</div><div class="label">BALANCE</div></div>
+    <div class="stat"><div class="ico">🏆</div><div class="amount" id="win">0.00</div><div class="unit">ETB</div><div class="label">WIN</div></div>
+    <div class="stat"><div class="ico">◉</div><div class="amount" id="betStat">10.00</div><div class="unit">ETB</div><div class="label">BET</div></div>
+    <div class="stat"><div class="ico">♙</div><div class="amount" id="totalWin">0.00</div><div class="unit">ETB</div><div class="label">TOTAL WIN</div></div>
+  </section>
+  <section class="quick">
+    <button class="hex" id="autoBtn"><span class="hex-inner"><span class="symbol">⟳</span><span id="autoText">AUTO</span></span></button>
+    <button class="hex" id="multiBtn"><span class="hex-inner"><span class="symbol" id="multiLabel">2x</span><span>MULTIPLIER</span></span></button>
+    <button class="hex" id="betBtn"><span class="hex-inner"><span class="symbol">⇩</span><span>BET</span></span></button>
+  </section>
+  <section class="wager">
+    <button class="step" id="minus">−</button><div class="betbox"><span>5.00</span><small>ETB</small></div>
+    <div class="betbox"><span>20</span><small>ETB</small></div><button class="step" id="plus">+</button>
+    <button class="spin" id="spinBtn"><span class="spin-in"><span class="spin-word">SPIN</span><span class="spin-arrow">⟳</span></span></button>
+  </section>
+  <div class="goodluck">♛ &nbsp; GOOD LUCK! &nbsp; ♛</div>
+  <p class="note">Demo interface • No real-money deposits or payouts</p>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const icons=["🍊","🍋","🍇","🍑","🍒","🍉","🔔","🟨","7️⃣","🎰"];
+const board=document.getElementById("board");
+let balance=120, bet=10, winTotal=0, multiplier=5, busy=false, auto=false, autoTimer=null;
+const cells=[];
+for(let i=0;i<15;i++){let d=document.createElement("div");d.className="cell";d.textContent=icons[Math.floor(Math.random()*icons.length)];board.appendChild(d);cells.push(d);}
+function money(n){return Number(n).toFixed(2)}
+function refresh(){document.getElementById("balance").textContent=money(balance);document.getElementById("betStat").textContent=money(bet);document.querySelectorAll(".betbox")[0].innerHTML=`<span>${money(Math.max(5,bet/2))}</span><small>ETB</small>`;document.querySelectorAll(".betbox")[1].innerHTML=`<span>${money(bet*2)}</span><small>ETB</small>`;document.getElementById("totalWin").textContent=money(winTotal);}
+function toast(s){let t=document.getElementById("toast");t.textContent=s;t.style.display="block";clearTimeout(t._timer);t._timer=setTimeout(()=>t.style.display="none",2500)}
+function chooseIcons(){return Array.from({length:15},()=>icons[Math.floor(Math.random()*icons.length)]);}
+async function spin(){
+ if(busy)return;
+ if(balance<bet){toast("Balance xiqqaa dha (demo). Bet hir'isi.");return;}
+ busy=true;let btn=document.getElementById("spinBtn");btn.disabled=true;cells.forEach(c=>c.classList.remove("win"));
+ balance-=bet;refresh();let result=chooseIcons();let start=Date.now();
+ let ticker=setInterval(()=>cells.forEach(c=>c.textContent=icons[Math.floor(Math.random()*icons.length)]),75);
+ await new Promise(r=>setTimeout(r,1650));
+ clearInterval(ticker);
+ // Stop columns in sequence for a slot-machine feel
+ for(let col=0;col<5;col++){
+   for(let row=0;row<3;row++)cells[row*5+col].textContent=result[row*5+col];
+   await new Promise(r=>setTimeout(r,95));
+ }
+ // Five horizontal lines; demo matching rule: 3+ identical adjacent symbols from left.
+ let win=0;
+ for(let row=0;row<3;row++){
+   let first=result[row*5], count=1;
+   for(let col=1;col<5;col++){if(result[row*5+col]===first)count++;else break;}
+   if(count>=3){win+=bet*multiplier*(count===3?2:count===4?5:12);for(let col=0;col<count;col++)cells[row*5+col].classList.add("win");}
+ }
+ // Small chance of a demo payout; outcomes are illustrative, not calibrated odds.
+ if(win===0 && Math.random()<.13){win=bet*multiplier;let row=Math.floor(Math.random()*3);for(let c=0;c<3;c++)cells[row*5+c].classList.add("win");}
+ balance+=win;winTotal+=win;document.getElementById("win").textContent=money(win);refresh();
+ busy=false;btn.disabled=false;
+ if(win>0)toast("Baga gammaddan! Demo win: "+money(win)+" ETB");else toast("Amma hin milkoofne. Irra deebi'i.");
+ if(auto){autoTimer=setTimeout(spin,900);}
+}
+document.getElementById("spinBtn").addEventListener("click",spin);
+document.getElementById("minus").addEventListener("click",()=>{bet=Math.max(5,bet-5);refresh()});
+document.getElementById("plus").addEventListener("click",()=>{bet=Math.min(100,bet+5);refresh()});
+document.querySelectorAll(".mult").forEach(b=>b.addEventListener("click",()=>{multiplier=+b.dataset.mul;document.querySelectorAll(".mult").forEach(x=>x.classList.toggle("active",x===b));document.getElementById("multiLabel").textContent=multiplier+"x"}));
+document.getElementById("multiBtn").addEventListener("click",()=>{let vals=[1,2,5],i=vals.indexOf(multiplier);multiplier=vals[(i+1)%vals.length];document.querySelectorAll(".mult").forEach(b=>b.classList.toggle("active",+b.dataset.mul===multiplier));document.getElementById("multiLabel").textContent=multiplier+"x";});
+document.getElementById("autoBtn").addEventListener("click",()=>{auto=!auto;document.getElementById("autoText").textContent=auto?"STOP":"AUTO";if(!auto){clearTimeout(autoTimer);toast("Auto dhaabbate");}else{toast("Auto spin jalqabe");if(!busy)spin();}});
+document.getElementById("betBtn").addEventListener("click",()=>toast("Bet: "+money(bet)+" ETB • + / − fayyadami"));
+document.getElementById("menuBtn").addEventListener("click",()=>toast("Menu demo"));
+refresh();
+</script>
+</body></html>
