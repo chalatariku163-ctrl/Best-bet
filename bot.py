@@ -1,675 +1,184 @@
-import os
-import json
-import hmac
-import hashlib
-import sqlite3
-import threading
-import logging
-import random
-import urllib.parse
-
+import os, json, hmac, hashlib, sqlite3, threading, logging, random, urllib.parse, asyncio
 from datetime import datetime, timezone
-
 from flask import Flask, request, jsonify, send_from_directory
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    WebAppInfo,
-)
-
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    ContextTypes,
-)
-
-# =========================
-# CONFIGURATION
-# =========================
-
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
-
-BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
-
-WEBAPP_URL = os.getenv(
-    "WEBAPP_URL",
-    ""
-).strip().rstrip("/")
-
-DATABASE_PATH = os.getenv(
-    "DATABASE_PATH",
-    "casino.db"
-)
-
-app = Flask(__name__)
-
-db_lock = threading.Lock()
-
-
-# =========================
-# DATABASE
-# =========================
+logging.basicConfig(level=logging.INFO)
+BOT_TOKEN=os.getenv("BOT_TOKEN","").strip()
+WEBAPP_URL=os.getenv("WEBAPP_URL","").strip().rstrip("/")
+ADMIN_ID=int(os.getenv("ADMIN_ID","0") or 0)
+DATABASE_PATH=os.getenv("DATABASE_PATH","casino.db")
+# Fill these later; do not publish private financial details in public source.
+PAYMENT_INFO={
+ "Telebirr": os.getenv("PAY_TELEBIRR","Payment details will be announced"),
+ "CBE": os.getenv("PAY_CBE","Payment details will be announced"),
+ "Awash": os.getenv("PAY_AWASH","Payment details will be announced"),
+}
+BONUS=20
+app=Flask(__name__)
+db_lock=threading.Lock()
 
 def connect():
-    conn = sqlite3.connect(
-        DATABASE_PATH,
-        timeout=20
-    )
-
-    conn.row_factory = sqlite3.Row
-
-    return conn
-
+ c=sqlite3.connect(DATABASE_PATH,timeout=25)
+ c.row_factory=sqlite3.Row
+ return c
 
 def init_db():
-
-    with connect() as conn:
-
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id INTEGER PRIMARY KEY,
-                username TEXT,
-                balance INTEGER NOT NULL DEFAULT 1000
-            )
-        """)
-
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                game TEXT,
-                stake INTEGER,
-                payout INTEGER,
-                result TEXT,
-                created TEXT
-            )
-        """)
-
-
+ with connect() as c:
+  c.execute("""CREATE TABLE IF NOT EXISTS users(
+   user_id INTEGER PRIMARY KEY, username TEXT, balance INTEGER NOT NULL DEFAULT 20,
+   bonus_given INTEGER NOT NULL DEFAULT 1)""")
+  c.execute("""CREATE TABLE IF NOT EXISTS history(
+   id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,game TEXT,stake INTEGER,
+   payout INTEGER,result TEXT,created TEXT)""")
+  c.execute("""CREATE TABLE IF NOT EXISTS deposits(
+   id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,username TEXT,method TEXT,
+   amount INTEGER,reference TEXT,status TEXT NOT NULL DEFAULT 'PENDING',
+   created TEXT,reviewed TEXT,reviewed_by INTEGER)""")
+  # Upgrade an existing users table without resetting existing balances.
+  cols={r["name"] for r in c.execute("PRAGMA table_info(users)")}
+  if "bonus_given" not in cols:
+   c.execute("ALTER TABLE users ADD COLUMN bonus_given INTEGER NOT NULL DEFAULT 1")
 init_db()
 
-
-# =========================
-# TELEGRAM WEBAPP SECURITY
-# =========================
-
 def verify_init_data(raw):
-
-    if not BOT_TOKEN or not raw:
-        return None
-
-    try:
-
-        pairs = dict(
-            urllib.parse.parse_qsl(
-                raw,
-                keep_blank_values=True
-            )
-        )
-
-        received_hash = pairs.pop("hash", None)
-
-        if not received_hash:
-            return None
-
-        check_string = "\n".join(
-            f"{key}={value}"
-            for key, value in sorted(pairs.items())
-        )
-
-        secret_key = hmac.new(
-            b"WebAppData",
-            BOT_TOKEN.encode(),
-            hashlib.sha256
-        ).digest()
-
-        calculated_hash = hmac.new(
-            secret_key,
-            check_string.encode(),
-            hashlib.sha256
-        ).hexdigest()
-
-        if not hmac.compare_digest(
-            calculated_hash,
-            received_hash
-        ):
-            return None
-
-        user = json.loads(pairs["user"])
-
-        auth_date = int(pairs["auth_date"])
-
-        now = datetime.now(
-            timezone.utc
-        ).timestamp()
-
-        # Reject old authentication data
-        if now - auth_date > 86400:
-            return None
-
-        return user
-
-    except Exception:
-
-        logging.exception(
-            "Telegram authentication failed"
-        )
-
-        return None
-
+ if not BOT_TOKEN or not raw:return None
+ try:
+  pairs=dict(urllib.parse.parse_qsl(raw,keep_blank_values=True))
+  got=pairs.pop("hash",None)
+  if not got:return None
+  check="\n".join(f"{k}={v}" for k,v in sorted(pairs.items()))
+  secret=hmac.new(b"WebAppData",BOT_TOKEN.encode(),hashlib.sha256).digest()
+  want=hmac.new(secret,check.encode(),hashlib.sha256).hexdigest()
+  if not hmac.compare_digest(want,got):return None
+  user=json.loads(pairs["user"])
+  age=datetime.now(timezone.utc).timestamp()-int(pairs["auth_date"])
+  if age<0 or age>86400:return None
+  return user
+ except Exception:
+  logging.exception("WebApp authentication failed");return None
 
 def authorized():
+ u=verify_init_data(request.headers.get("X-Telegram-Init-Data",""))
+ return u if u and u.get("id") else None
 
-    raw = request.headers.get(
-        "X-Telegram-Init-Data",
-        ""
-    )
-
-    user = verify_init_data(raw)
-
-    if not user or not user.get("id"):
-        return None
-
-    return user
-
-
-# =========================
-# HOME PAGE
-# =========================
+def ensure_user(c,u):
+ uid=int(u["id"]); name=u.get("username","")
+ # New accounts receive the one-time 20 demo-credit bonus.
+ c.execute("INSERT OR IGNORE INTO users(user_id,username,balance,bonus_given) VALUES(?,?,?,1)",(uid,name,BONUS))
+ c.execute("UPDATE users SET username=? WHERE user_id=?",(name,uid))
+ return c.execute("SELECT * FROM users WHERE user_id=?",(uid,)).fetchone()
 
 @app.get("/")
-def index():
-
-    return send_from_directory(
-        ".",
-        "index.html"
-    )
-
-
+def index():return send_from_directory(".","index.html")
 @app.get("/health")
-def health():
-
-    return jsonify(
-        ok=True,
-        service="BEST BET CASINO"
-    )
-
-
-# =========================
-# USER PROFILE / BALANCE
-# =========================
+def health():return jsonify(ok=True,service="Multi Hot Megawin")
 
 @app.get("/api/me")
 def me():
-
-    user = authorized()
-
-    if not user:
-
-        return jsonify(
-            error="Open this app from its Telegram bot."
-        ), 401
-
-    uid = int(user["id"])
-
-    username = user.get(
-        "username",
-        ""
-    )
-
-    with db_lock, connect() as conn:
-
-        conn.execute("""
-            INSERT OR IGNORE INTO users
-            (user_id, username, balance)
-            VALUES (?, ?, 1000)
-        """, (
-            uid,
-            username
-        ))
-
-        conn.execute("""
-            UPDATE users
-            SET username = ?
-            WHERE user_id = ?
-        """, (
-            username,
-            uid
-        ))
-
-        row = conn.execute("""
-            SELECT balance
-            FROM users
-            WHERE user_id = ?
-        """, (
-            uid,
-        )).fetchone()
-
-        history = conn.execute("""
-            SELECT game, stake, payout, result, created
-            FROM history
-            WHERE user_id = ?
-            ORDER BY id DESC
-            LIMIT 15
-        """, (
-            uid,
-        )).fetchall()
-
-    return jsonify(
-        user={
-            "id": uid,
-            "name": user.get(
-                "first_name",
-                "Player"
-            )
-        },
-        balance=row["balance"],
-        history=[
-            dict(item)
-            for item in history
-        ]
-    )
-
-
-# =========================
-# PLAY GAME
-# =========================
-
-@app.post("/api/play")
-def play():
-
-    user = authorized()
-
-    if not user:
-
-        return jsonify(
-            error="Authentication failed. Open via Telegram."
-        ), 401
-
-    body = request.get_json(
-        silent=True
-    ) or {}
-
-    game = body.get("game")
-
-    try:
-
-        stake = int(
-            body.get("stake", 0)
-        )
-
-    except (ValueError, TypeError):
-
-        return jsonify(
-            error="Invalid stake."
-        ), 400
-
-    if game not in (
-        "slots",
-        "blackjack",
-        "roulette"
-    ):
-
-        return jsonify(
-            error="Invalid game."
-        ), 400
-
-    if stake < 1 or stake > 100:
-
-        return jsonify(
-            error="Stake must be between 1 and 100 demo points."
-        ), 400
-
-    uid = int(user["id"])
-
-    # =====================
-    # SLOT MACHINE
-    # =====================
-
-    if game == "slots":
-
-        symbols = [
-            "🍒",
-            "🍋",
-            "🔔",
-            "⭐",
-            "7️⃣"
-        ]
-
-        reels = [
-            random.choice(symbols)
-            for _ in range(3)
-        ]
-
-        if reels[0] == reels[1] == reels[2]:
-
-            payout = stake * 10
-
-        elif len(set(reels)) == 2:
-
-            payout = stake * 2
-
-        else:
-
-            payout = 0
-
-        result = " ".join(reels)
-
-    # =====================
-    # ROULETTE
-    # =====================
-
-    elif game == "roulette":
-
-        number = random.randint(
-            0,
-            36
-        )
-
-        pick = body.get("pick")
-
-        if pick not in (
-            "red",
-            "black",
-            "green"
-        ):
-
-            return jsonify(
-                error="Choose red, black, or green."
-            ), 400
-
-        reds = {
-            1, 3, 5, 7, 9,
-            12, 14, 16, 18,
-            19, 21, 23, 25,
-            27, 30, 32, 34, 36
-        }
-
-        if number == 0:
-
-            color = "green"
-
-        elif number in reds:
-
-            color = "red"
-
-        else:
-
-            color = "black"
-
-        if color == pick:
-
-            if color == "green":
-
-                payout = stake * 14
-
-            else:
-
-                payout = stake * 2
-
-        else:
-
-            payout = 0
-
-        result = (
-            f"{number} ({color}); "
-            f"you picked {pick}"
-        )
-
-    # =====================
-    # BLACKJACK DEMO
-    # =====================
-
-    else:
-
-        deck = [
-            2, 3, 4, 5, 6,
-            7, 8, 9, 10, 10,
-            10, 11
-        ]
-
-        player = (
-            random.choice(deck)
-            + random.choice(deck)
-        )
-
-        dealer = (
-            random.choice(deck)
-            + random.choice(deck)
-        )
-
-        if player > dealer:
-
-            payout = stake * 2
-
-        elif player == dealer:
-
-            payout = stake
-
-        else:
-
-            payout = 0
-
-        result = (
-            f"You: {player} | "
-            f"Dealer: {dealer}"
-        )
-
-    # =====================
-    # UPDATE BALANCE
-    # =====================
-
-    with db_lock, connect() as conn:
-
-        conn.execute("""
-            INSERT OR IGNORE INTO users
-            (user_id, username, balance)
-            VALUES (?, ?, 1000)
-        """, (
-            uid,
-            user.get("username", "")
-        ))
-
-        row = conn.execute("""
-            SELECT balance
-            FROM users
-            WHERE user_id = ?
-        """, (
-            uid,
-        )).fetchone()
-
-        if row["balance"] < stake:
-
-            return jsonify(
-                error="Not enough demo points."
-            ), 400
-
-        balance = (
-            row["balance"]
-            - stake
-            + payout
-        )
-
-        conn.execute("""
-            UPDATE users
-            SET balance = ?
-            WHERE user_id = ?
-        """, (
-            balance,
-            uid
-        ))
-
-        conn.execute("""
-            INSERT INTO history (
-                user_id,
-                game,
-                stake,
-                payout,
-                result,
-                created
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            uid,
-            game,
-            stake,
-            payout,
-            result,
-            datetime.now(
-                timezone.utc
-            ).isoformat(
-                timespec="seconds"
-            )
-        ))
-
-    return jsonify(
-        balance=balance,
-        stake=stake,
-        payout=payout,
-        result=result,
-        net=payout - stake,
-        symbols=reels if game == "slots" else None
-    )
-
-
-# =========================
-# TELEGRAM /START
-# =========================
-
-async def start(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
-
-    if not WEBAPP_URL:
-
-        await update.message.reply_text(
-            "Bot is installed, but WEBAPP_URL "
-            "is not configured in Render."
-        )
-
-        return
-
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(
-                "🎰 PLAY BEST BET CASINO",
-                web_app=WebAppInfo(
-                    url=WEBAPP_URL
-                )
-            )
-        ]
-    ])
-
-    await update.message.reply_text(
-        "👑 Welcome to BEST BET CASINO!\n\n"
-        "🎰 Slots\n"
-        "🃏 Blackjack\n"
-        "🎡 Roulette\n\n"
-        "Demo points only.\n"
-        "No real-money deposits or withdrawals.\n\n"
-        "👇 Tap below to play.",
-        reply_markup=keyboard
-    )
-
-
-# =========================
-# HELP COMMAND
-# =========================
-
-async def help_cmd(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
-
-    await update.message.reply_text(
-        "🎰 BEST BET CASINO\n\n"
-        "Use /start to open the casino.\n"
-        "Demo points only."
-    )
-
-
-# =========================
-# TELEGRAM BOT RUNNER
-# =========================
-
-def run_bot():
-
-    if not BOT_TOKEN:
-
-        logging.error(
-            "BOT_TOKEN is missing."
-        )
-
-        return
-
-    async def runner():
-
-        telegram_app = (
-            Application.builder()
-            .token(BOT_TOKEN)
-            .build()
-        )
-
-        telegram_app.add_handler(
-            CommandHandler(
-                "start",
-                start
-            )
-        )
-
-        telegram_app.add_handler(
-            CommandHandler(
-                "help",
-                help_cmd
-            )
-        )
-
-        await telegram_app.initialize()
-
-        await telegram_app.start()
-
-        await telegram_app.updater.start_polling()
-
-        logging.info(
-            "Telegram polling started."
-        )
-
-        import asyncio
-
-        while True:
-
-            await asyncio.sleep(3600)
-
-    import asyncio
-
-    asyncio.run(
-        runner()
-    )
-
-
-# =========================
-# START SERVER
-# =========================
-
-if __name__ == "__main__":
-
-    threading.Thread(
-        target=run_bot,
-        daemon=True
-    ).start()
-
-    app.run(
-        host="0.0.0.0",
-        port=int(
-            os.getenv(
-                "PORT",
-                "10000"
-            )
-        )
-        )
+ u=authorized()
+ if not u:return jsonify(error="Open this app from its Telegram bot."),401
+ with db_lock,connect() as c:
+  row=ensure_user(c,u)
+  hist=c.execute("SELECT game,stake,payout,result,created FROM history WHERE user_id=? ORDER BY id DESC LIMIT 15",(int(u["id"]),)).fetchall()
+  deps=c.execute("SELECT id,method,amount,status,created FROM deposits WHERE user_id=? ORDER BY id DESC LIMIT 10",(int(u["id"]),)).fetchall()
+ return jsonify(user={"id":int(u["id"]),"name":u.get("first_name","Player")},
+  balance=row["balance"],bonus=BONUS,history=[dict(x) for x in hist],deposits=[dict(x) for x in deps])
+
+@app.get("/api/payment-methods")
+def payment_methods():
+ return jsonify(methods=[{"name":k,"details":v} for k,v in PAYMENT_INFO.items()])
+
+@app.post("/api/deposit")
+def deposit():
+ u=authorized()
+ if not u:return jsonify(error="Telegram authentication failed."),401
+ b=request.get_json(silent=True) or {}
+ method=str(b.get("method",""))
+ reference=str(b.get("reference","")).strip()[:240]
+ try:amount=int(b.get("amount",0))
+ except (TypeError,ValueError):return jsonify(error="Amount invalid."),400
+ if method not in PAYMENT_INFO:return jsonify(error="Select a payment method."),400
+ if amount<1 or amount>100000:return jsonify(error="Amount must be 1–100000."),400
+ if len(reference)<4:return jsonify(error="Enter transaction reference or receipt details."),400
+ uid=int(u["id"]); now=datetime.now(timezone.utc).isoformat(timespec="seconds")
+ with db_lock,connect() as c:
+  ensure_user(c,u)
+  cur=c.execute("INSERT INTO deposits(user_id,username,method,amount,reference,status,created) VALUES(?,?,?,?,?,'PENDING',?)",
+   (uid,u.get("username",""),method,amount,reference,now))
+  did=cur.lastrowid
+ # Notify admin via bot event loop handoff; notification failure does not erase request.
+ try:
+  asyncio.run_coroutine_threadsafe(notify_admin(did,uid,u.get("username",""),method,amount,reference), bot_loop)
+ except Exception:logging.exception("Could not notify admin")
+ return jsonify(ok=True,deposit_id=did,status="PENDING",message="Request received. Balance changes only after admin review.")
+
+bot_app=None
+bot_loop=None
+async def notify_admin(did,uid,username,method,amount,reference):
+ if not bot_app or not ADMIN_ID:return
+ keyboard=InlineKeyboardMarkup([[
+  InlineKeyboardButton("✅ APPROVE",callback_data=f"dep:approve:{did}"),
+  InlineKeyboardButton("❌ REJECT",callback_data=f"dep:reject:{did}")
+ ]])
+ await bot_app.bot.send_message(ADMIN_ID,
+  f"💳 Deposit request #{did}\nUser: {uid} (@{username or 'none'})\nMethod: {method}\nAmount: {amount} ETB\nReference: {reference}\nStatus: PENDING",
+  reply_markup=keyboard)
+
+async def review_deposit(update:Update,context:ContextTypes.DEFAULT_TYPE):
+ q=update.callback_query
+ if not q:return
+ if not ADMIN_ID or not update.effective_user or update.effective_user.id!=ADMIN_ID:
+  await q.answer("Not authorized.",show_alert=True);return
+ try:
+  _,action,did_s=q.data.split(":");did=int(did_s)
+ except Exception:
+  await q.answer("Invalid request.");return
+ if action not in ("approve","reject"):
+  await q.answer("Invalid action.");return
+ now=datetime.now(timezone.utc).isoformat(timespec="seconds")
+ with db_lock,connect() as c:
+  row=c.execute("SELECT * FROM deposits WHERE id=?",(did,)).fetchone()
+  if not row:
+   await q.answer("Request not found.",show_alert=True);return
+  if row["status"]!="PENDING":
+   await q.answer("Already reviewed: "+row["status"],show_alert=True);return
+  status="APPROVED" if action=="approve" else "REJECTED"
+  # Transaction is atomic: a request can only be credited once.
+  cur=c.execute("UPDATE deposits SET status=?,reviewed=?,reviewed_by=? WHERE id=? AND status='PENDING'",
+    (status,now,update.effective_user.id,did))
+  if cur.rowcount!=1:
+   await q.answer("Already processed.",show_alert=True);return
+  if action=="approve":
+   c.execute("UPDATE users SET balance=balance+? WHERE user_id=?",(row["amount"],row["user_id"]))
+ await q.answer(status)
+ try:await q.edit_message_reply_markup(reply_markup=None)
+ except Exception:pass
+ await q.message.reply_text(f"Deposit #{did}: {status}.")
+
+async def start(update:Update,context:ContextTypes.DEFAULT_TYPE):
+ if not WEBAPP_URL:
+  await update.effective_message.reply_text("WEBAPP_URL is not configured.");return
+ kb=InlineKeyboardMarkup([[InlineKeyboardButton("🎰 OPEN MULTI HOT MEGAWIN",web_app=WebAppInfo(url=WEBAPP_URL))]])
+ await update.effective_message.reply_text(
+  "🎰 MULTI HOT MEGAWIN\n\nNew account: one-time 20 demo-credit bonus.\nDeposits are pending until admin reviews them.\nPlease check local laws and age requirements.",
+  reply_markup=kb)
+async def help_cmd(update:Update,context:ContextTypes.DEFAULT_TYPE):
+ await update.effective_message.reply_text("Use /start to open the game.")
+async def run_bot():
+ global bot_app,bot_loop
+ if not BOT_TOKEN:
+  logging.error("BOT_TOKEN is missing.");return
+ bot_loop=asyncio.get_running_loop()
+ bot_app=Application.builder().token(BOT_TOKEN).build()
+ bot_app.add_handler(CommandHandler("start",start))
+ bot_app.add_handler(CommandHandler("help",help_cmd))
+ bot_app.add_handler(CallbackQueryHandler(review_deposit,pattern=r"^dep:(approve|reject):\d+$"))
+ await bot_app.initialize();await bot_app.start();await bot_app.updater.start_polling()
+ logging.info("Telegram polling started.")
+ await asyncio.Event().wait()
+
+if __name__=="__main__":
+ threading.Thread(target=lambda:asyncio.run(run_bot()),daemon=True).start()
+ app.run(host="0.0.0.0",port=int(os.getenv("PORT","10000")))
