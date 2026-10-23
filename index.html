@@ -1,6 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Multi Hot Megawin</title>
+
 <style>
 :root{--gold:#ffcf36;--gold2:#a95b05;--purple:#24104e;--red:#8c0807}
 *{box-sizing:border-box}
+
 body{
  margin:0;
  background:radial-gradient(ellipse at 50% 45%,#e32909 0,#ad1006 55%,#4c0205 100%);
@@ -8,12 +16,14 @@ body{
  color:#fff7c8;
  min-height:100vh;
 }
+
 .game{
  width:min(100%,460px);
  margin:auto;
  padding:8px 8px 14px;
  overflow:hidden;
 }
+
 .top{
  display:flex;
  align-items:center;
@@ -21,8 +31,10 @@ body{
  gap:6px;
  margin-bottom:7px;
 }
+
 .menu{
- width:36px;height:36px;
+ width:36px;
+ height:36px;
  flex-shrink:0;
  border:2px solid var(--gold);
  border-radius:50%;
@@ -31,6 +43,7 @@ body{
  font-size:21px;
  box-shadow:0 0 8px #ffb000;
 }
+
 .logo{
  font-family:Georgia,serif;
  font-weight:1000;
@@ -42,6 +55,7 @@ body{
  letter-spacing:-.8px;
  flex:1;
 }
+
 .fixed{
  font-size:9px;
  font-weight:bold;
@@ -53,22 +67,26 @@ body{
  margin:0 0 5px auto;
  width:max-content;
 }
+
 .layout{
  display:grid;
  grid-template-columns:62px 1fr;
  gap:4px;
 }
+
 .mult-title{
  font-size:9px;
  font-weight:bold;
  color:#ffe47a;
  margin:0 0 4px 3px;
 }
+
 .multipliers{
  display:flex;
  flex-direction:column;
  gap:4px;
 }
+
 .mult{
  height:clamp(59px,17vw,76px);
  border:2px solid #9c650c;
@@ -82,11 +100,13 @@ body{
  cursor:pointer;
  padding:0;
 }
+
 .mult.active{
  border-color:#fff16d;
  box-shadow:0 0 8px #ffda00,inset 0 0 0 1px #f4a51b;
  color:#fff39a;
 }
+
 .board{
  display:grid;
  grid-template-columns:repeat(5,minmax(0,1fr));
@@ -98,6 +118,7 @@ body{
  overflow:hidden;
  box-shadow:0 0 0 1px #5e2800,inset 0 0 10px #000;
 }
+
 .cell{
  min-width:0;
  height:clamp(55px,16.3vw,78px);
@@ -111,13 +132,16 @@ body{
  text-shadow:0 3px 4px #000;
  user-select:none;
 }
+
 .cell.win{
  animation:winpulse .5s ease-in-out infinite alternate;
  background:#50320c;
 }
+
 @keyframes winpulse{
  to{filter:brightness(1.8);transform:scale(.96)}
 }
+
 .stats{
  display:grid;
  grid-template-columns:repeat(4,minmax(0,1fr));
@@ -127,34 +151,41 @@ body{
  background:linear-gradient(#750e0a,#3b0505);
  box-shadow:inset 0 0 0 1px #ffca36;
 }
+
 .stat{
  text-align:center;
  padding:5px 1px;
  border-right:1px solid #a74d0a;
  min-width:0;
 }
+
 .stat:last-child{border:0}
+
 .ico{
  font-size:17px;
  color:#ffcf19;
  line-height:1.1;
 }
+
 .amount{
  font-size:clamp(11px,3.4vw,16px);
  font-weight:900;
  color:white;
  white-space:nowrap;
 }
+
 .unit{
  font-size:8px;
  font-weight:bold;
 }
+
 .label{
  font-size:clamp(7px,2.1vw,9px);
  color:#ffdc21;
  font-weight:900;
  margin-top:2px;
 }
+
 .quick{
  display:grid;
  grid-template-columns:repeat(3,minmax(0,1fr));
@@ -162,6 +193,7 @@ body{
  margin:15px auto 9px;
  width:77%;
 }
+
 .hex{
  aspect-ratio:1/1;
  clip-path:polygon(50% 0,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);
@@ -172,6 +204,7 @@ body{
  filter:drop-shadow(0 3px 3px #300000);
  cursor:pointer;
 }
+
 .hex-inner{
  height:100%;
  clip-path:polygon(50% 0,95% 25%,95% 75%,50% 100%,5% 75%,5% 25%);
@@ -185,10 +218,12 @@ body{
  font-size:clamp(9px,2.7vw,13px);
  text-shadow:0 2px #541900;
 }
+
 .hex .symbol{
  font-size:clamp(23px,7vw,34px);
  line-height:1;
 }
+
 .wager{
  display:grid;
  grid-template-columns:38px 1fr 1fr 38px;
@@ -198,6 +233,7 @@ body{
  position:relative;
  padding-top:34px;
 }
+
 .step{
  height:57px;
  background:linear-gradient(#291064,#110638);
@@ -209,8 +245,10 @@ body{
  cursor:pointer;
  padding:0;
 }
+
 .step:first-child{border-radius:10px 0 0 10px}
 .step:last-child{border-radius:0 10px 10px 0}
+
 .betbox{
  height:61px;
  background:linear-gradient(#6c1025,#350720);
@@ -225,10 +263,12 @@ body{
  text-shadow:0 2px #5c0800;
  min-width:0;
 }
+
 .betbox small{
  font-size:11px;
  margin-top:1px;
 }
+
 .spin{
  position:absolute;
  left:50%;
@@ -245,6 +285,7 @@ body{
  filter:drop-shadow(0 4px 5px #210000);
  cursor:pointer;
 }
+
 .spin-in{
  height:100%;
  clip-path:polygon(50% 0,91% 17%,100% 34%,91% 84%,75% 100%,25% 100%,9% 84%,0 34%,9% 17%);
@@ -257,18 +298,22 @@ body{
  color:#fff45c;
  text-shadow:0 3px 3px #710000,0 0 9px #ff9c00;
 }
+
 .spin-word{
  font-size:clamp(23px,7vw,34px);
  font-weight:1000;
 }
+
 .spin-arrow{
  font-size:37px;
  line-height:1;
 }
+
 .spin:disabled{
  opacity:.85;
  cursor:wait;
 }
+
 .goodluck{
  text-align:center;
  color:#ffda30;
@@ -278,6 +323,7 @@ body{
  margin:14px 0 0;
  text-shadow:0 2px #650000;
 }
+
 .note{
  text-align:center;
  font-size:9px;
@@ -285,6 +331,7 @@ body{
  opacity:.75;
  margin:6px 0 0;
 }
+
 .toast{
  position:fixed;
  left:50%;
@@ -302,19 +349,423 @@ body{
  font-size:13px;
  box-shadow:0 5px 20px #000;
 }
+
 @media(max-width:350px){
  .game{padding:6px 5px 10px}
- .layout{grid-template-columns:54px 1fr;gap:3px}
- .mult{height:57px;font-size:20px}
- .cell{height:clamp(49px,15.8vw,59px);font-size:clamp(21px,6.5vw,27px)}
- .quick{gap:8px;width:80%;margin-top:12px}
- .wager{grid-template-columns:32px 1fr 1fr 32px;margin:0 2px;padding-top:30px}
- .step{height:51px;font-size:24px}
- .betbox{height:55px;font-size:15px}
+
+ .layout{
+  grid-template-columns:54px 1fr;
+  gap:3px;
+ }
+
+ .mult{
+  height:57px;
+  font-size:20px;
+ }
+
+ .cell{
+  height:clamp(49px,15.8vw,59px);
+  font-size:clamp(21px,6.5vw,27px);
+ }
+
+ .quick{
+  gap:8px;
+  width:80%;
+  margin-top:12px;
+ }
+
+ .wager{
+  grid-template-columns:32px 1fr 1fr 32px;
+  margin:0 2px;
+  padding-top:30px;
+ }
+
+ .step{
+  height:51px;
+  font-size:24px;
+ }
+
+ .betbox{
+  height:55px;
+  font-size:15px;
+ }
+
  .betbox small{font-size:9px}
- .spin{height:116px;width:43%}
+
+ .spin{
+  height:116px;
+  width:43%;
+ }
+
  .spin-word{font-size:22px}
  .spin-arrow{font-size:30px}
- .goodluck{font-size:13px;margin-top:12px}
+
+ .goodluck{
+  font-size:13px;
+  margin-top:12px;
+ }
 }
-  </style>
+</style>
+</head>
+
+<body>
+
+<main class="game">
+
+  <header class="top">
+    <button class="menu" id="menuBtn" aria-label="Menu">☰</button>
+    <div class="logo">MULTI HOT MEGAWIN</div>
+  </header>
+
+  <div class="fixed">5 LINES FIXED</div>
+
+  <section class="layout">
+
+    <aside>
+      <div class="mult-title">MULTIPLIER</div>
+
+      <div class="multipliers">
+        <button class="mult" data-mul="2">2x</button>
+        <button class="mult active" data-mul="5">5x</button>
+        <button class="mult" data-mul="1">1x</button>
+      </div>
+    </aside>
+
+    <div class="board" id="board" aria-label="Slot reels"></div>
+
+  </section>
+
+  <section class="stats">
+
+    <div class="stat">
+      <div class="ico">▣</div>
+      <div class="amount" id="balance">120.00</div>
+      <div class="unit">ETB</div>
+      <div class="label">BALANCE</div>
+    </div>
+
+    <div class="stat">
+      <div class="ico">🏆</div>
+      <div class="amount" id="win">0.00</div>
+      <div class="unit">ETB</div>
+      <div class="label">WIN</div>
+    </div>
+
+    <div class="stat">
+      <div class="ico">◉</div>
+      <div class="amount" id="betStat">10.00</div>
+      <div class="unit">ETB</div>
+      <div class="label">BET</div>
+    </div>
+
+    <div class="stat">
+      <div class="ico">♙</div>
+      <div class="amount" id="totalWin">0.00</div>
+      <div class="unit">ETB</div>
+      <div class="label">TOTAL WIN</div>
+    </div>
+
+  </section>
+
+  <section class="quick">
+
+    <button class="hex" id="autoBtn">
+      <span class="hex-inner">
+        <span class="symbol">⟳</span>
+        <span id="autoText">AUTO</span>
+      </span>
+    </button>
+
+    <button class="hex" id="multiBtn">
+      <span class="hex-inner">
+        <span class="symbol" id="multiLabel">2x</span>
+        <span>MULTIPLIER</span>
+      </span>
+    </button>
+
+    <button class="hex" id="betBtn">
+      <span class="hex-inner">
+        <span class="symbol">⇩</span>
+        <span>BET</span>
+      </span>
+    </button>
+
+  </section>
+
+  <section class="wager">
+
+    <button class="step" id="minus">−</button>
+
+    <div class="betbox">
+      <span>5.00</span>
+      <small>ETB</small>
+    </div>
+
+    <div class="betbox">
+      <span>20</span>
+      <small>ETB</small>
+    </div>
+
+    <button class="step" id="plus">+</button>
+
+    <button class="spin" id="spinBtn">
+      <span class="spin-in">
+        <span class="spin-word">SPIN</span>
+        <span class="spin-arrow">⟳</span>
+      </span>
+    </button>
+
+  </section>
+
+  <div class="goodluck">♛ &nbsp; GOOD LUCK! &nbsp; ♛</div>
+
+  <p class="note">Demo interface • No real-money deposits or payouts</p>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const icons=["🍊","🍋","🍇","🍑","🍒","🍉","🔔","🟨","7️⃣","🎰"];
+
+const board=document.getElementById("board");
+
+let balance=120,
+    bet=10,
+    winTotal=0,
+    multiplier=5,
+    busy=false,
+    auto=false,
+    autoTimer=null;
+
+const cells=[];
+
+for(let i=0;i<15;i++){
+ let d=document.createElement("div");
+ d.className="cell";
+ d.textContent=icons[Math.floor(Math.random()*icons.length)];
+ board.appendChild(d);
+ cells.push(d);
+}
+
+function money(n){
+ return Number(n).toFixed(2);
+}
+
+function refresh(){
+
+ document.getElementById("balance").textContent=money(balance);
+
+ document.getElementById("betStat").textContent=money(bet);
+
+ document.querySelectorAll(".betbox")[0].innerHTML=
+ `<span>${money(Math.max(5,bet/2))}</span><small>ETB</small>`;
+
+ document.querySelectorAll(".betbox")[1].innerHTML=
+ `<span>${money(bet*2)}</span><small>ETB</small>`;
+
+ document.getElementById("totalWin").textContent=money(winTotal);
+}
+
+function toast(s){
+
+ let t=document.getElementById("toast");
+
+ t.textContent=s;
+ t.style.display="block";
+
+ clearTimeout(t._timer);
+
+ t._timer=setTimeout(()=>{
+  t.style.display="none";
+ },2500);
+}
+
+function chooseIcons(){
+
+ return Array.from(
+  {length:15},
+  ()=>icons[Math.floor(Math.random()*icons.length)]
+ );
+}
+
+async function spin(){
+
+ if(busy)return;
+
+ if(balance<bet){
+  toast("Balance xiqqaa dha (demo). Bet hir'isi.");
+  return;
+ }
+
+ busy=true;
+
+ let btn=document.getElementById("spinBtn");
+
+ btn.disabled=true;
+
+ cells.forEach(c=>c.classList.remove("win"));
+
+ balance-=bet;
+ refresh();
+
+ let result=chooseIcons();
+
+ let ticker=setInterval(()=>{
+  cells.forEach(c=>{
+   c.textContent=icons[Math.floor(Math.random()*icons.length)];
+  });
+ },75);
+
+ await new Promise(r=>setTimeout(r,1650));
+
+ clearInterval(ticker);
+
+ // Stop columns in sequence for a slot-machine feel
+
+ for(let col=0;col<5;col++){
+
+  for(let row=0;row<3;row++){
+   cells[row*5+col].textContent=result[row*5+col];
+  }
+
+  await new Promise(r=>setTimeout(r,95));
+ }
+
+ // Five horizontal lines; demo matching rule:
+ // 3+ identical adjacent symbols from left.
+
+ let win=0;
+
+ for(let row=0;row<3;row++){
+
+  let first=result[row*5],
+      count=1;
+
+  for(let col=1;col<5;col++){
+
+   if(result[row*5+col]===first){
+    count++;
+   }else{
+    break;
+   }
+  }
+
+  if(count>=3){
+
+   win+=bet*multiplier*(count===3?2:count===4?5:12);
+
+   for(let col=0;col<count;col++){
+    cells[row*5+col].classList.add("win");
+   }
+  }
+ }
+
+ // Small chance of a demo payout.
+ // Outcomes are illustrative, not calibrated odds.
+
+ if(win===0 && Math.random()<.13){
+
+  win=bet*multiplier;
+
+  let row=Math.floor(Math.random()*3);
+
+  for(let c=0;c<3;c++){
+   cells[row*5+c].classList.add("win");
+  }
+ }
+
+ balance+=win;
+ winTotal+=win;
+
+ document.getElementById("win").textContent=money(win);
+
+ refresh();
+
+ busy=false;
+ btn.disabled=false;
+
+ if(win>0){
+  toast("Baga gammaddan! Demo win: "+money(win)+" ETB");
+ }else{
+  toast("Amma hin milkoofne. Irra deebi'i.");
+ }
+
+ if(auto){
+  autoTimer=setTimeout(spin,900);
+ }
+}
+
+document.getElementById("spinBtn").addEventListener("click",spin);
+
+document.getElementById("minus").addEventListener("click",()=>{
+ bet=Math.max(5,bet-5);
+ refresh();
+});
+
+document.getElementById("plus").addEventListener("click",()=>{
+ bet=Math.min(100,bet+5);
+ refresh();
+});
+
+document.querySelectorAll(".mult").forEach(b=>{
+
+ b.addEventListener("click",()=>{
+
+  multiplier=+b.dataset.mul;
+
+  document.querySelectorAll(".mult").forEach(x=>{
+   x.classList.toggle("active",x===b);
+  });
+
+  document.getElementById("multiLabel").textContent=multiplier+"x";
+ });
+});
+
+document.getElementById("multiBtn").addEventListener("click",()=>{
+
+ let vals=[1,2,5],
+     i=vals.indexOf(multiplier);
+
+ multiplier=vals[(i+1)%vals.length];
+
+ document.querySelectorAll(".mult").forEach(b=>{
+  b.classList.toggle("active",+b.dataset.mul===multiplier);
+ });
+
+ document.getElementById("multiLabel").textContent=multiplier+"x";
+});
+
+document.getElementById("autoBtn").addEventListener("click",()=>{
+
+ auto=!auto;
+
+ document.getElementById("autoText").textContent=auto?"STOP":"AUTO";
+
+ if(!auto){
+
+  clearTimeout(autoTimer);
+
+  toast("Auto dhaabbate");
+
+ }else{
+
+  toast("Auto spin jalqabe");
+
+  if(!busy)spin();
+ }
+});
+
+document.getElementById("betBtn").addEventListener("click",()=>{
+ toast("Bet: "+money(bet)+" ETB • + / − fayyadami");
+});
+
+document.getElementById("menuBtn").addEventListener("click",()=>{
+ toast("Menu demo");
+});
+
+refresh();
+</script>
+
+</body>
+   </html>
