@@ -32,13 +32,23 @@ document.getElementById("submitDeposit").onclick=async()=>{const method=document
 document.getElementById("balanceBtn").onclick=async()=>{try{const d=await loadMe();document.getElementById("infoTitle").textContent="My Balance";document.getElementById("infoBody").innerHTML=`<p>Available game credits: <b>${money(d.balance)}</b></p><p class="small">The new-account welcome bonus is 20 credits once only. Bonus is promotional credit, not cash.</p>`;showModal("infoModal")}catch{}};
 document.getElementById("historyBtn").onclick=async()=>{try{const d=await loadMe();document.getElementById("infoTitle").textContent="Deposit History";const box=document.getElementById("infoBody");box.innerHTML="";if(!d.deposits.length)box.textContent="No deposit requests yet.";d.deposits.forEach(r=>{const el=document.createElement("div");el.className="entry";el.textContent=`#${r.id} · ${r.method} · ${r.amount} ETB · ${r.status} · ${r.created}`;box.appendChild(el)});showModal("infoModal")}catch{}};
 function pickIcons(){return Array.from({length:15},()=>icons[Math.random()*icons.length|0])}
-async function spin(){if(busy)return;if(!initData){toast("Open from Telegram to authenticate.");return}if(balance<bet){toast("Insufficient credits. Use a smaller bet.");auto=false;document.getElementById("autoText").textContent="AUTO";return}
- // This front-end animation remains demo-only; no cash payouts are offered.
- busy=true;const btn=document.getElementById("spinBtn");btn.disabled=true;cells.forEach(c=>c.classList.remove("win"));balance-=bet;refresh();const result=pickIcons();const ticker=setInterval(()=>cells.forEach(c=>c.textContent=icons[Math.random()*icons.length|0]),75);await new Promise(r=>setTimeout(r,1300));clearInterval(ticker);for(let col=0;col<5;col++){for(let row=0;row<3;row++)cells[row*5+col].textContent=result[row*5+col];await new Promise(r=>setTimeout(r,65))}
- let win=0;for(let row=0;row<3;row++){const first=result[row*5];let count=1;for(let col=1;col<5;col++){if(result[row*5+col]===first)count++;else break}if(count>=3){win+=bet*multiplier*(count===3?2:count===4?5:12);for(let col=0;col<count;col++)cells[row*5+col].classList.add("win")}}
- if(win===0&&Math.random()<.13){win=bet*multiplier;const row=Math.random()*3|0;for(let c=0;c<3;c++)cells[row*5+c].classList.add("win")}
- // Result is only in this browser session, not a redeemable account credit.
- winTotal+=win;document.getElementById("win").textContent=money(win);refresh();busy=false;btn.disabled=false;toast(win?"Demo result: "+money(win)+" credits":"No win this spin.");if(auto)autoTimer=setTimeout(spin,900)}
+async function spin(){
+ if(busy)return;
+ if(!initData){toast("Open from Telegram bot to authenticate.");return}
+ if(balance<bet){toast("Insufficient credits. Use a smaller bet.");auto=false;document.getElementById("autoText").textContent="AUTO";return}
+ busy=true;const btn=document.getElementById("spinBtn");btn.disabled=true;cells.forEach(c=>c.classList.remove("win"));
+ try{
+  const result=await api("/api/spin","POST",{bet,multiplier});
+  const ticker=setInterval(()=>cells.forEach(c=>c.textContent=icons[Math.random()*icons.length|0]),75);
+  await new Promise(r=>setTimeout(r,950));clearInterval(ticker);
+  for(let col=0;col<5;col++){for(let row=0;row<3;row++)cells[row*5+col].textContent=result.grid[row*5+col];await new Promise(r=>setTimeout(r,45))}
+  result.wins.forEach(w=>{for(let c=0;c<w.count;c++)cells[w.row*5+c].classList.add("win")});
+  balance=result.balance;const win=Number(result.payout||0);winTotal+=win;
+  document.getElementById("win").textContent=money(win);refresh();
+  toast(win?"WIN: "+money(win)+" credits!":"No win this spin.");
+ }catch(e){toast(e.message||"Spin failed.");try{await loadMe()}catch{}}
+ finally{busy=false;btn.disabled=false;if(auto)autoTimer=setTimeout(spin,900)}
+}
 document.getElementById("spinBtn").onclick=spin;document.getElementById("minus").onclick=()=>{bet=Math.max(1,bet-1);refresh()};document.getElementById("plus").onclick=()=>{bet=Math.min(20,bet+1);refresh()};
 document.querySelectorAll(".mult").forEach(b=>b.onclick=()=>{multiplier=+b.dataset.mul;document.querySelectorAll(".mult").forEach(x=>x.classList.toggle("active",x===b));document.getElementById("multiLabel").textContent=multiplier+"x"});
 document.getElementById("multiBtn").onclick=()=>{const vals=[1,2,5];multiplier=vals[(vals.indexOf(multiplier)+1)%vals.length];document.querySelectorAll(".mult").forEach(b=>b.classList.toggle("active",+b.dataset.mul===multiplier));document.getElementById("multiLabel").textContent=multiplier+"x"};
