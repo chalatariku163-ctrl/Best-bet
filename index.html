@@ -1,11 +1,10 @@
 <!doctype html>
+
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Multi Hot Megawin</title>
-
-<style>
+<title>Multi Hot Megawin</title><style>
 :root{--gold:#ffcf36;--gold2:#a95b05;--purple:#24104e;--red:#8c0807}
 *{box-sizing:border-box}
 
@@ -269,19 +268,24 @@ body{
  margin-top:1px;
 }
 
+/* SPIN BUTTON - XIQQAASEE */
 .spin{
  position:absolute;
  left:50%;
  top:0;
  transform:translateX(-50%);
  z-index:2;
- width:43%;
- height:132px;
- max-width:190px;
+
+ width:32%;
+ height:104px;
+ max-width:145px;
+
  border:0;
  clip-path:polygon(50% 0,91% 17%,100% 34%,91% 84%,75% 100%,25% 100%,9% 84%,0 34%,9% 17%);
+
  background:linear-gradient(135deg,#fff58a,#ffb600 24%,#6f3000 31%,#ffdf3e 37%,#9c2607 41%,#49050c 75%,#ffb900 80%,#fff07a);
- padding:7px;
+
+ padding:5px;
  filter:drop-shadow(0 4px 5px #210000);
  cursor:pointer;
 }
@@ -300,12 +304,12 @@ body{
 }
 
 .spin-word{
- font-size:clamp(23px,7vw,34px);
+ font-size:clamp(16px,4.5vw,23px);
  font-weight:1000;
 }
 
 .spin-arrow{
- font-size:37px;
+ font-size:27px;
  line-height:1;
 }
 
@@ -377,7 +381,7 @@ body{
  .wager{
   grid-template-columns:32px 1fr 1fr 32px;
   margin:0 2px;
-  padding-top:30px;
+  padding-top:28px;
  }
 
  .step{
@@ -392,140 +396,108 @@ body{
 
  .betbox small{font-size:9px}
 
+ /* SPIN: bilbila xiqqaa irratti */
  .spin{
-  height:116px;
-  width:43%;
+  height:90px;
+  width:32%;
+  max-width:120px;
+  padding:4px;
  }
 
- .spin-word{font-size:22px}
- .spin-arrow{font-size:30px}
+ .spin-word{font-size:17px}
+ .spin-arrow{font-size:23px}
 
  .goodluck{
   font-size:13px;
   margin-top:12px;
  }
 }
-</style>
-</head>
-
-<body>
-
-<main class="game">
-
-  <header class="top">
+</style></head><body><main class="game">  <header class="top">
     <button class="menu" id="menuBtn" aria-label="Menu">☰</button>
     <div class="logo">MULTI HOT MEGAWIN</div>
-  </header>
+  </header>  <div class="fixed">5 LINES FIXED</div>  <section class="layout"><aside>
+  <div class="mult-title">MULTIPLIER</div>
 
-  <div class="fixed">5 LINES FIXED</div>
+  <div class="multipliers">
+    <button class="mult" data-mul="2">2x</button>
+    <button class="mult active" data-mul="5">5x</button>
+    <button class="mult" data-mul="1">1x</button>
+  </div>
+</aside>
 
-  <section class="layout">
+<div class="board" id="board" aria-label="Slot reels"></div>
 
-    <aside>
-      <div class="mult-title">MULTIPLIER</div>
+  </section>  <section class="stats"><div class="stat">
+  <div class="ico">▣</div>
+  <div class="amount" id="balance">120.00</div>
+  <div class="unit">ETB</div>
+  <div class="label">BALANCE</div>
+</div>
 
-      <div class="multipliers">
-        <button class="mult" data-mul="2">2x</button>
-        <button class="mult active" data-mul="5">5x</button>
-        <button class="mult" data-mul="1">1x</button>
-      </div>
-    </aside>
+<div class="stat">
+  <div class="ico">🏆</div>
+  <div class="amount" id="win">0.00</div>
+  <div class="unit">ETB</div>
+  <div class="label">WIN</div>
+</div>
 
-    <div class="board" id="board" aria-label="Slot reels"></div>
+<div class="stat">
+  <div class="ico">◉</div>
+  <div class="amount" id="betStat">10.00</div>
+  <div class="unit">ETB</div>
+  <div class="label">BET</div>
+</div>
 
-  </section>
+<div class="stat">
+  <div class="ico">♙</div>
+  <div class="amount" id="totalWin">0.00</div>
+  <div class="unit">ETB</div>
+  <div class="label">TOTAL WIN</div>
+</div>
 
-  <section class="stats">
+  </section>  <section class="quick"><button class="hex" id="autoBtn">
+  <span class="hex-inner">
+    <span class="symbol">⟳</span>
+    <span id="autoText">AUTO</span>
+  </span>
+</button>
 
-    <div class="stat">
-      <div class="ico">▣</div>
-      <div class="amount" id="balance">120.00</div>
-      <div class="unit">ETB</div>
-      <div class="label">BALANCE</div>
-    </div>
+<button class="hex" id="multiBtn">
+  <span class="hex-inner">
+    <span class="symbol" id="multiLabel">2x</span>
+    <span>MULTIPLIER</span>
+  </span>
+</button>
 
-    <div class="stat">
-      <div class="ico">🏆</div>
-      <div class="amount" id="win">0.00</div>
-      <div class="unit">ETB</div>
-      <div class="label">WIN</div>
-    </div>
+<button class="hex" id="betBtn">
+  <span class="hex-inner">
+    <span class="symbol">⇩</span>
+    <span>BET</span>
+  </span>
+</button>
 
-    <div class="stat">
-      <div class="ico">◉</div>
-      <div class="amount" id="betStat">10.00</div>
-      <div class="unit">ETB</div>
-      <div class="label">BET</div>
-    </div>
+  </section>  <section class="wager"><button class="step" id="minus">−</button>
 
-    <div class="stat">
-      <div class="ico">♙</div>
-      <div class="amount" id="totalWin">0.00</div>
-      <div class="unit">ETB</div>
-      <div class="label">TOTAL WIN</div>
-    </div>
+<div class="betbox">
+  <span>5.00</span>
+  <small>ETB</small>
+</div>
 
-  </section>
+<div class="betbox">
+  <span>20</span>
+  <small>ETB</small>
+</div>
 
-  <section class="quick">
+<button class="step" id="plus">+</button>
 
-    <button class="hex" id="autoBtn">
-      <span class="hex-inner">
-        <span class="symbol">⟳</span>
-        <span id="autoText">AUTO</span>
-      </span>
-    </button>
+<button class="spin" id="spinBtn">
+  <span class="spin-in">
+    <span class="spin-word">SPIN</span>
+    <span class="spin-arrow">⟳</span>
+  </span>
+</button>
 
-    <button class="hex" id="multiBtn">
-      <span class="hex-inner">
-        <span class="symbol" id="multiLabel">2x</span>
-        <span>MULTIPLIER</span>
-      </span>
-    </button>
-
-    <button class="hex" id="betBtn">
-      <span class="hex-inner">
-        <span class="symbol">⇩</span>
-        <span>BET</span>
-      </span>
-    </button>
-
-  </section>
-
-  <section class="wager">
-
-    <button class="step" id="minus">−</button>
-
-    <div class="betbox">
-      <span>5.00</span>
-      <small>ETB</small>
-    </div>
-
-    <div class="betbox">
-      <span>20</span>
-      <small>ETB</small>
-    </div>
-
-    <button class="step" id="plus">+</button>
-
-    <button class="spin" id="spinBtn">
-      <span class="spin-in">
-        <span class="spin-word">SPIN</span>
-        <span class="spin-arrow">⟳</span>
-      </span>
-    </button>
-
-  </section>
-
-  <div class="goodluck">♛ &nbsp; GOOD LUCK! &nbsp; ♛</div>
-
-  <p class="note">Demo interface • No real-money deposits or payouts</p>
-
-</main>
-
-<div class="toast" id="toast"></div>
-
-<script>
+  </section>  <div class="goodluck">♛ &nbsp; GOOD LUCK! &nbsp; ♛</div>  <p class="note">Demo interface • No real-money deposits or payouts</p></main><div class="toast" id="toast"></div><script>
 const icons=["🍊","🍋","🍇","🍑","🍒","🍉","🔔","🟨","7️⃣","🎰"];
 
 const board=document.getElementById("board");
@@ -595,6 +567,8 @@ async function spin(){
 
  if(balance<bet){
   toast("Balance xiqqaa dha (demo). Bet hir'isi.");
+  auto=false;
+  document.getElementById("autoText").textContent="AUTO";
   return;
  }
 
@@ -621,8 +595,6 @@ async function spin(){
 
  clearInterval(ticker);
 
- // Stop columns in sequence for a slot-machine feel
-
  for(let col=0;col<5;col++){
 
   for(let row=0;row<3;row++){
@@ -631,9 +603,6 @@ async function spin(){
 
   await new Promise(r=>setTimeout(r,95));
  }
-
- // Five horizontal lines; demo matching rule:
- // 3+ identical adjacent symbols from left.
 
  let win=0;
 
@@ -660,9 +629,6 @@ async function spin(){
    }
   }
  }
-
- // Small chance of a demo payout.
- // Outcomes are illustrative, not calibrated odds.
 
  if(win===0 && Math.random()<.13){
 
@@ -765,7 +731,5 @@ document.getElementById("menuBtn").addEventListener("click",()=>{
 });
 
 refresh();
-</script>
-
-</body>
-   </html>
+</script></body>
+     </html>
