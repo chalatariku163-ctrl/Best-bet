@@ -40,6 +40,10 @@ def init_db():
   cols={r["name"] for r in c.execute("PRAGMA table_info(users)")}
   if "bonus_given" not in cols:
    c.execute("ALTER TABLE users ADD COLUMN bonus_given INTEGER NOT NULL DEFAULT 1")
+  # Repair legacy accounts that have no credits at all: grant the welcome
+  # bonus once. Accounts with a positive balance are left untouched.
+  c.execute("UPDATE users SET balance=?, bonus_given=1 WHERE balance<=0",
+            (BONUS,))
 init_db()
 
 def verify_init_data(raw):
@@ -68,6 +72,9 @@ def ensure_user(c,u):
  # New accounts receive the one-time 20 demo-credit bonus.
  c.execute("INSERT OR IGNORE INTO users(user_id,username,balance,bonus_given) VALUES(?,?,?,1)",(uid,name,BONUS))
  c.execute("UPDATE users SET username=? WHERE user_id=?",(name,uid))
+ # Legacy zero-balance account recovery; does not affect accounts with credits.
+ c.execute("UPDATE users SET balance=?, bonus_given=1 WHERE user_id=? AND balance<=0",
+           (BONUS,uid))
  return c.execute("SELECT * FROM users WHERE user_id=?",(uid,)).fetchone()
 
 @app.get("/")
