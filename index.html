@@ -81,6 +81,7 @@ body{margin:0;background:radial-gradient(ellipse at 50% 45%,#e32909 0,#ad1006 55
 <p class="small">Never send PIN, password, or OTP.</p>
 </div></div>
 <div class="modal" id="infoModal"><div class="panel"><h2 id="infoTitle">Wallet</h2><div id="infoBody"></div><button class="closeModal">Close</button></div></div>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
 const icons=["🍊","🍋","🍇","🍑","🍒","🍉","🔔","🟨","7️⃣","🎰"];
 const board=document.getElementById("board"),cells=[];
@@ -138,4 +139,4 @@ document.getElementById("betBtn").onclick=()=>toast("Bet: "+money(bet)+" credits
 const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand();initData=tg.initData||""}refresh();loadMe().catch(()=>{});
 </script>
 </body>
- </html>
+</html>
