@@ -11,6 +11,7 @@ import asyncio
 from datetime import datetime, timezone
 
 from flask import Flask, request, jsonify, send_from_directory
+from werkzeug.utils import secure_filename
 from telegram import (
     Update,
     InlineKeyboardButton,
@@ -55,6 +56,7 @@ BONUS = 20
 SLOT_ICONS = ["🍊", "🍋", "🍇", "🍑", "🍒", "🍉", "🔔", "🟨", "7️⃣", "🎰"]
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 8 * 1024 * 1024
 db_lock = threading.Lock()
 
 bot_app = None
@@ -101,9 +103,14 @@ def init_db():
                 status TEXT NOT NULL DEFAULT 'PENDING',
                 created TEXT,
                 reviewed TEXT,
-                reviewed_by INTEGER
+                reviewed_by INTEGER,
+                receipt_path TEXT
             )
         """)
+
+        dep_cols = {r["name"] for r in c.execute("PRAGMA table_info(deposits)")}
+        if "receipt_path" not in dep_cols:
+            c.execute("ALTER TABLE deposits ADD COLUMN receipt_path TEXT")
 
         # Add the bonus flag to older databases without resetting balances.
         cols = {r["name"] for r in c.execute("PRAGMA table_info(users)")}
@@ -360,79 +367,90 @@ def deposit():
     user = authorized()
     if not user:
         return jsonify(error="Telegram authentication failed."), 401
-
     body = request.get_json(silent=True) or {}
     method = str(body.get("method", "")).strip()
     reference = str(body.get("reference", "")).strip()[:240]
-
     try:
         amount = int(body.get("amount", 0))
     except (TypeError, ValueError):
         return jsonify(error="Amount invalid."), 400
-
     if method not in PAYMENT_INFO:
         return jsonify(error="Select a payment method."), 400
     if amount < 1 or amount > 100000:
         return jsonify(error="Amount must be 1–100000."), 400
     if len(reference) < 4:
-        return jsonify(
-            error="Enter transaction reference or receipt details."
-        ), 400
+        return jsonify(error="Enter transaction reference or receipt details."), 400
 
-    uid = int(user["id"])
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-
     with db_lock, connect() as c:
         ensure_user(c, user)
         cur = c.execute(
-            """
-            INSERT INTO deposits(
-                user_id,username,method,amount,reference,status,created
-            )
-            VALUES(?,?,?,?,?,'PENDING',?)
-            """,
-            (
-                uid,
-                user.get("username", ""),
-                method,
-                amount,
-                reference,
-                now,
-            ),
+            """INSERT INTO deposits(user_id,username,method,amount,reference,status,created)
+               VALUES(?,?,?,?,?,'PENDING',?)""",
+            (int(user["id"]), user.get("username", ""), method, amount, reference, now),
         )
-        deposit_id = cur.lastrowid
+        did = cur.lastrowid
+    return jsonify(ok=True, deposit_id=did, status="WAITING_RECEIPT",
+                   message="Request created. Upload your payment screenshot.")
 
-    # Notify admin; the deposit remains recorded if notification fails.
-    try:
-        if bot_loop and bot_app:
-            future = asyncio.run_coroutine_threadsafe(
-                notify_admin(
-                    deposit_id,
-                    uid,
-                    user.get("username", ""),
-                    method,
-                    amount,
-                    reference,
-                ),
-                bot_loop,
-            )
-            # Do not block the web request waiting for Telegram.
-            future.add_done_callback(
-                lambda f: logging.error(
-                    "Admin notification failed: %s", f.exception()
-                ) if f.exception() else None
-            )
-        else:
-            logging.warning("Bot is not ready; deposit #%s is pending.", deposit_id)
-    except Exception:
-        logging.exception("Could not notify admin")
 
-    return jsonify(
-        ok=True,
-        deposit_id=deposit_id,
-        status="PENDING",
-        message="Request received. Balance changes only after admin review.",
-    )
+@app.post("/api/deposit/<int:deposit_id>/receipt")
+def upload_deposit_receipt(deposit_id):
+    user = authorized()
+    if not user:
+        return jsonify(error="Telegram authentication failed."), 401
+    proof = request.files.get("receipt")
+    if not proof or not proof.filename:
+        return jsonify(error="Choose a screenshot image first."), 400
+    accepted = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+    if proof.mimetype not in accepted:
+        return jsonify(error="Choose JPG, PNG, or WEBP image."), 400
+
+    receipt_dir = os.getenv("RECEIPT_DIR", "/var/data/deposit_receipts")
+    os.makedirs(receipt_dir, exist_ok=True)
+    path = os.path.join(receipt_dir, f"deposit_{deposit_id}_{int(user['id'])}{accepted[proof.mimetype]}")
+    with db_lock, connect() as c:
+        row = c.execute("SELECT * FROM deposits WHERE id=?", (deposit_id,)).fetchone()
+        if not row or int(row["user_id"]) != int(user["id"]):
+            return jsonify(error="Deposit request not found."), 404
+        if row["status"] != "PENDING":
+            return jsonify(error="Request already reviewed."), 409
+        if row["receipt_path"]:
+            return jsonify(error="Receipt already sent for this request."), 409
+        proof.save(path)
+        if os.path.getsize(path) > 7 * 1024 * 1024:
+            os.remove(path)
+            return jsonify(error="Image exceeds 7 MB."), 413
+        c.execute("UPDATE deposits SET receipt_path=? WHERE id=?", (path, deposit_id))
+        args = (int(row["user_id"]), row["username"] or "", row["method"],
+                int(row["amount"]), row["reference"])
+
+    if bot_loop and bot_app:
+        try:
+            fut = asyncio.run_coroutine_threadsafe(
+                notify_admin_receipt(deposit_id, *args, path), bot_loop)
+            fut.add_done_callback(lambda f: logging.error("Receipt notice failed: %s", f.exception())
+                                  if f.exception() else None)
+        except Exception:
+            logging.exception("Could not notify admin about receipt")
+    return jsonify(ok=True, deposit_id=deposit_id, status="PENDING_REVIEW",
+                   message="Screenshot received. Await admin review.")
+
+
+async def notify_admin_receipt(deposit_id, uid, username, method, amount, reference, path):
+    if not bot_app or not ADMIN_ID:
+        logging.warning("Admin is not configured; deposit awaits review.")
+        return
+    markup = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ APPROVE", callback_data=f"dep:approve:{deposit_id}"),
+        InlineKeyboardButton("❌ REJECT", callback_data=f"dep:reject:{deposit_id}"),
+    ]])
+    caption = (f"📸 DEPOSIT RECEIPT #{deposit_id}\nUser: {uid} (@{username or 'none'})\n"
+               f"Method: {method}\nAmount: {amount} ETB\nReference: {reference}\n"
+               "Status: PENDING\n\nVerify payment before approving.")
+    with open(path, "rb") as img:
+        await bot_app.bot.send_photo(chat_id=ADMIN_ID, photo=img, caption=caption,
+                                     reply_markup=markup)
 
 
 async def notify_admin(deposit_id, uid, username, method, amount, reference):
