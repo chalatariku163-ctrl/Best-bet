@@ -12,12 +12,12 @@ body{margin:0;background:radial-gradient(ellipse at 50% 45%,#e32909 0,#ad1006 55
 .menu{width:36px;height:36px;border:2px solid var(--gold);border-radius:50%;background:#4d0909;color:#ffe9a0;font-size:21px}
 .logo{font-family:Georgia,serif;font-weight:1000;font-size:clamp(17px,5vw,30px);line-height:1;text-align:center;color:#ffe76b;text-shadow:2px 3px #a32900,0 0 9px #ffb300;letter-spacing:-.8px;flex:1}
 .fixed{font-size:9px;font-weight:bold;border:1px solid #ffca37;background:#4b0908;padding:5px 8px;border-radius:7px;text-align:center;margin:0 0 5px auto;width:max-content}
-.wallet{display:flex;gap:6px;margin:5px 0 8px}.wallet button{flex:1;border:1px solid #ffdc49;border-radius:8px;padding:9px 4px;background:#30104c;color:#ffe45a;font-weight:bold}
+.wallet{display:flex;gap:6px;margin:5px 0 8px}.wallet button{flex:1;border:1px solid #ffdc49;border-radius:8px;padding:9px 4px;background:#30104c;color:#ffe45a;font-weight:bold;font-size:clamp(9px,2.7vw,12px)}
 .layout{display:grid;grid-template-columns:62px 1fr;gap:4px}.mult-title{font-size:9px;font-weight:bold;color:#ffe47a;margin:0 0 4px 3px}.multipliers{display:flex;flex-direction:column;gap:4px}
-.mult{height:clamp(59px,17vw,76px);border:2px solid #9c650c;border-radius:8px;background:linear-gradient(145deg,#4c1b58,#200b39);color:#eac45b;font-size:clamp(21px,6vw,27px);font-weight:900}
+.mult{height:clamp(78px,24vw,106px);border:2px solid #9c650c;border-radius:8px;background:linear-gradient(145deg,#4c1b58,#200b39);color:#eac45b;font-size:clamp(21px,6vw,27px);font-weight:900}
 .mult.active{border-color:#fff16d;color:#fff39a;box-shadow:0 0 8px #ffda00}
-.board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(3,1fr);border:3px solid #d59a27;border-radius:9px;background:#190a40;overflow:hidden}
-.cell{min-width:0;height:clamp(55px,16.3vw,78px);display:flex;align-items:center;justify-content:center;font-size:clamp(23px,7vw,37px);background:linear-gradient(145deg,#27105c,#180735);border-right:1px solid #4b3174;border-bottom:1px solid #4b3174;text-shadow:0 3px 4px #000;user-select:none}
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,1fr);border:3px solid #d59a27;border-radius:9px;background:#190a40;overflow:hidden}
+.cell{min-width:0;height:clamp(78px,24vw,106px);display:flex;align-items:center;justify-content:center;font-size:clamp(29px,9vw,43px);background:linear-gradient(145deg,#27105c,#180735);border-right:1px solid #4b3174;border-bottom:1px solid #4b3174;text-shadow:0 3px 4px #000;user-select:none}
 .cell.win{animation:winpulse .5s ease-in-out infinite alternate;background:#50320c}@keyframes winpulse{to{filter:brightness(1.8);transform:scale(.96)}}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:7px;border:2px solid #b96c12;border-radius:8px;background:linear-gradient(#750e0a,#3b0505);box-shadow:inset 0 0 0 1px #ffca36}
 .stat{text-align:center;padding:5px 1px;border-right:1px solid #a74d0a;min-width:0}.stat:last-child{border:0}.ico{font-size:17px;color:#ffcf19;line-height:1.1}
@@ -36,13 +36,13 @@ body{margin:0;background:radial-gradient(ellipse at 50% 45%,#e32909 0,#ad1006 55
 .modal{display:none;position:fixed;inset:0;background:#000b;z-index:10;align-items:center;justify-content:center;padding:16px}.panel{width:min(100%,390px);max-height:90vh;overflow:auto;background:#260b39;border:2px solid #ffcf36;border-radius:14px;padding:16px;color:#fff3c0}
 .panel h2{margin:0 0 12px;color:#ffdb48}.panel label{display:block;margin:10px 0 5px}.panel input,.panel select,.panel textarea{width:100%;padding:11px;border-radius:7px;border:1px solid #d8ad40;background:#fff;color:#171020;font-size:16px}
 .panel button{padding:10px;border-radius:8px;border:1px solid #ffda43;font-weight:bold;background:#ffcf36;color:#321000;margin:8px 5px 0 0}.small{font-size:12px;overflow-wrap:anywhere}.entry{border-top:1px solid #a77a30;padding:8px 0;font-size:13px}
-@media(max-width:350px){.game{padding:6px 5px 10px}.layout{grid-template-columns:54px 1fr;gap:3px}.mult{height:57px;font-size:20px}.cell{height:clamp(49px,15.8vw,59px);font-size:clamp(21px,6.5vw,27px)}.quick{gap:8px;width:80%;margin-top:12px}.wager{grid-template-columns:32px 1fr 1fr 32px;margin:0 2px;padding-top:28px}.step{height:51px;font-size:24px}.betbox{height:55px;font-size:15px}.betbox small{font-size:9px}.spin{height:90px;width:32%;max-width:120px;padding:4px}.spin-word{font-size:17px}.spin-arrow{font-size:23px}.goodluck{font-size:13px;margin-top:12px}}
+@media(max-width:350px){.game{padding:6px 5px 10px}.layout{grid-template-columns:54px 1fr;gap:3px}.mult{height:70px;font-size:20px}.cell{height:clamp(65px,22vw,78px);font-size:clamp(25px,8vw,32px)}.quick{gap:8px;width:80%;margin-top:12px}.wager{grid-template-columns:32px 1fr 1fr 32px;margin:0 2px;padding-top:28px}.step{height:51px;font-size:24px}.betbox{height:55px;font-size:15px}.betbox small{font-size:9px}.spin{height:90px;width:32%;max-width:120px;padding:4px}.spin-word{font-size:17px}.spin-arrow{font-size:23px}.goodluck{font-size:13px;margin-top:12px}}
 </style>
 </head>
 <body>
 <main class="game">
 <header class="top"><button class="menu" id="menuBtn">☰</button><div class="logo">MULTI HOT MEGAWIN</div></header>
-<div class="fixed">5 LINES FIXED</div>
+<div class="fixed">3 LINES FIXED · 3 × 3</div>
 <div class="wallet"><button id="depositBtn">＋ DEPOSIT</button><button id="balanceBtn">MY BALANCE</button><button id="historyBtn">HISTORY</button></div>
 <section class="layout"><aside><div class="mult-title">MULTIPLIER</div><div class="multipliers"><button class="mult" data-mul="2">2x</button><button class="mult active" data-mul="5">5x</button><button class="mult" data-mul="1">1x</button></div></aside><div class="board" id="board"></div></section>
 <section class="stats">
@@ -61,24 +61,17 @@ body{margin:0;background:radial-gradient(ellipse at 50% 45%,#e32909 0,#ad1006 55
 </main>
 <div class="toast" id="toast"></div>
 <div class="modal" id="depositModal"><div class="panel">
-<h2>💰 Deposit Request</h2>
-<p class="small">Choose payment method and enter payment details. Pay using the official account details shown below.</p>
+<h2>💰 Deposit Request</h2><p class="small">Choose payment method and enter payment details. Pay using the official account details shown below.</p>
 <label>Payment method</label><select id="method"><option>Telebirr</option><option>CBE</option><option>Awash</option></select>
-<p class="small" id="paymentDetails"></p>
-<label>Amount (ETB)</label><input id="amount" type="number" min="1" max="100000" placeholder="Enter amount">
+<p class="small" id="paymentDetails"></p><label>Amount (ETB)</label><input id="amount" type="number" min="1" max="100000" placeholder="Enter amount">
 <label>Transaction reference</label><textarea id="reference" rows="2" placeholder="Enter transaction ID/reference"></textarea>
 <button id="submitDeposit">CONTINUE</button>
 <div id="receiptArea" style="display:none;margin-top:15px;border-top:1px solid #bd902b;padding-top:12px">
-<h3 style="color:#ffdc48">📸 Send Payment Screenshot</h3>
-<p class="small">Kaffaltii erga raawwatte booda screenshot ragaa kaffaltii gallery kee keessaa filadhu.</p>
+<h3 style="color:#ffdc48">📸 Send Payment Screenshot</h3><p class="small">Kaffaltii erga raawwatte booda screenshot ragaa kaffaltii gallery kee keessaa filadhu.</p>
 <label for="receiptFile" style="display:block;background:#ffcf36;color:#321000;padding:13px;border-radius:9px;text-align:center;font-weight:bold;cursor:pointer">📷 CHOOSE PAYMENT SCREENSHOT</label>
-<input id="receiptFile" type="file" accept="image/jpeg,image/png,image/webp" style="display:none">
-<div id="receiptPreview" style="margin-top:10px"></div>
-<button id="sendReceipt" style="width:100%">📤 SEND RECEIPT</button>
-<p class="small" id="receiptStatus"></p>
-</div>
-<button class="closeModal">Close</button>
-<p class="small">Never send PIN, password, or OTP.</p>
+<input id="receiptFile" type="file" accept="image/jpeg,image/png,image/webp" style="display:none"><div id="receiptPreview" style="margin-top:10px"></div>
+<button id="sendReceipt" style="width:100%">📤 SEND RECEIPT</button><p class="small" id="receiptStatus"></p>
+</div><button class="closeModal">Close</button><p class="small">Never send PIN, password, or OTP.</p>
 </div></div>
 <div class="modal" id="infoModal"><div class="panel"><h2 id="infoTitle">Wallet</h2><div id="infoBody"></div><button class="closeModal">Close</button></div></div>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -86,7 +79,7 @@ body{margin:0;background:radial-gradient(ellipse at 50% 45%,#e32909 0,#ad1006 55
 const icons=["🍊","🍋","🍇","🍑","🍒","🍉","🔔","🟨","7️⃣","🎰"];
 const board=document.getElementById("board"),cells=[];
 let balance=0,bet=5,winTotal=0,multiplier=5,busy=false,auto=false,autoTimer=null,initData="",currentDepositId=null;
-for(let i=0;i<15;i++){const d=document.createElement("div");d.className="cell";d.textContent=icons[Math.random()*icons.length|0];board.appendChild(d);cells.push(d)}
+for(let i=0;i<9;i++){const d=document.createElement("div");d.className="cell";d.textContent=icons[Math.random()*icons.length|0];board.appendChild(d);cells.push(d)}
 function money(n){return Number(n||0).toFixed(2)}
 function toast(s){const t=document.getElementById("toast");t.textContent=s;t.style.display="block";clearTimeout(t._timer);t._timer=setTimeout(()=>t.style.display="none",3200)}
 async function api(path,method="GET",data){const headers={"Content-Type":"application/json"};if(initData)headers["X-Telegram-Init-Data"]=initData;const res=await fetch(path,{method,headers,...(data?{body:JSON.stringify(data)}:{})});let out={};try{out=await res.json()}catch{}if(!res.ok)throw Error(out.error||"Request failed");return out}
@@ -127,16 +120,31 @@ document.getElementById("sendReceipt").onclick=async()=>{
 };
 document.getElementById("balanceBtn").onclick=async()=>{try{const d=await loadMe();document.getElementById("infoTitle").textContent="My Balance";document.getElementById("infoBody").textContent="Available credits: "+money(d.balance);showModal("infoModal")}catch(e){toast("Open game from Telegram to authenticate.")}};
 document.getElementById("historyBtn").onclick=async()=>{try{const d=await loadMe();document.getElementById("infoTitle").textContent="Deposit History";const box=document.getElementById("infoBody");box.innerHTML="";if(!d.deposits.length)box.textContent="No deposit requests yet.";d.deposits.forEach(r=>{const el=document.createElement("div");el.className="entry";el.textContent=`#${r.id} · ${r.method} · ${r.amount} ETB · ${r.status} · ${r.created}`;box.appendChild(el)});showModal("infoModal")}catch{toast("Could not load history.")}};
-async function spin(){if(busy)return;if(!initData){toast("Open game from Telegram bot.");return}if(balance<bet){toast("Insufficient credits.");auto=false;document.getElementById("autoText").textContent="AUTO";return}
-busy=true;const btn=document.getElementById("spinBtn");btn.disabled=true;cells.forEach(c=>c.classList.remove("win"));
-try{const result=await api("/api/spin","POST",{bet,multiplier});const ticker=setInterval(()=>cells.forEach(c=>c.textContent=icons[Math.random()*icons.length|0]),75);await new Promise(r=>setTimeout(r,950));clearInterval(ticker);for(let col=0;col<5;col++){for(let row=0;row<3;row++)cells[row*5+col].textContent=result.grid[row*5+col];await new Promise(r=>setTimeout(r,45))}result.wins.forEach(w=>{for(let c=0;c<w.count;c++)cells[w.row*5+c].classList.add("win")});balance=result.balance;const won=Number(result.payout||0);winTotal+=won;document.getElementById("win").textContent=money(won);refresh();toast(won?"WIN: "+money(won)+" credits!":"No win this spin.");}
-catch(e){toast(e.message||"Spin failed.");try{await loadMe()}catch{}}finally{busy=false;btn.disabled=false;if(auto)autoTimer=setTimeout(spin,900)}}
-document.getElementById("spinBtn").onclick=spin;document.getElementById("minus").onclick=()=>{bet=Math.max(1,bet-1);refresh()};document.getElementById("plus").onclick=()=>{bet=Math.min(20,bet+1);refresh()};
+async function spin(){
+ if(busy)return;if(!initData){toast("Open game from Telegram bot.");return}
+ if(balance<bet){toast("Insufficient credits.");auto=false;document.getElementById("autoText").textContent="AUTO";return}
+ busy=true;const btn=document.getElementById("spinBtn");btn.disabled=true;cells.forEach(c=>c.classList.remove("win"));
+ try{
+  const result=await api("/api/spin","POST",{bet,multiplier});
+  const ticker=setInterval(()=>cells.forEach(c=>c.textContent=icons[Math.random()*icons.length|0]),75);
+  await new Promise(r=>setTimeout(r,950));clearInterval(ticker);
+  for(let col=0;col<3;col++){for(let row=0;row<3;row++)cells[row*3+col].textContent=result.grid[row*3+col];await new Promise(r=>setTimeout(r,75))}
+  result.wins.forEach(w=>{for(let c=0;c<w.count;c++)cells[w.row*3+c].classList.add("win")});
+  balance=result.balance;const won=Number(result.payout||0);winTotal+=won;document.getElementById("win").textContent=money(won);refresh();
+  const big=result.wins.some(w=>w.big_win);toast(big?"🏆 BIG WIN! "+money(won)+" credits!":won?"WIN: "+money(won)+" credits!":"No win this spin.");
+ }catch(e){toast(e.message||"Spin failed.");try{await loadMe()}catch{}}
+ finally{busy=false;btn.disabled=false;if(auto)autoTimer=setTimeout(spin,900)}
+}
+document.getElementById("spinBtn").onclick=spin;
+document.getElementById("minus").onclick=()=>{bet=Math.max(1,bet-1);refresh()};
+document.getElementById("plus").onclick=()=>{bet=Math.min(20,bet+1);refresh()};
 document.querySelectorAll(".mult").forEach(b=>b.onclick=()=>{multiplier=+b.dataset.mul;document.querySelectorAll(".mult").forEach(x=>x.classList.toggle("active",x===b));document.getElementById("multiLabel").textContent=multiplier+"x"});
 document.getElementById("multiBtn").onclick=()=>{const opts=[1,2,5];multiplier=opts[(opts.indexOf(multiplier)+1)%opts.length];document.querySelectorAll(".mult").forEach(b=>b.classList.toggle("active",+b.dataset.mul===multiplier));document.getElementById("multiLabel").textContent=multiplier+"x"};
 document.getElementById("autoBtn").onclick=()=>{auto=!auto;document.getElementById("autoText").textContent=auto?"STOP":"AUTO";if(!auto){clearTimeout(autoTimer);toast("Auto stopped")}else{toast("Auto spin started");if(!busy)spin()}};
-document.getElementById("betBtn").onclick=()=>toast("Bet: "+money(bet)+" credits. Use + / −.");document.getElementById("menuBtn").onclick=()=>toast("Use Deposit, My Balance, or History above.");
-const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand();initData=tg.initData||""}refresh();loadMe().catch(()=>{});
+document.getElementById("betBtn").onclick=()=>toast("Bet: "+money(bet)+" credits. Use + / −.");
+document.getElementById("menuBtn").onclick=()=>toast("Use Deposit, My Balance, or History above.");
+const tg=window.Telegram?.WebApp;if(tg){tg.ready();tg.expand();initData=tg.initData||""}
+refresh();loadMe().catch(()=>{});
 </script>
 </body>
 </html>
