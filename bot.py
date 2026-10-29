@@ -46,15 +46,21 @@ PAYMENT_INFO = {
         "PAY_TELEBIRR",
         "Telebirr\nAccount Name: Chala\nPhone: 0902640434",
     ),
-    "CBE": os.getenv("PAY_CBE", "Payment details will be announced"),
-    "Awash": os.getenv("PAY_AWASH", "Payment details will be announced"),
+    "CBE": os.getenv(
+        "PAY_CBE",
+        "Payment details will be announced",
+    ),
+    "Awash": os.getenv(
+        "PAY_AWASH",
+        "Payment details will be announced",
+    ),
 }
 
 BONUS = 20
 
 SLOT_ICONS = [
     "🍊", "🍋", "🍇", "🍑", "🍒",
-    "🍉", "🔔", "🟨", "7️⃣", "🎰"
+    "🍉", "🔔", "🟨", "7️⃣", "🎰",
 ]
 
 MAX_RECEIPT_SIZE = 7 * 1024 * 1024
@@ -63,6 +69,7 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
 
 db_lock = threading.RLock()
+
 bot_app = None
 bot_loop = None
 
@@ -72,7 +79,10 @@ bot_loop = None
 # =====================================================
 
 def connect():
-    c = sqlite3.connect(DATABASE_PATH, timeout=30)
+    c = sqlite3.connect(
+        DATABASE_PATH,
+        timeout=30,
+    )
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA foreign_keys=ON")
     c.execute("PRAGMA busy_timeout=30000")
@@ -80,7 +90,9 @@ def connect():
 
 
 def init_db():
-    parent = os.path.dirname(os.path.abspath(DATABASE_PATH))
+    parent = os.path.dirname(
+        os.path.abspath(DATABASE_PATH)
+    )
     os.makedirs(parent, exist_ok=True)
 
     with connect() as c:
@@ -122,18 +134,30 @@ def init_db():
         """)
 
         dep_cols = {
-            r["name"] for r in c.execute("PRAGMA table_info(deposits)")
+            r["name"]
+            for r in c.execute(
+                "PRAGMA table_info(deposits)"
+            )
         }
+
         if "receipt_path" not in dep_cols:
-            c.execute("ALTER TABLE deposits ADD COLUMN receipt_path TEXT")
+            c.execute("""
+                ALTER TABLE deposits
+                ADD COLUMN receipt_path TEXT
+            """)
 
         user_cols = {
-            r["name"] for r in c.execute("PRAGMA table_info(users)")
+            r["name"]
+            for r in c.execute(
+                "PRAGMA table_info(users)"
+            )
         }
+
         if "bonus_given" not in user_cols:
             c.execute("""
                 ALTER TABLE users
-                ADD COLUMN bonus_given INTEGER NOT NULL DEFAULT 1
+                ADD COLUMN bonus_given
+                INTEGER NOT NULL DEFAULT 1
             """)
 
 
@@ -146,20 +170,35 @@ init_db()
 
 @app.errorhandler(413)
 def file_too_large(error):
-    return jsonify(ok=False, error="Screenshot baay'ee guddaa dha."), 413
+    return jsonify(
+        ok=False,
+        error="Screenshot baay'ee guddaa dha.",
+    ), 413
 
 
 @app.errorhandler(404)
 def api_not_found(error):
     if request.path.startswith("/api/"):
-        return jsonify(ok=False, error="API endpoint hin argamne."), 404
+        return jsonify(
+            ok=False,
+            error="API endpoint hin argamne.",
+        ), 404
+
     return error
 
 
 @app.errorhandler(500)
 def internal_error(error):
-    logging.error("Flask internal server error: %s", error, exc_info=True)
-    return jsonify(ok=False, error="Server error. Render Logs ilaali."), 500
+    logging.error(
+        "Flask internal server error: %s",
+        error,
+        exc_info=True,
+    )
+
+    return jsonify(
+        ok=False,
+        error="Server error. Render Logs ilaali.",
+    ), 500
 
 
 # =====================================================
@@ -171,13 +210,21 @@ def verify_init_data(raw):
         return None
 
     try:
-        pairs = dict(urllib.parse.parse_qsl(raw, keep_blank_values=True))
+        pairs = dict(
+            urllib.parse.parse_qsl(
+                raw,
+                keep_blank_values=True,
+            )
+        )
+
         got_hash = pairs.pop("hash", None)
+
         if not got_hash:
             return None
 
         check_string = "\n".join(
-            f"{key}={value}" for key, value in sorted(pairs.items())
+            f"{key}={value}"
+            for key, value in sorted(pairs.items())
         )
 
         secret = hmac.new(
@@ -192,12 +239,20 @@ def verify_init_data(raw):
             hashlib.sha256,
         ).hexdigest()
 
-        if not hmac.compare_digest(expected, got_hash):
+        if not hmac.compare_digest(
+            expected,
+            got_hash,
+        ):
             return None
 
         user = json.loads(pairs["user"])
+
         auth_date = int(pairs["auth_date"])
-        age = datetime.now(timezone.utc).timestamp() - auth_date
+
+        age = (
+            datetime.now(timezone.utc).timestamp()
+            - auth_date
+        )
 
         if age < 0 or age > 86400:
             return None
@@ -205,15 +260,23 @@ def verify_init_data(raw):
         return user
 
     except Exception:
-        logging.exception("Telegram authentication validation failed")
+        logging.exception(
+            "Telegram authentication validation failed"
+        )
         return None
 
 
 def authorized():
-    raw = request.headers.get("X-Telegram-Init-Data", "")
+    raw = request.headers.get(
+        "X-Telegram-Init-Data",
+        "",
+    )
+
     user = verify_init_data(raw)
+
     if user and user.get("id"):
         return user
+
     return None
 
 
@@ -222,17 +285,33 @@ def ensure_user(c, user):
     username = user.get("username", "") or ""
 
     c.execute("""
-        INSERT OR IGNORE INTO users(user_id, username, balance, bonus_given)
+        INSERT OR IGNORE INTO users(
+            user_id,
+            username,
+            balance,
+            bonus_given
+        )
         VALUES(?,?,?,1)
-    """, (uid, username, BONUS))
+    """, (
+        uid,
+        username,
+        BONUS,
+    ))
 
     c.execute("""
-        UPDATE users SET username=? WHERE user_id=?
-    """, (username, uid))
+        UPDATE users
+        SET username=?
+        WHERE user_id=?
+    """, (
+        username,
+        uid,
+    ))
 
-    return c.execute(
-        "SELECT * FROM users WHERE user_id=?", (uid,)
-    ).fetchone()
+    return c.execute("""
+        SELECT *
+        FROM users
+        WHERE user_id=?
+    """, (uid,)).fetchone()
 
 
 # =====================================================
@@ -241,12 +320,18 @@ def ensure_user(c, user):
 
 @app.get("/")
 def index():
-    return send_from_directory(".", "index.html")
+    return send_from_directory(
+        ".",
+        "index.html",
+    )
 
 
 @app.get("/health")
 def health():
-    return jsonify(ok=True, service="Multi Hot Megawin")
+    return jsonify(
+        ok=True,
+        service="Multi Hot Megawin",
+    )
 
 
 # =====================================================
@@ -256,8 +341,11 @@ def health():
 @app.get("/api/me")
 def me():
     user = authorized()
+
     if not user:
-        return jsonify(error="Open this app from its Telegram bot."), 401
+        return jsonify(
+            error="Open this app from its Telegram bot."
+        ), 401
 
     uid = int(user["id"])
 
@@ -265,57 +353,58 @@ def me():
         row = ensure_user(c, user)
 
         history_rows = c.execute("""
-            SELECT game,stake,payout,result,created
-            FROM history WHERE user_id=? ORDER BY id DESC LIMIT 15
+            SELECT game, stake, payout, result, created
+            FROM history
+            WHERE user_id=?
+            ORDER BY id DESC
+            LIMIT 15
         """, (uid,)).fetchall()
 
         deposit_rows = c.execute("""
-            SELECT id,method,amount,status,created
-            FROM deposits WHERE user_id=? ORDER BY id DESC LIMIT 10
+            SELECT id, method, amount, status, created
+            FROM deposits
+            WHERE user_id=?
+            ORDER BY id DESC
+            LIMIT 10
         """, (uid,)).fetchall()
 
     return jsonify(
-        user={"id": uid, "name": user.get("first_name", "Player")},
+        user={
+            "id": uid,
+            "name": user.get(
+                "first_name",
+                "Player",
+            ),
+        },
         balance=row["balance"],
         bonus=BONUS,
-        history=[dict(x) for x in history_rows],
-        deposits=[dict(x) for x in deposit_rows],
+        history=[
+            dict(x) for x in history_rows
+        ],
+        deposits=[
+            dict(x) for x in deposit_rows
+        ],
     )
 
 
 # =====================================================
-# SLOT GAME
-# 3x3 grid. Winning lines: 3 horizontals + 2 diagonals.
-# Vertical lines do not count.
-# 3 matching = 2x; pair + one 7 wild = 2x;
-# 777 = BIG WIN 10x. No random bonus.
+# SLOT GAME HELPERS
 # =====================================================
 
-@app.post("/api/spin")
-def spin_api():
-    user = authorized()
-    if not user:
-        return jsonify(
-            error="Telegram keessaa app bani; authentication hin jiru."
-        ), 401
+def get_winning_lines():
+    """
+    3 horizontal lines + 2 diagonals.
 
-    body = request.get_json(silent=True) or {}
-    try:
-        stake = int(body.get("bet", 0))
-        multiplier = int(body.get("multiplier", 1))
-    except (TypeError, ValueError):
-        return jsonify(error="Bet ykn multiplier sirrii miti."), 400
+    Grid positions:
 
-    if stake < 1 or stake > 100:
-        return jsonify(error="Bet 1-100 ta'uu qaba."), 400
-    if multiplier not in (1, 2, 5):
-        return jsonify(error="Multiplier 1x, 2x ykn 5x ta'uu qaba."), 400
+        0   1   2
+        3   4   5
+        6   7   8
 
-    # Exactly 9 symbols: three rows and three columns.
-    grid = [random.choice(SLOT_ICONS) for _ in range(9)]
+    Vertical lines are NOT included.
+    """
 
-    # Horizontal lines and both diagonals only.
-    winning_lines = [
+    return [
         (0, [0, 1, 2]),
         (1, [3, 4, 5]),
         (2, [6, 7, 8]),
@@ -323,95 +412,247 @@ def spin_api():
         (4, [2, 4, 6]),
     ]
 
+
+def evaluate_line(line):
+    """
+    Return winning information for a line.
+
+    Three 7 symbols:
+        BIG_WIN, 10x
+
+    Three identical non-7 symbols:
+        WIN, 2x
+
+    Two identical non-7 symbols + one 7:
+        WILD_WIN, 2x
+
+    Otherwise:
+        No win.
+    """
+
+    if len(line) != 3:
+        return None
+
+    # 777 jackpot
+    if all(
+        symbol == "7️⃣"
+        for symbol in line
+    ):
+        return {
+            "type": "BIG_WIN",
+            "factor": 10,
+        }
+
+    # Remove 7 wild symbols.
+    normal_symbols = [
+        symbol
+        for symbol in line
+        if symbol != "7️⃣"
+    ]
+
+    # Three identical normal symbols.
+    if (
+        len(normal_symbols) == 3
+        and normal_symbols[0] == normal_symbols[1]
+        and normal_symbols[1] == normal_symbols[2]
+    ):
+        return {
+            "type": "WIN",
+            "factor": 2,
+        }
+
+    # Exactly one 7 + two identical normal symbols.
+    if (
+        line.count("7️⃣") == 1
+        and len(normal_symbols) == 2
+        and normal_symbols[0] == normal_symbols[1]
+    ):
+        return {
+            "type": "WILD_WIN",
+            "factor": 2,
+        }
+
+    return None
+
+
+# =====================================================
+# SLOT GAME API
+# =====================================================
+
+@app.post("/api/spin")
+def spin_api():
+    user = authorized()
+
+    if not user:
+        return jsonify(
+            ok=False,
+            error=(
+                "Telegram keessaa app bani; "
+                "authentication hin jiru."
+            ),
+        ), 401
+
+    body = request.get_json(silent=True) or {}
+
+    try:
+        stake = int(body.get("bet", 0))
+        multiplier = int(
+            body.get("multiplier", 1)
+        )
+    except (TypeError, ValueError):
+        return jsonify(
+            ok=False,
+            error="Bet ykn multiplier sirrii miti.",
+        ), 400
+
+    if stake < 1 or stake > 100:
+        return jsonify(
+            ok=False,
+            error="Bet 1-100 ta'uu qaba.",
+        ), 400
+
+    if multiplier not in (1, 2, 5):
+        return jsonify(
+            ok=False,
+            error=(
+                "Multiplier 1x, 2x ykn 5x "
+                "ta'uu qaba."
+            ),
+        ), 400
+
+    # Generate 9 symbols for the 3x3 grid.
+    grid = [
+        random.choice(SLOT_ICONS)
+        for _ in range(9)
+    ]
+
+    winning_lines = get_winning_lines()
+
     payout = 0
     wins = []
 
+    # Check only the 5 allowed winning lines.
     for line_id, indexes in winning_lines:
-        line = [grid[i] for i in indexes]
+        line = [
+            grid[index]
+            for index in indexes
+        ]
 
-        # Triple 7 is the top-priority jackpot.
-        if line == ["7️⃣", "7️⃣", "7️⃣"]:
-            factor = 10
-            payout += stake * multiplier * factor
-            wins.append({
-                "line": line_id,
-                "symbols": line,
-                "type": "BIG_WIN",
-                "factor": factor,
-            })
+        result = evaluate_line(line)
+
+        if result is None:
             continue
 
-        # Exclude 7 wild when checking the two base symbols.
-        normal_symbols = [symbol for symbol in line if symbol != "7️⃣"]
+        factor = result["factor"]
 
-        # Three same non-wild symbols.
-        if (
-            len(normal_symbols) == 3
-            and normal_symbols[0] == normal_symbols[1] == normal_symbols[2]
-        ):
-            factor = 2
-            payout += stake * multiplier * factor
-            wins.append({
-                "line": line_id,
-                "symbols": line,
-                "type": "WIN",
-                "factor": factor,
-            })
-            continue
+        line_payout = (
+            stake * multiplier * factor
+        )
 
-        # Exactly two same non-wild symbols and one 7 wild.
-        if (
-            len(line) == 3
-            and line.count("7️⃣") == 1
-            and len(normal_symbols) == 2
-            and normal_symbols[0] == normal_symbols[1]
-        ):
-            factor = 2
-            payout += stake * multiplier * factor
-            wins.append({
-                "line": line_id,
-                "symbols": line,
-                "type": "WILD_WIN",
-                "factor": factor,
-            })
+        payout += line_payout
+
+        wins.append({
+            "line": line_id,
+            "symbols": line,
+            "type": result["type"],
+            "factor": factor,
+            "payout": line_payout,
+        })
 
     uid = int(user["id"])
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+    now = datetime.now(
+        timezone.utc
+    ).isoformat(timespec="seconds")
+
+    # Balance deduction and payout are performed
+    # together in one database transaction.
     with db_lock, connect() as c:
+        c.execute("BEGIN IMMEDIATE")
+
         ensure_user(c, user)
 
-        # Deduct stake only if the balance is sufficient.
+        # Deduct the stake only when balance is enough.
         cur = c.execute("""
             UPDATE users
-            SET balance=balance-?
-            WHERE user_id=? AND balance>=?
-        """, (stake, uid, stake))
+            SET balance = balance - ?
+            WHERE user_id = ?
+              AND balance >= ?
+        """, (
+            stake,
+            uid,
+            stake,
+        ))
 
         if cur.rowcount != 1:
-            return jsonify(error="Balance gahaa'aa miti."), 400
+            return jsonify(
+                ok=False,
+                error="Balance gahaa'aa miti.",
+            ), 400
 
-        # Payout is credited only from verified winning lines above.
-        if payout:
+        # Credit all verified winning lines.
+        if payout > 0:
             c.execute("""
-                UPDATE users SET balance=balance+? WHERE user_id=?
-            """, (payout, uid))
+                UPDATE users
+                SET balance = balance + ?
+                WHERE user_id = ?
+            """, (
+                payout,
+                uid,
+            ))
 
-        new_balance = c.execute("""
-            SELECT balance FROM users WHERE user_id=?
-        """, (uid,)).fetchone()["balance"]
+        row = c.execute("""
+            SELECT balance
+            FROM users
+            WHERE user_id = ?
+        """, (uid,)).fetchone()
 
+        new_balance = row["balance"]
+
+        # Determine overall game result.
+        if any(
+            win["type"] == "BIG_WIN"
+            for win in wins
+        ):
+            game_result = "BIG_WIN"
+
+        elif wins:
+            game_result = "WIN"
+
+        else:
+            game_result = "LOSE"
+
+        # Save grid, winning lines, and payout.
         c.execute("""
-            INSERT INTO history(user_id,game,stake,payout,result,created)
-            VALUES(?,?,?,?,?,?)
+            INSERT INTO history(
+                user_id,
+                game,
+                stake,
+                payout,
+                result,
+                created
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (
             uid,
             "MULTI HOT MEGAWIN",
             stake,
             payout,
-            json.dumps({"grid": grid, "wins": wins}),
+            json.dumps({
+                "grid": grid,
+                "wins": wins,
+                "result": game_result,
+            }),
             now,
         ))
+
+    logging.info(
+        "Spin user=%s stake=%s payout=%s result=%s",
+        uid,
+        stake,
+        payout,
+        game_result,
+    )
 
     return jsonify(
         ok=True,
@@ -419,7 +660,8 @@ def spin_api():
         payout=payout,
         balance=new_balance,
         wins=wins,
-    )
+        result=game_result,
+    ), 200
 
 
 # =====================================================
@@ -428,10 +670,15 @@ def spin_api():
 
 @app.get("/api/payment-methods")
 def payment_methods():
-    return jsonify(methods=[
-        {"name": name, "details": details}
-        for name, details in PAYMENT_INFO.items()
-    ])
+    return jsonify(
+        methods=[
+            {
+                "name": name,
+                "details": details,
+            }
+            for name, details in PAYMENT_INFO.items()
+        ]
+    )
 
 
 # =====================================================
@@ -441,36 +688,67 @@ def payment_methods():
 @app.post("/api/deposit")
 def deposit():
     user = authorized()
+
     if not user:
-        return jsonify(error="Telegram authentication failed."), 401
+        return jsonify(
+            error="Telegram authentication failed."
+        ), 401
 
     body = request.get_json(silent=True) or {}
-    method = str(body.get("method", "")).strip()
-    reference = str(body.get("reference", "")).strip()[:240]
+
+    method = str(
+        body.get("method", "")
+    ).strip()
+
+    reference = str(
+        body.get("reference", "")
+    ).strip()[:240]
 
     try:
-        amount = int(body.get("amount", 0))
+        amount = int(
+            body.get("amount", 0)
+        )
     except (TypeError, ValueError):
-        return jsonify(error="Amount invalid."), 400
-
-    if method not in PAYMENT_INFO:
-        return jsonify(error="Select a payment method."), 400
-    if amount < 1 or amount > 100000:
-        return jsonify(error="Amount must be 1–100000."), 400
-    if len(reference) < 4:
         return jsonify(
-            error="Enter transaction reference or receipt details."
+            error="Amount invalid."
         ), 400
 
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if method not in PAYMENT_INFO:
+        return jsonify(
+            error="Select a payment method."
+        ), 400
+
+    if amount < 1 or amount > 100000:
+        return jsonify(
+            error="Amount must be 1-100000."
+        ), 400
+
+    if len(reference) < 4:
+        return jsonify(
+            error=(
+                "Enter transaction reference "
+                "or receipt details."
+            )
+        ), 400
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat(timespec="seconds")
 
     with db_lock, connect() as c:
         ensure_user(c, user)
+
         cur = c.execute("""
             INSERT INTO deposits(
-                user_id,username,method,amount,reference,status,created
+                user_id,
+                username,
+                method,
+                amount,
+                reference,
+                status,
+                created
             )
-            VALUES(?,?,?,?,?,'PENDING',?)
+            VALUES (?, ?, ?, ?, ?, 'PENDING', ?)
         """, (
             int(user["id"]),
             user.get("username", "") or "",
@@ -479,13 +757,17 @@ def deposit():
             reference,
             now,
         ))
+
         deposit_id = cur.lastrowid
 
     return jsonify(
         ok=True,
         deposit_id=deposit_id,
         status="WAITING_RECEIPT",
-        message="Request created. Upload your payment screenshot.",
+        message=(
+            "Request created. "
+            "Upload your payment screenshot."
+        ),
     )
 
 
@@ -504,14 +786,18 @@ async def notify_admin_receipt(
     extension,
 ):
     if not bot_app or not ADMIN_ID:
-        raise RuntimeError("ADMIN_ID or Telegram bot is not configured.")
+        raise RuntimeError(
+            "ADMIN_ID or Telegram bot is not configured."
+        )
 
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton(
-            "✅ APPROVE", callback_data=f"dep:approve:{deposit_id}"
+            "✅ APPROVE",
+            callback_data=f"dep:approve:{deposit_id}",
         ),
         InlineKeyboardButton(
-            "❌ REJECT", callback_data=f"dep:reject:{deposit_id}"
+            "❌ REJECT",
+            callback_data=f"dep:reject:{deposit_id}",
         ),
     ]])
 
@@ -528,7 +814,9 @@ async def notify_admin_receipt(
     )
 
     photo = BytesIO(image_data)
-    photo.name = f"deposit_{deposit_id}{extension}"
+    photo.name = (
+        f"deposit_{deposit_id}{extension}"
+    )
 
     await bot_app.bot.send_photo(
         chat_id=ADMIN_ID,
@@ -545,15 +833,19 @@ async def notify_admin_receipt(
 @app.post("/api/deposit/<int:deposit_id>/receipt")
 def upload_deposit_receipt(deposit_id):
     user = authorized()
+
     if not user:
         return jsonify(
-            ok=False, error="Telegram authentication failed."
+            ok=False,
+            error="Telegram authentication failed.",
         ), 401
 
     proof = request.files.get("receipt")
+
     if not proof or not proof.filename:
         return jsonify(
-            ok=False, error="Choose a screenshot image first."
+            ok=False,
+            error="Choose a screenshot image first.",
         ), 400
 
     accepted = {
@@ -561,49 +853,79 @@ def upload_deposit_receipt(deposit_id):
         "image/png": ".png",
         "image/webp": ".webp",
     }
+
     ext = accepted.get(proof.mimetype)
+
     if not ext:
         return jsonify(
-            ok=False, error="Choose JPG, PNG or WEBP image."
+            ok=False,
+            error="Choose JPG, PNG or WEBP image.",
         ), 400
 
     try:
         image_data = proof.read()
+
         if not image_data:
-            return jsonify(ok=False, error="Image is empty."), 400
+            return jsonify(
+                ok=False,
+                error="Image is empty.",
+            ), 400
+
         if len(image_data) > MAX_RECEIPT_SIZE:
-            return jsonify(ok=False, error="Image exceeds 7 MB."), 413
+            return jsonify(
+                ok=False,
+                error="Image exceeds 7 MB.",
+            ), 413
 
         uid = int(user["id"])
 
         with db_lock, connect() as c:
             row = c.execute("""
-                SELECT * FROM deposits WHERE id=? AND user_id=?
-            """, (deposit_id, uid)).fetchone()
+                SELECT *
+                FROM deposits
+                WHERE id=? AND user_id=?
+            """, (
+                deposit_id,
+                uid,
+            )).fetchone()
 
             if not row:
                 return jsonify(
-                    ok=False, error="Deposit request not found."
+                    ok=False,
+                    error="Deposit request not found.",
                 ), 404
+
             if row["status"] != "PENDING":
                 return jsonify(
-                    ok=False, error="Request already reviewed."
+                    ok=False,
+                    error="Request already reviewed.",
                 ), 409
+
             if row["receipt_path"]:
                 return jsonify(
                     ok=False,
-                    error="Receipt already submitted or processing.",
+                    error=(
+                        "Receipt already submitted "
+                        "or processing."
+                    ),
                 ), 409
 
             cur = c.execute("""
-                UPDATE deposits SET receipt_path='SENDING'
-                WHERE id=? AND user_id=? AND status='PENDING'
-                AND receipt_path IS NULL
-            """, (deposit_id, uid))
+                UPDATE deposits
+                SET receipt_path='SENDING'
+                WHERE id=?
+                  AND user_id=?
+                  AND status='PENDING'
+                  AND receipt_path IS NULL
+            """, (
+                deposit_id,
+                uid,
+            ))
 
             if cur.rowcount != 1:
                 return jsonify(
-                    ok=False, error="Receipt already processing."
+                    ok=False,
+                    error="Receipt already processing.",
                 ), 409
 
             args = (
@@ -614,14 +936,22 @@ def upload_deposit_receipt(deposit_id):
                 row["reference"],
             )
 
-        if not bot_loop or not bot_app or not ADMIN_ID:
+        if (
+            not bot_loop
+            or not bot_app
+            or not ADMIN_ID
+        ):
             with db_lock, connect() as c:
                 c.execute("""
-                    UPDATE deposits SET receipt_path=NULL
-                    WHERE id=? AND receipt_path='SENDING'
+                    UPDATE deposits
+                    SET receipt_path=NULL
+                    WHERE id=?
+                      AND receipt_path='SENDING'
                 """, (deposit_id,))
+
             return jsonify(
-                ok=False, error="Bot/Admin not ready. Try again."
+                ok=False,
+                error="Bot/Admin not ready. Try again.",
             ), 503
 
         try:
@@ -634,50 +964,85 @@ def upload_deposit_receipt(deposit_id):
                 ),
                 bot_loop,
             )
+
             future.result(timeout=45)
+
         except Exception:
             logging.exception(
-                "Admin receipt delivery failed: #%s", deposit_id
+                "Admin receipt delivery failed: #%s",
+                deposit_id,
             )
+
             with db_lock, connect() as c:
                 c.execute("""
-                    UPDATE deposits SET receipt_path=NULL
-                    WHERE id=? AND status='PENDING'
-                    AND receipt_path='SENDING'
+                    UPDATE deposits
+                    SET receipt_path=NULL
+                    WHERE id=?
+                      AND status='PENDING'
+                      AND receipt_path='SENDING'
                 """, (deposit_id,))
+
             return jsonify(
-                ok=False, error="Receipt sending failed. Please retry."
+                ok=False,
+                error=(
+                    "Receipt sending failed. "
+                    "Please retry."
+                ),
             ), 502
 
         with db_lock, connect() as c:
             cur = c.execute("""
-                UPDATE deposits SET receipt_path='TELEGRAM_SENT'
-                WHERE id=? AND user_id=? AND status='PENDING'
-                AND receipt_path='SENDING'
-            """, (deposit_id, uid))
+                UPDATE deposits
+                SET receipt_path='TELEGRAM_SENT'
+                WHERE id=?
+                  AND user_id=?
+                  AND status='PENDING'
+                  AND receipt_path='SENDING'
+            """, (
+                deposit_id,
+                uid,
+            ))
 
             if cur.rowcount != 1:
                 logging.error(
-                    "Receipt sent to admin but DB finalization failed: #%s",
+                    "Receipt sent but DB finalization failed: #%s",
                     deposit_id,
                 )
+
                 return jsonify(
                     ok=False,
-                    error="Admin received receipt. Contact support before retrying.",
+                    error=(
+                        "Admin received receipt. "
+                        "Contact support before retrying."
+                    ),
                 ), 500
 
-        logging.info("Deposit receipt delivered to admin: #%s", deposit_id)
+        logging.info(
+            "Deposit receipt delivered to admin: #%s",
+            deposit_id,
+        )
+
         return jsonify(
             ok=True,
             deposit_id=deposit_id,
             status="PENDING_REVIEW",
-            message="Receipt sent to admin. Await review.",
+            message=(
+                "Receipt sent to admin. Await review."
+            ),
         ), 200
 
     except Exception:
-        logging.exception("Deposit receipt upload failed: #%s", deposit_id)
+        logging.exception(
+            "Deposit receipt upload failed: #%s",
+            deposit_id,
+        )
+
         return jsonify(
-            ok=False, error="Upload failed. Please check Render Logs."
+            ok=False,
+            error=(
+                "Upload failed. "
+                "Please check Render Logs."
+            ),
         ), 500
 
 
@@ -690,6 +1055,7 @@ async def review_deposit(
     context: ContextTypes.DEFAULT_TYPE,
 ):
     query = update.callback_query
+
     if not query:
         return
 
@@ -698,33 +1064,58 @@ async def review_deposit(
         or not update.effective_user
         or update.effective_user.id != ADMIN_ID
     ):
-        await query.answer("Not authorized.", show_alert=True)
+        await query.answer(
+            "Not authorized.",
+            show_alert=True,
+        )
         return
 
     try:
-        _, action, deposit_id_text = query.data.split(":")
+        _, action, deposit_id_text = (
+            query.data.split(":")
+        )
+
         deposit_id = int(deposit_id_text)
+
     except Exception:
-        await query.answer("Invalid request.")
+        await query.answer(
+            "Invalid request."
+        )
         return
 
     if action not in ("approve", "reject"):
-        await query.answer("Invalid action.")
+        await query.answer(
+            "Invalid action."
+        )
         return
 
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    status = "APPROVED" if action == "approve" else "REJECTED"
+    now = datetime.now(
+        timezone.utc
+    ).isoformat(timespec="seconds")
+
+    status = (
+        "APPROVED"
+        if action == "approve"
+        else "REJECTED"
+    )
 
     try:
         with db_lock, connect() as c:
             c.execute("BEGIN IMMEDIATE")
-            row = c.execute(
-                "SELECT * FROM deposits WHERE id=?", (deposit_id,)
-            ).fetchone()
+
+            row = c.execute("""
+                SELECT *
+                FROM deposits
+                WHERE id=?
+            """, (deposit_id,)).fetchone()
 
             if not row:
-                await query.answer("Request not found.", show_alert=True)
+                await query.answer(
+                    "Request not found.",
+                    show_alert=True,
+                )
                 return
+
             if row["status"] != "PENDING":
                 await query.answer(
                     "Already reviewed: " + row["status"],
@@ -732,7 +1123,10 @@ async def review_deposit(
                 )
                 return
 
-            if action == "approve" and row["receipt_path"] != "TELEGRAM_SENT":
+            if (
+                action == "approve"
+                and row["receipt_path"] != "TELEGRAM_SENT"
+            ):
                 await query.answer(
                     "Receipt not confirmed. Do not approve.",
                     show_alert=True,
@@ -741,32 +1135,56 @@ async def review_deposit(
 
             cur = c.execute("""
                 UPDATE deposits
-                SET status=?, reviewed=?, reviewed_by=?
-                WHERE id=? AND status='PENDING'
-            """, (status, now, update.effective_user.id, deposit_id))
+                SET status=?,
+                    reviewed=?,
+                    reviewed_by=?
+                WHERE id=?
+                  AND status='PENDING'
+            """, (
+                status,
+                now,
+                update.effective_user.id,
+                deposit_id,
+            ))
 
             if cur.rowcount != 1:
-                await query.answer("Already processed.", show_alert=True)
+                await query.answer(
+                    "Already processed.",
+                    show_alert=True,
+                )
                 return
 
             if action == "approve":
                 credited = c.execute("""
-                    UPDATE users SET balance=balance+? WHERE user_id=?
-                """, (int(row["amount"]), int(row["user_id"])))
+                    UPDATE users
+                    SET balance=balance+?
+                    WHERE user_id=?
+                """, (
+                    int(row["amount"]),
+                    int(row["user_id"]),
+                ))
 
                 if credited.rowcount != 1:
-                    raise RuntimeError("Deposit owner account missing.")
+                    raise RuntimeError(
+                        "Deposit owner account missing."
+                    )
 
-        # Transaction has committed.
+        # Database transaction commits on context exit.
 
     except Exception:
-        logging.exception("Deposit review failed: #%s", deposit_id)
+        logging.exception(
+            "Deposit review failed: #%s",
+            deposit_id,
+        )
+
         try:
             await query.answer(
-                "Review failed. Check server logs.", show_alert=True
+                "Review failed. Check server logs.",
+                show_alert=True,
             )
         except Exception:
             pass
+
         return
 
     try:
@@ -775,22 +1193,29 @@ async def review_deposit(
         pass
 
     try:
-        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_reply_markup(
+            reply_markup=None
+        )
     except Exception:
-        logging.exception("Could not remove review buttons.")
+        logging.exception(
+            "Could not remove review buttons."
+        )
 
     try:
         await query.message.reply_text(
             f"Deposit #{deposit_id}: {status}."
         )
     except Exception:
-        logging.exception("Could not post review result.")
+        logging.exception(
+            "Could not post review result."
+        )
 
     try:
         if action == "approve":
             message = (
                 f"✅ Deposit #{deposit_id} APPROVED.\n"
-                f"{row['amount']} ETB has been credited to your game balance."
+                f"{row['amount']} ETB has been "
+                f"credited to your game balance."
             )
         else:
             message = (
@@ -802,6 +1227,7 @@ async def review_deposit(
             chat_id=int(row["user_id"]),
             text=message,
         )
+
     except Exception:
         logging.exception(
             "Could not notify user about deposit decision."
@@ -825,7 +1251,9 @@ async def start(
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton(
             "🎰 OPEN MULTI HOT MEGAWIN",
-            web_app=WebAppInfo(url=WEBAPP_URL),
+            web_app=WebAppInfo(
+                url=WEBAPP_URL
+            ),
         )
     ]])
 
@@ -858,21 +1286,38 @@ async def run_bot():
     global bot_app, bot_loop
 
     if not BOT_TOKEN:
-        logging.error("BOT_TOKEN is missing.")
+        logging.error(
+            "BOT_TOKEN is missing."
+        )
         return
 
     if not ADMIN_ID:
-        logging.warning("ADMIN_ID is not configured.")
+        logging.warning(
+            "ADMIN_ID is not configured."
+        )
 
     bot_loop = asyncio.get_running_loop()
-    bot_app = Application.builder().token(BOT_TOKEN).build()
 
-    bot_app.add_handler(CommandHandler("start", start))
-    bot_app.add_handler(CommandHandler("help", help_cmd))
-    bot_app.add_handler(CallbackQueryHandler(
-        review_deposit,
-        pattern=r"^dep:(approve|reject):\d+$",
-    ))
+    bot_app = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .build()
+    )
+
+    bot_app.add_handler(
+        CommandHandler("start", start)
+    )
+
+    bot_app.add_handler(
+        CommandHandler("help", help_cmd)
+    )
+
+    bot_app.add_handler(
+        CallbackQueryHandler(
+            review_deposit,
+            pattern=r"^dep:(approve|reject):\d+$",
+        )
+    )
 
     await bot_app.initialize()
     await bot_app.start()
@@ -880,12 +1325,15 @@ async def run_bot():
     if bot_app.updater:
         await bot_app.updater.start_polling()
 
-    logging.info("Telegram polling started.")
+    logging.info(
+        "Telegram polling started."
+    )
+
     await asyncio.Event().wait()
 
 
 # =====================================================
-# RUN
+# RUN FLASK + TELEGRAM
 # =====================================================
 
 if __name__ == "__main__":
@@ -896,6 +1344,8 @@ if __name__ == "__main__":
 
     app.run(
         host="0.0.0.0",
-        port=int(os.getenv("PORT", "10000")),
+        port=int(
+            os.getenv("PORT", "10000")
+        ),
         threaded=True,
     )
